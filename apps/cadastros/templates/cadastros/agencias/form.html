@@ -1,0 +1,226 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ titulo }} - ERP Web{% endblock %}
+
+{% block page_title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <div class="bg-white rounded-lg shadow-sm">
+        <div class="p-6 border-b border-gray-200">
+            <div class="flex items-center">
+                <a href="{% url 'cadastros:agencia_list' %}" 
+                   class="mr-4 text-gray-600 hover:text-gray-800">
+                    <i class="fas fa-arrow-left text-xl"></i>
+                </a>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800">{{ titulo }}</h3>
+                    <p class="text-sm text-gray-600 mt-1">Preencha os dados da agência bancária</p>
+                </div>
+            </div>
+        </div>
+        
+        <form method="post" class="p-6" x-data="{ abaAtiva: 'identificacao' }">
+            {% csrf_token %}
+            
+            <!-- Navegação de Abas -->
+            <div class="mb-6 border-b border-gray-200">
+                <nav class="flex space-x-8" aria-label="Tabs">
+                    <button type="button"
+                            @click="abaAtiva = 'identificacao'"
+                            :class="abaAtiva === 'identificacao' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                        <i class="fas fa-id-card mr-2"></i>
+                        Identificação
+                    </button>
+                    
+                    <button type="button"
+                            @click="abaAtiva = 'cobranca'"
+                            :class="abaAtiva === 'cobranca' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                        <i class="fas fa-money-bill-wave mr-2"></i>
+                        Cobrança
+                    </button>
+                    
+                    <button type="button"
+                            @click="abaAtiva = 'boleto'"
+                            :class="abaAtiva === 'boleto' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                        <i class="fas fa-file-invoice-dollar mr-2"></i>
+                        Boleto Bancário
+                    </button>
+                </nav>
+            </div>
+            
+            <!-- Aba 1: Identificação -->
+            <div x-show="abaAtiva === 'identificacao'" x-transition>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
+                        <label for="{{ form.banco.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Banco <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.banco }}
+                        {% if form.banco.errors %}
+                            <div class="mt-2 text-sm text-red-600">
+                                {% for error in form.banco.errors %}
+                                    <p><i class="fas fa-exclamation-circle mr-1"></i>{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.agencia.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Nº da Agência <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.agencia }}
+                        {% if form.agencia.errors %}
+                            <div class="mt-2 text-sm text-red-600">
+                                {% for error in form.agencia.errors %}
+                                    <p>{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.digito.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Dígito
+                        </label>
+                        {{ form.digito }}
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.telefone.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Telefone
+                        </label>
+                        {{ form.telefone }}
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.nome_gerente.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Nome do Gerente
+                        </label>
+                        {{ form.nome_gerente }}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Aba 2: Configurações de Cobrança -->
+            <div x-show="abaAtiva === 'cobranca'" x-transition>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label for="{{ form.valor_juros.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Juros por Dia de Atraso (%)
+                        </label>
+                        {{ form.valor_juros }}
+                        <p class="mt-1 text-xs text-gray-500">Percentual cobrado por dia</p>
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.valor_multa_por_atraso.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Multa por Atraso (%)
+                        </label>
+                        {{ form.valor_multa_por_atraso }}
+                        <p class="mt-1 text-xs text-gray-500">Percentual de multa</p>
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.dias_para_protesto.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Dias para Protesto
+                        </label>
+                        {{ form.dias_para_protesto }}
+                        <p class="mt-1 text-xs text-gray-500">Dias após vencimento</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Aba 3: Configurações de Boleto -->
+            <div x-show="abaAtiva === 'boleto'" x-transition>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="{{ form.carteira.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Carteira
+                        </label>
+                        {{ form.carteira }}
+                        <p class="mt-1 text-xs text-gray-500">Nº da carteira para boletos</p>
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.codigo_cedente.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Código do Cedente
+                        </label>
+                        {{ form.codigo_cedente }}
+                        <p class="mt-1 text-xs text-gray-500">Informado pelo banco</p>
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.convenio.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Convênio
+                        </label>
+                        {{ form.convenio }}
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.especie_documento.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Espécie do Documento
+                        </label>
+                        {{ form.especie_documento }}
+                        <p class="mt-1 text-xs text-gray-500">Ex: DM (Duplicata Mercantil)</p>
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.layout_remessa.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Layout de Remessa
+                        </label>
+                        {{ form.layout_remessa }}
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.codigo_transmissao.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Código de Transmissão
+                        </label>
+                        {{ form.codigo_transmissao }}
+                    </div>
+                    
+                    <div class="md:col-span-2">
+                        <label for="{{ form.modalidade.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Modalidade
+                        </label>
+                        {{ form.modalidade }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex items-center justify-between pt-6 mt-6 border-t border-gray-200">
+                <a href="{% url 'cadastros:agencia_list' %}" 
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">
+                    <i class="fas fa-times mr-2"></i>
+                    Cancelar
+                </a>
+                
+                <button type="submit" 
+                        class="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                    <i class="fas fa-check mr-2"></i>
+                    {{ botao_texto }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    form input, form select, form textarea {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+    }
+    form input:focus, form select:focus, form textarea:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+</style>
+{% endblock %}

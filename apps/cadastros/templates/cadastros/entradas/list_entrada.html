@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% block title %}Entradas de NF{% endblock %}
+{% block page_title %}📦 Entradas de Nota Fiscal{% endblock %}
+{% block content %}
+<div class="space-y-4">
+    
+    <!-- Filtros -->
+    <div class="bg-white rounded-lg shadow p-4">
+        <h3 class="text-sm font-bold mb-3">
+            <i class="fas fa-filter mr-2"></i>Filtros
+        </h3>
+        
+        <form method="get" class="grid grid-cols-5 gap-3">
+            <div>
+                <label class="block text-xs font-medium mb-1">Data Inicial</label>
+                <input type="date" name="data_ini" value="{{ filtros.data_ini }}" 
+                       class="w-full px-3 py-2 text-sm border rounded-lg">
+            </div>
+            
+            <div>
+                <label class="block text-xs font-medium mb-1">Data Final</label>
+                <input type="date" name="data_fim" value="{{ filtros.data_fim }}" 
+                       class="w-full px-3 py-2 text-sm border rounded-lg">
+            </div>
+            
+            <div class="col-span-2">
+                <label class="block text-xs font-medium mb-1">Fornecedor</label>
+                <input type="text" name="fornecedor" value="{{ filtros.fornecedor }}" 
+                       placeholder="Nome do fornecedor"
+                       class="w-full px-3 py-2 text-sm border rounded-lg">
+            </div>
+            
+            <div>
+                <label class="block text-xs font-medium mb-1">Nº NF</label>
+                <input type="number" name="numero_nf" value="{{ filtros.numero_nf }}" 
+                       class="w-full px-3 py-2 text-sm border rounded-lg">
+            </div>
+            
+            <div class="col-span-5 flex gap-2">
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    <i class="fas fa-search mr-2"></i>Buscar
+                </button>
+                <a href="{% url 'cadastros:entrada_nf' %}" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                    <i class="fas fa-plus mr-2"></i>Nova Entrada
+                </a>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Listagem -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="p-4 border-b">
+            <h3 class="text-sm font-bold">
+                <i class="fas fa-list mr-2"></i>
+                Entradas Cadastradas ({{ entradas|length }})
+            </h3>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-4 py-3 text-left">Nº NF</th>
+                    <th class="px-4 py-3 text-left">Série</th>
+                    <th class="px-4 py-3 text-left">Fornecedor</th>
+                    <th class="px-4 py-3 text-center">Data</th>
+                    <th class="px-4 py-3 text-center">CFOP</th>
+                    <th class="px-4 py-3 text-right">Valor Total</th>
+                    <th class="px-4 py-3 text-center">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="text-sm divide-y divide-gray-200 bg-white">
+                {% for entrada in entradas %}
+                <tr class="hover:bg-blue-50">
+                    <td class="px-4 py-3 font-bold">{{ entrada.nro_documento|default:"-" }}</td>
+                    
+                    <td class="px-4 py-3">{{ entrada.serie|default:"-" }}</td>
+                    
+                    <td class="px-4 py-3">{{ entrada.pessoa.nome|default:"-" }}</td>
+                    <td class="px-4 py-3 text-center">{{ entrada.data|date:"d/m/Y" }}</td>
+                    
+                    <td class="px-4 py-3 text-center">{{ entrada.cfop|default:"-" }}</td>
+                    
+                    <td class="px-4 py-3 text-right font-bold text-green-700">R$ {{ entrada.vr_total_bruto|floatformat:2 }}</td>
+                    
+                    <td class="px-4 py-3 text-center space-x-3">
+                        <a href="{% url 'cadastros:detalhe_entrada' entrada.pk %}" class="text-blue-600"><i class="fas fa-eye text-lg"></i></a>
+                        <a href="{% url 'cadastros:editar_entrada' entrada.pk %}" class="text-yellow-500"><i class="fas fa-edit text-lg"></i></a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

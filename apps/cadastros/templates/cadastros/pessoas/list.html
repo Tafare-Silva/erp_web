@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+{% block title %}Pessoas - ERP Web{% endblock %}
+{% block page_title %}Pessoas{% endblock %}
+{% block content %}
+<div class="bg-white rounded-lg shadow-sm">
+    <div class="p-6 border-b border-gray-200">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div class="flex-1">
+                <h3 class="text-lg font-semibold text-gray-800">Cadastro de Pessoas</h3>
+                <p class="text-sm text-gray-600 mt-1">Gerenciar clientes, fornecedores e funcionários</p>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-3">
+                <form method="get" class="flex gap-2">
+                    <input type="text" name="q" value="{{ search }}" placeholder="Buscar pessoa..." 
+                           class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <select name="tipo" class="px-4 py-2 border border-gray-300 rounded-lg" onchange="this.form.submit()">
+                        <option value="">Todos os Tipos</option>
+                        <option value="cliente" {% if tipo_filtro == 'cliente' %}selected{% endif %}>Clientes</option>
+                        <option value="fornecedor" {% if tipo_filtro == 'fornecedor' %}selected{% endif %}>Fornecedores</option>
+                    </select>
+                </form>
+                <a href="{% url 'cadastros:pessoa_create' %}" 
+                   class="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition whitespace-nowrap">
+                    <i class="fas fa-plus mr-2"></i>Nova Pessoa
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">CPF/CNPJ</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contato</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
+                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for pessoa in pessoas %}
+                <tr class="hover:bg-gray-50 transition">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 h-10 w-10 rounded-lg flex items-center justify-center
+                                        {% if pessoa.cliente %}bg-blue-100
+                                        {% elif pessoa.fornecedor %}bg-orange-100
+                                        {% else %}bg-gray-100{% endif %}">
+                                <i class="fas fa-user 
+                                          {% if pessoa.cliente %}text-blue-600
+                                          {% elif pessoa.fornecedor %}text-orange-600
+                                          {% else %}text-gray-600{% endif %}"></i>
+                            </div>
+                            <div class="ml-4">
+                                <a href="{% url 'cadastros:pessoa_detail' pessoa.chave %}" class="text-sm font-medium text-gray-900 hover:text-blue-600">{{ pessoa.nome }}</a>
+                                {% if pessoa.nome_fantasia %}
+                                <div class="text-sm text-gray-500">{{ pessoa.nome_fantasia }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">{{ pessoa.cpf_cnpj }}</div>
+                        {% if pessoa.rg_ie %}
+                        <div class="text-sm text-gray-500">RG/IE: {{ pessoa.rg_ie }}</div>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4">
+                        {% if pessoa.email %}
+                        <div class="text-sm text-gray-900">
+                            <i class="fas fa-envelope text-gray-400 mr-1"></i>{{ pessoa.email }}
+                        </div>
+                        {% endif %}
+                        {% if pessoa.telefone_fixo %}
+                        <div class="text-sm text-gray-500">
+                            <i class="fas fa-phone text-gray-400 mr-1"></i>{{ pessoa.telefone_fixo }}
+                        </div>
+                        {% endif %}
+                        {% if pessoa.celular_principal %}
+                        <div class="text-sm text-gray-500">
+                            <i class="fas fa-mobile-alt text-gray-400 mr-1"></i>{{ pessoa.celular_principal }}
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex flex-wrap gap-1">
+                            {% if pessoa.cliente %}
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Cliente</span>
+                            {% endif %}
+                            {% if pessoa.fornecedor %}
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">Fornecedor</span>
+                            {% endif %}
+                            {% if pessoa.funcionario %}
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Funcionário</span>
+                            {% endif %}
+                            {% if pessoa.transportador %}
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">Transportador</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                        {% if pessoa.inativo %}
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Inativo</span>
+                        {% else %}
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Ativo</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div class="flex items-center justify-end gap-2">
+                            <a href="{% url 'cadastros:pessoa_update' pessoa.chave %}" 
+                               class="inline-flex items-center px-3 py-1.5 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 transition">
+                                <i class="fas fa-edit mr-1"></i>Editar
+                            </a>
+                            <a href="{% url 'cadastros:pessoa_delete' pessoa.chave %}" 
+                               class="inline-flex items-center px-3 py-1.5 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition">
+                                <i class="fas fa-trash mr-1"></i>Excluir
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="px-6 py-12 text-center">
+                        <div class="flex flex-col items-center">
+                            <i class="fas fa-inbox text-4xl text-gray-300 mb-3"></i>
+                            <p class="text-gray-500 text-sm">{% if search %}Nenhuma pessoa encontrada{% else %}Nenhuma pessoa cadastrada{% endif %}</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Paginação -->
+    {% if is_paginated %}
+    <div class="px-6 py-4 border-t border-gray-200">
+        <div class="flex items-center justify-between">
+            <div class="text-sm text-gray-700">
+                Mostrando {{ page_obj.start_index }} a {{ page_obj.end_index }} de {{ paginator.count }} pessoas
+            </div>
+            <nav class="flex gap-2">
+                {% if page_obj.has_previous %}
+                <a href="?page=1{% if search %}&q={{ search }}{% endif %}{% if tipo_filtro %}&tipo={{ tipo_filtro }}{% endif %}" 
+                   class="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                    <i class="fas fa-angle-double-left"></i>
+                </a>
+                <a href="?page={{ page_obj.previous_page_number }}{% if search %}&q={{ search }}{% endif %}{% if tipo_filtro %}&tipo={{ tipo_filtro }}{% endif %}" 
+                   class="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                    <i class="fas fa-angle-left"></i>
+                </a>
+                {% endif %}
+                
+                <span class="px-3 py-2 bg-blue-600 text-white rounded-lg">
+                    {{ page_obj.number }}
+                </span>
+                
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if search %}&q={{ search }}{% endif %}{% if tipo_filtro %}&tipo={{ tipo_filtro }}{% endif %}" 
+                   class="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                    <i class="fas fa-angle-right"></i>
+                </a>
+                <a href="?page={{ paginator.num_pages }}{% if search %}&q={{ search }}{% endif %}{% if tipo_filtro %}&tipo={{ tipo_filtro }}{% endif %}" 
+                   class="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                    <i class="fas fa-angle-double-right"></i>
+                </a>
+                {% endif %}
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

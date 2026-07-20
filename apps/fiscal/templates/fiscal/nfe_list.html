@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+{% block title %}NF-e / NFC-e{% endblock %}
+{% block page_title %}<i class="fas fa-file-invoice text-blue-600"></i> NF-e / NFC-e{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-6">
+    <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div class="flex gap-2">
+            <a href="{% url 'fiscal:nfe_create_manual' %}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                <i class="fas fa-plus"></i> Nova NF-e
+            </a>
+            <a href="{% url 'fiscal:certificado_list' %}" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700">
+                <i class="fas fa-shield"></i> Certificados
+            </a>
+            <a href="{% url 'fiscal:nfe_testar_sefaz' %}" class="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700">
+                <i class="fas fa-plug"></i> Testar SEFAZ
+            </a>
+            <button id="btnEnviarLote" onclick="enviarSelecionadas()" disabled
+                    class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fas fa-upload"></i> Enviar Selecionadas
+            </button>
+        </div>
+        <form method="get" class="flex flex-wrap gap-2 items-end">
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Cliente</label>
+                <input type="text" name="cliente" value="{{ cliente_filter }}" placeholder="Nome ou CPF/CNPJ"
+                       class="border rounded px-3 py-2 text-sm w-40">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">De</label>
+                <input type="date" name="dt_ini" value="{{ dt_ini_filter }}"
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Até</label>
+                <input type="date" name="dt_fim" value="{{ dt_fim_filter }}"
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Modelo</label>
+                <select name="modelo" class="border rounded px-3 py-2 text-sm">
+                    <option value="">Todos</option>
+                    <option value="55" {% if modelo_filter == '55' %}selected{% endif %}>NF-e (55)</option>
+                    <option value="65" {% if modelo_filter == '65' %}selected{% endif %}>NFC-e (65)</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Status</label>
+                <select name="status" class="border rounded px-3 py-2 text-sm">
+                    <option value="">Todos</option>
+                    <option value="DIGITACAO" {% if status_filter == 'DIGITACAO' %}selected{% endif %}>Digitação</option>
+                    <option value="VALIDADO" {% if status_filter == 'VALIDADO' %}selected{% endif %}>Validado</option>
+                    <option value="AUTORIZADO" {% if status_filter == 'AUTORIZADO' %}selected{% endif %}>Autorizado</option>
+                    <option value="REJEITADO" {% if status_filter == 'REJEITADO' %}selected{% endif %}>Rejeitado</option>
+                    <option value="CANCELADO" {% if status_filter == 'CANCELADO' %}selected{% endif %}>Cancelado</option>
+                    <option value="DENEGADO" {% if status_filter == 'DENEGADO' %}selected{% endif %}>Denegado</option>
+                </select>
+            </div>
+            <button type="submit" class="bg-gray-500 text-white px-3 py-2 rounded hover:bg-gray-600">
+                <i class="fas fa-filter"></i> Filtrar
+            </button>
+            <a href="{% url 'fiscal:nfe_list' %}" class="bg-gray-200 text-gray-600 px-3 py-2 rounded hover:bg-gray-300">
+                <i class="fas fa-times"></i>
+            </a>
+        </form>
+    </div>
+
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-100 border-b">
+                    <tr>
+                        <th class="px-3 py-3 text-center w-10">
+                            <input type="checkbox" id="selectAll" onchange="toggleAll(this)" class="rounded">
+                        </th>
+                        <th class="px-3 py-3 text-left font-bold">Número</th>
+                        <th class="px-3 py-3 text-left font-bold">Série</th>
+                        <th class="px-3 py-3 text-left font-bold">Destinatário</th>
+                        <th class="px-3 py-3 text-center font-bold">Modelo</th>
+                        <th class="px-3 py-3 text-center font-bold">Status</th>
+                        <th class="px-3 py-3 text-right font-bold">Valor</th>
+                        <th class="px-3 py-3 text-center font-bold">Emissão</th>
+                        <th class="px-3 py-3 text-center font-bold">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for nota in notas %}
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="px-3 py-3 text-center">
+                            <input type="checkbox" class="nfe-checkbox rounded" value="{{ nota.pk }}"
+                                   onchange="atualizarBtnLote()"
+                                   {% if nota.status != 'VALIDADO' and nota.status != 'DIGITACAO' %}disabled{% endif %}>
+                        </td>
+                        <td class="px-3 py-3 font-medium">{{ nota.numero }}</td>
+                        <td class="px-3 py-3">{{ nota.serie }}</td>
+                        <td class="px-3 py-3">{{ nota.destinatario.nome|truncatechars:40 }}</td>
+                        <td class="px-3 py-3 text-center">
+                            <span class="px-2 py-1 rounded text-xs font-bold {% if nota.modelo == '55' %}bg-blue-100 text-blue-700{% else %}bg-green-100 text-green-700{% endif %}">
+                                {{ nota.get_modelo_display }}
+                            </span>
+                        </td>
+                        <td class="px-3 py-3 text-center">
+                            <span class="px-2 py-1 rounded text-xs font-bold
+                                {% if nota.status == 'AUTORIZADO' %}bg-green-100 text-green-700
+                                {% elif nota.status == 'REJEITADO' or nota.status == 'DENEGADO' %}bg-red-100 text-red-700
+                                {% elif nota.status == 'CANCELADO' %}bg-gray-100 text-gray-700
+                                {% elif nota.status == 'DIGITACAO' or nota.status == 'VALIDADO' %}bg-yellow-100 text-yellow-700
+                                {% else %}bg-blue-100 text-blue-700{% endif %}">
+                                {{ nota.get_status_display }}
+                            </span>
+                            {% if nota.mensagem_retorno and nota.status in 'REJEITADO,DENEGADO' %}
+                            <div class="text-red-600 text-xs mt-1 max-w-[200px] truncate" title="{{ nota.mensagem_retorno }}">
+                                {{ nota.mensagem_retorno|truncatechars:35 }}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td class="px-3 py-3 text-right font-medium">R$ {{ nota.valor_total|floatformat:2 }}</td>
+                        <td class="px-3 py-3 text-center text-xs">{{ nota.data_emissao|date:"d/m/Y H:i" }}</td>
+                        <td class="px-3 py-3 text-center">
+                            <div class="flex items-center justify-center gap-1">
+                                <a href="{% url 'fiscal:nfe_detail' nota.pk %}" class="text-blue-600 hover:text-blue-800 p-1" title="Detalhes">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if nota.status == 'AUTORIZADO' %}
+                                <a href="{% url 'fiscal:nfe_danfe' nota.pk %}" class="text-green-600 hover:text-green-800 p-1" title="DANFE" target="_blank">
+                                    <i class="fas fa-file-pdf"></i>
+                                </a>
+                                <a href="{% url 'fiscal:nfe_cancelar' nota.pk %}" class="text-red-600 hover:text-red-800 p-1" title="Cancelar">
+                                    <i class="fas fa-ban"></i>
+                                </a>
+                                <a href="{% url 'fiscal:nfe_cce' nota.pk %}" class="text-yellow-600 hover:text-yellow-800 p-1" title="Carta de Correção">
+                                    <i class="fas fa-pen"></i>
+                                </a>
+                                {% elif nota.status == 'REJEITADO' or nota.status == 'DENEGADO' %}
+                                <a href="{% url 'fiscal:nfe_reabrir' nota.pk %}" class="text-orange-600 hover:text-orange-800 p-1" title="Reabrir para corrigir e reenviar" onclick="return confirm('Reabrir esta NF-e para correção?')">
+                                    <i class="fas fa-redo"></i>
+                                </a>
+                                {% endif %}
+                                {% if nota.xml_enviado %}
+                                <a href="{% url 'fiscal:nfe_download_xml' nota.pk %}" class="text-purple-600 hover:text-purple-800 p-1" title="Download XML">
+                                    <i class="fas fa-file-code"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="px-4 py-8 text-center text-gray-400">
+                            <i class="fas fa-file-invoice text-3xl mb-2"></i>
+                            <p>Nenhuma NF-e emitida ainda</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if is_paginated %}
+    <div class="flex justify-center mt-6 gap-2">
+        {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}&status={{ status_filter }}&modelo={{ modelo_filter }}&cliente={{ cliente_filter }}&dt_ini={{ dt_ini_filter }}&dt_fim={{ dt_fim_filter }}"
+               class="px-4 py-2 bg-white border rounded hover:bg-gray-50">Anterior</a>
+        {% endif %}
+        <span class="px-4 py-2 bg-blue-600 text-white rounded">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}&status={{ status_filter }}&modelo={{ modelo_filter }}&cliente={{ cliente_filter }}&dt_ini={{ dt_ini_filter }}&dt_fim={{ dt_fim_filter }}"
+               class="px-4 py-2 bg-white border rounded hover:bg-gray-50">Próxima</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function toggleAll(master) {
+    document.querySelectorAll('.nfe-checkbox:not(:disabled)').forEach(cb => cb.checked = master.checked);
+    atualizarBtnLote();
+}
+function atualizarBtnLote() {
+    const checked = document.querySelectorAll('.nfe-checkbox:checked').length;
+    document.getElementById('btnEnviarLote').disabled = checked === 0;
+}
+function enviarSelecionadas() {
+    const ids = Array.from(document.querySelectorAll('.nfe-checkbox:checked')).map(cb => cb.value);
+    if (!ids.length) return;
+    if (!confirm(`Enviar ${ids.length} NF-e(s) para autorização?`)) return;
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{% url "fiscal:nfe_enviar_lote" %}';
+    const csrf = document.createElement('input');
+    csrf.type = 'hidden';
+    csrf.name = 'csrfmiddlewaretoken';
+    csrf.value = '{{ csrf_token }}';
+    form.appendChild(csrf);
+    ids.forEach(id => {
+        const inp = document.createElement('input');
+        inp.type = 'hidden';
+        inp.name = 'nfe_ids';
+        inp.value = id;
+        form.appendChild(inp);
+    });
+    document.body.appendChild(form);
+    form.submit();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+
+{% block title %}Controle de Caixa - ERP Blanjos{% endblock %}
+
+{% block page_title %}Controle de Caixa{% endblock %}
+
+{% block content %}
+<div class="p-6" x-data="controleCaixa()">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Status do Caixa -->
+        <div class="bg-white rounded-2xl shadow-lg p-6 border flex flex-col items-center justify-center text-center space-y-4">
+            <div class="w-20 h-20 rounded-full flex items-center justify-center text-3xl shadow-inner"
+                 :class="caixa.aberto ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'">
+                <i class="fas" :class="caixa.aberto ? 'fa-lock-open' : 'fa-lock'"></i>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold text-gray-900" x-text="caixa.aberto ? 'Caixa Aberto' : 'Caixa Fechado'"></h3>
+                <p class="text-sm text-gray-500" x-show="caixa.aberto" x-text="'Desde ' + caixa.data_abertura"></p>
+            </div>
+            
+            <template x-if="!caixa.aberto">
+                <div class="w-full space-y-3">
+                    <label class="block text-sm font-bold text-gray-700 text-left">Valor de Abertura (Fundo)</label>
+                    <input type="number" step="0.01" x-model="valor_abertura" class="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                    <button @click="abrirCaixa()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-smooth shadow-lg">
+                        ABRIR CAIXA AGORA
+                    </button>
+                </div>
+            </template>
+
+            <template x-if="caixa.aberto">
+                <div class="w-full space-y-3">
+                    <div class="bg-gray-50 rounded-lg p-4 text-left space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Valor Abertura:</span>
+                            <span class="font-bold text-gray-900" x-text="'R$ ' + caixa.valor_abertura"></span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Total Entradas:</span>
+                            <span class="font-bold text-green-600" x-text="'R$ ' + caixa.entradas"></span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Total Saídas:</span>
+                            <span class="font-bold text-red-600" x-text="'R$ ' + caixa.saidas"></span>
+                        </div>
+                        <div class="flex justify-between text-lg mt-2 pt-2 border-t">
+                            <span class="font-bold text-gray-700">Saldo Atual:</span>
+                            <span class="font-bold text-blue-700" x-text="'R$ ' + caixa.saldo_atual"></span>
+                        </div>
+                    </div>
+                    <button @click="fecharCaixa()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg transition-smooth shadow-lg">
+                        FECHAR CAIXA
+                    </button>
+                </div>
+            </template>
+        </div>
+
+        <!-- Últimas Movimentações -->
+        <div class="lg:col-span-2 bg-white rounded-2xl shadow-lg border overflow-hidden">
+            <div class="px-6 py-4 border-b bg-gray-50 flex justify-between items-center">
+                <h3 class="font-bold text-gray-900">Movimentações do Caixa</h3>
+                <div class="flex gap-2">
+                    <button @click="abrirModalOperacao('E')" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-xs font-bold hover:bg-blue-200">Suprimento</button>
+                    <button @click="abrirModalOperacao('S')" class="bg-red-100 text-red-700 px-3 py-1 rounded text-xs font-bold hover:bg-red-200">Sangria</button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead class="bg-gray-50 text-xs text-gray-500 uppercase font-bold border-b">
+                        <tr>
+                            <th class="px-6 py-3">Hora</th>
+                            <th class="px-6 py-3">Descrição</th>
+                            <th class="px-6 py-3">Tipo Pgto</th>
+                            <th class="px-6 py-3 text-right">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <template x-if="!caixa.movimentacoes || caixa.movimentacoes.length === 0">
+                            <tr>
+                                <td colspan="4" class="px-6 py-10 text-center text-gray-400 italic">Nenhuma movimentação registrada.</td>
+                            </tr>
+                        </template>
+                        <template x-for="m in caixa.movimentacoes" :key="m.id">
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 text-sm" x-text="m.hora"></td>
+                                <td class="px-6 py-4 text-sm font-medium" x-text="m.descricao"></td>
+                                <td class="px-6 py-4 text-sm" x-text="m.tipo_pgto"></td>
+                                <td class="px-6 py-4 text-sm text-right font-bold" 
+                                    :class="m.tipo === 'E' ? 'text-green-600' : 'text-red-600'"
+                                    x-text="'R$ ' + m.valor"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Operação (Sangria/Suprimento) -->
+    <div x-show="modalOperacaoOpen" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="modalOperacaoOpen = false"></div>
+            
+            <div class="bg-white rounded-2xl shadow-2xl z-50 w-full max-w-md overflow-hidden transform transition-all">
+                <div class="px-6 py-4 text-white flex justify-between items-center"
+                     :class="formOperacao.tipo === 'E' ? 'bg-blue-600' : 'bg-red-600'">
+                    <h3 class="text-xl font-bold" x-text="formOperacao.tipo === 'E' ? 'Suprimento (Entrada)' : 'Sangria (Saída)'"></h3>
+                    <button @click="modalOperacaoOpen = false" class="hover:opacity-80 p-2 rounded-full transition-smooth">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">Valor</label>
+                        <input type="number" step="0.01" x-model="formOperacao.valor" class="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">Motivo / Histórico</label>
+                        <textarea x-model="formOperacao.historico" class="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-6 py-4 flex justify-end gap-3 border-t">
+                    <button @click="modalOperacaoOpen = false" class="px-6 py-2 border rounded-lg hover:bg-white transition-smooth font-bold">Cancelar</button>
+                    <button @click="confirmarOperacao()" class="px-6 py-2 text-white rounded-lg hover:opacity-90 transition-smooth font-bold shadow-lg"
+                            :class="formOperacao.tipo === 'E' ? 'bg-blue-600' : 'bg-red-600'" :disabled="loading">
+                        <span x-show="!loading">Confirmar</span>
+                        <span x-show="loading"><i class="fas fa-spinner fa-spin mr-2"></i>Processando...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function controleCaixa() {
+    return {
+        caixa: { aberto: false, movimentacoes: [] },
+        valor_abertura: 0,
+        modalOperacaoOpen: false,
+        loading: false,
+        formOperacao: { tipo: 'E', valor: 0, historico: '' },
+        init() {
+            this.carregarStatus();
+        },
+        async carregarStatus() {
+            const res = await fetch("{% url 'cadastros:caixa_status' %}");
+            this.caixa = await res.json();
+        },
+        async abrirCaixa() {
+            try {
+                const res = await fetch("{% url 'cadastros:caixa_abrir' %}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: JSON.stringify({ valor_abertura: this.valor_abertura })
+                });
+                const data = await res.json();
+                if (data.sucesso) {
+                    this.carregarStatus();
+                } else {
+                    alert(data.erro);
+                }
+            } catch (e) {
+                alert('Erro ao abrir caixa');
+            }
+        },
+        abrirModalOperacao(tipo) {
+            this.formOperacao = { tipo: tipo, valor: 0, historico: '' };
+            this.modalOperacaoOpen = true;
+        },
+        async confirmarOperacao() {
+            if (!this.formOperacao.valor || this.formOperacao.valor <= 0) {
+                alert('Informe um valor válido!');
+                return;
+            }
+            this.loading = true;
+            try {
+                const res = await fetch("{% url 'cadastros:caixa_operacao' %}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: JSON.stringify(this.formOperacao)
+                });
+                const data = await res.json();
+                if (data.sucesso) {
+                    this.modalOperacaoOpen = false;
+                    this.carregarStatus();
+                } else {
+                    alert(data.erro);
+                }
+            } catch (e) {
+                alert('Erro ao realizar operação');
+            } finally {
+                this.loading = false;
+            }
+        },
+        async fecharCaixa() {
+            if (!confirm('Deseja realmente fechar o caixa?')) return;
+            try {
+                const res = await fetch("{% url 'cadastros:caixa_fechar' %}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: JSON.stringify({ valor_fechamento: 0 })
+                });
+                const data = await res.json();
+                if (data.sucesso) {
+                    this.carregarStatus();
+                } else {
+                    alert(data.erro);
+                }
+            } catch (e) {
+                alert('Erro ao fechar caixa');
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

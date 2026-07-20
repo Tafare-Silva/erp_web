@@ -1,0 +1,222 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ titulo }} - ERP Web{% endblock %}
+
+{% block page_title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <div class="bg-white rounded-lg shadow-sm">
+        <div class="p-6 border-b border-gray-200">
+            <div class="flex items-center">
+                <a href="{% url 'cadastros:conta_list' %}" 
+                   class="mr-4 text-gray-600 hover:text-gray-800">
+                    <i class="fas fa-arrow-left text-xl"></i>
+                </a>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800">{{ titulo }}</h3>
+                    <p class="text-sm text-gray-600 mt-1">Preencha os dados da conta bancária</p>
+                </div>
+            </div>
+        </div>
+        
+        <form method="post" class="p-6">
+            {% csrf_token %}
+            
+            <!-- Dados da Conta -->
+            <div class="mb-6">
+                <h4 class="text-md font-semibold text-gray-700 mb-4 pb-2 border-b">Dados da Conta</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
+                        <label for="{{ form.banco.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Banco <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.banco }}
+                        {% if form.banco.errors %}
+                            <div class="mt-2 text-sm text-red-600">
+                                {% for error in form.banco.errors %}
+                                    <p><i class="fas fa-exclamation-circle mr-1"></i>{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        {% if form.banco.help_text %}
+                        <p class="mt-1 text-sm text-gray-500">{{ form.banco.help_text }}</p>
+                        {% endif %}
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.agencia.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Agência <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.agencia }}
+                        {% if form.agencia.errors %}
+                            <div class="mt-2 text-sm text-red-600">
+                                {% for error in form.agencia.errors %}
+                                    <p>{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        {% if form.agencia.help_text %}
+                        <p class="mt-1 text-sm text-gray-500">{{ form.agencia.help_text }}</p>
+                        {% endif %}
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.conta.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Conta <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.conta }}
+                        {% if form.conta.errors %}
+                            <div class="mt-2 text-sm text-red-600">
+                                {% for error in form.conta.errors %}
+                                    <p>{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.digito.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Dígito
+                        </label>
+                        {{ form.digito }}
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.tipo_conta_bancaria.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Tipo de Conta <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.tipo_conta_bancaria }}
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.saldo_inicial.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Saldo Inicial
+                        </label>
+                        {{ form.saldo_inicial }}
+                    </div>
+                    
+                    <div class="md:col-span-2">
+                        <label for="{{ form.descricao_propria.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Descrição Própria
+                        </label>
+                        {{ form.descricao_propria }}
+                        {% if form.descricao_propria.help_text %}
+                        <p class="mt-1 text-sm text-gray-500">{{ form.descricao_propria.help_text }}</p>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="md:col-span-2">
+                        <div class="flex items-center">
+                            {{ form.inativo }}
+                            <label for="{{ form.inativo.id_for_label }}" class="ml-2 text-sm text-gray-700">
+                                Conta Inativa
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Validação de erros não-field -->
+            {% if form.non_field_errors %}
+                <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    {% for error in form.non_field_errors %}
+                        <p class="text-sm text-red-600"><i class="fas fa-exclamation-triangle mr-2"></i>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            
+            <div class="flex items-center justify-between pt-6 border-t border-gray-200">
+                <a href="{% url 'cadastros:conta_list' %}" 
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">
+                    <i class="fas fa-times mr-2"></i>
+                    Cancelar
+                </a>
+                
+                <button type="submit" 
+                        class="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                    <i class="fas fa-check mr-2"></i>
+                    {{ botao_texto }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    form input, form select, form textarea {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+    }
+    form input:focus, form select:focus, form textarea:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    form input[type="checkbox"] {
+        width: auto;
+        height: 1rem;
+        margin: 0;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const bancoSelect = document.getElementById('id_banco');
+    const agenciaSelect = document.getElementById('id_agencia');
+    
+    if (bancoSelect && agenciaSelect) {
+        // Guardar todas as opções originais
+        const todasAgencias = Array.from(agenciaSelect.options);
+        
+        bancoSelect.addEventListener('change', function() {
+            const bancoSelecionado = this.value;
+            
+            // Limpar select de agências
+            agenciaSelect.innerHTML = '';
+            
+            if (!bancoSelecionado) {
+                // Se nenhum banco selecionado, mostrar mensagem
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = '--- Selecione o banco primeiro ---';
+                agenciaSelect.appendChild(option);
+            } else {
+                // Adicionar opção vazia
+                const optionVazia = document.createElement('option');
+                optionVazia.value = '';
+                optionVazia.textContent = '--- Selecione uma agência ---';
+                agenciaSelect.appendChild(optionVazia);
+                
+                // Filtrar agências pelo banco selecionado
+                let encontradas = 0;
+                todasAgencias.forEach(option => {
+                    if (option.value && option.value.startsWith(bancoSelecionado + '-')) {
+                        agenciaSelect.appendChild(option.cloneNode(true));
+                        encontradas++;
+                    }
+                });
+                
+                // Se não encontrou nenhuma, avisar
+                if (encontradas === 0) {
+                    const optionSemAgencia = document.createElement('option');
+                    optionSemAgencia.value = '';
+                    optionSemAgencia.textContent = '--- Nenhuma agência cadastrada para este banco ---';
+                    agenciaSelect.appendChild(optionSemAgencia);
+                }
+            }
+        });
+        
+        // Trigger change ao carregar (para edição)
+        if (bancoSelect.value) {
+            const agenciaAtual = agenciaSelect.value;
+            bancoSelect.dispatchEvent(new Event('change'));
+            agenciaSelect.value = agenciaAtual;
+        }
+    }
+});
+</script>
+{% endblock %}

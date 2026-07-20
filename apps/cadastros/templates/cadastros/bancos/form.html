@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ titulo }} - ERP Web{% endblock %}
+
+{% block page_title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="bg-white rounded-lg shadow-sm">
+        <div class="p-6 border-b border-gray-200">
+            <div class="flex items-center">
+                <a href="{% url 'cadastros:banco_list' %}" 
+                   class="mr-4 text-gray-600 hover:text-gray-800">
+                    <i class="fas fa-arrow-left text-xl"></i>
+                </a>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800">{{ titulo }}</h3>
+                    <p class="text-sm text-gray-600 mt-1">Preencha os dados do banco</p>
+                </div>
+            </div>
+        </div>
+        
+        <form method="post" class="p-6" x-data="{ abaAtiva: 'identificacao' }">
+            {% csrf_token %}
+            
+            <!-- Navegação de Abas -->
+            <div class="mb-6 border-b border-gray-200">
+                <nav class="flex space-x-8" aria-label="Tabs">
+                    <button type="button"
+                            @click="abaAtiva = 'identificacao'"
+                            :class="abaAtiva === 'identificacao' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                        <i class="fas fa-id-card mr-2"></i>
+                        Identificação
+                    </button>
+                    
+                    <button type="button"
+                            @click="abaAtiva = 'boleto'"
+                            :class="abaAtiva === 'boleto' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                        <i class="fas fa-file-invoice-dollar mr-2"></i>
+                        Boleto Bancário
+                    </button>
+                </nav>
+            </div>
+            
+            <!-- Aba 1: Identificação -->
+            <div x-show="abaAtiva === 'identificacao'" x-transition>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="{{ form.codigo_banco.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Código do Banco <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.codigo_banco }}
+                        {% if form.codigo_banco.errors %}
+                            <div class="mt-2 text-sm text-red-600">
+                                {% for error in form.codigo_banco.errors %}
+                                    <p><i class="fas fa-exclamation-circle mr-1"></i>{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <p class="mt-1 text-xs text-gray-500">Ex: 237 (Bradesco), 001 (Banco do Brasil)</p>
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.nome.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Nome do Banco
+                        </label>
+                        {{ form.nome }}
+                        <p class="mt-1 text-xs text-gray-500">Nome oficial do banco</p>
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.taxa_cobranca_simples.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Taxa de Cobrança Simples
+                        </label>
+                        {{ form.taxa_cobranca_simples }}
+                        <p class="mt-1 text-xs text-gray-500">Valor da taxa cobrada</p>
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.banco_boleto.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Banco para Boleto
+                        </label>
+                        {{ form.banco_boleto }}
+                        <p class="mt-1 text-xs text-gray-500">Código do banco para emissão</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Aba 2: Boleto Bancário -->
+            <div x-show="abaAtiva === 'boleto'" x-transition>
+                <div class="space-y-4">
+                    <div>
+                        <label for="{{ form.orientacoes_banco.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Orientações do Banco
+                        </label>
+                        {{ form.orientacoes_banco }}
+                        <p class="mt-1 text-xs text-gray-500">Instruções que aparecem no boleto</p>
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.local_pagamento_boleto.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Local Preferível de Pagamento
+                        </label>
+                        {{ form.local_pagamento_boleto }}
+                        <p class="mt-1 text-xs text-gray-500">Ex: "Pagável em qualquer banco até o vencimento"</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex items-center justify-between pt-6 mt-6 border-t border-gray-200">
+                <a href="{% url 'cadastros:banco_list' %}" 
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">
+                    <i class="fas fa-times mr-2"></i>
+                    Cancelar
+                </a>
+                
+                <button type="submit" 
+                        class="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                    <i class="fas fa-check mr-2"></i>
+                    {{ botao_texto }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    form input, form select, form textarea {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+    }
+    form input:focus, form select:focus, form textarea:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    form textarea {
+        min-height: 100px;
+    }
+</style>
+{% endblock %}

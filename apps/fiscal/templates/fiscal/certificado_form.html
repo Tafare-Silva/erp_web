@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% block title %}Novo Certificado Digital{% endblock %}
+{% block page_title %}🔐 Novo Certificado Digital{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-6">
+    <div class="bg-white rounded-lg shadow p-6">
+        <form method="post" enctype="multipart/form-data" class="space-y-4" id="certForm">
+            {% csrf_token %}
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                    <select name="tipo" required class="w-full border rounded px-3 py-2">
+                        <option value="A1">A1 (Arquivo)</option>
+                        <option value="A3">A3 (Token/Cartão)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">CNPJ</label>
+                    <input type="text" name="cnpj" id="id_cnpj" required class="w-full border rounded px-3 py-2" placeholder="Preenchido automaticamente">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Início Validade</label>
+                    <input type="date" name="validade_inicio" id="id_validade_inicio" required class="w-full border rounded px-3 py-2">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Fim Validade</label>
+                    <input type="date" name="validade_fim" id="id_validade_fim" required class="w-full border rounded px-3 py-2">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Senha do Certificado</label>
+                <input type="password" name="senha" id="id_senha" required class="w-full border rounded px-3 py-2">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Arquivo PFX/P12</label>
+                <input type="file" name="arquivo" id="id_arquivo" accept=".pfx,.p12" class="w-full border rounded px-3 py-2">
+                <p id="parseStatus" class="text-xs text-gray-500 mt-1"></p>
+            </div>
+            <div class="flex gap-4">
+                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+                    <i class="fas fa-save"></i> Salvar
+                </button>
+                <a href="{% url 'fiscal:certificado_list' %}" class="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600">
+                    Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.getElementById('id_arquivo').addEventListener('change', function() {
+    const arquivo = this.files[0];
+    const senha = document.getElementById('id_senha').value;
+    const status = document.getElementById('parseStatus');
+
+    if (!arquivo || !senha) {
+        if (arquivo) status.textContent = 'Informe a senha para ler o certificado.';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('arquivo', arquivo);
+    formData.append('senha', senha);
+
+    status.textContent = 'Lendo certificado...';
+    status.className = 'text-xs text-blue-500 mt-1';
+
+    fetch("{% url 'fiscal:api_parse_certificado' %}", {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.sucesso) {
+            document.getElementById('id_cnpj').value = data.dados.cnpj;
+            document.getElementById('id_validade_inicio').value = data.dados.validade_inicio;
+            document.getElementById('id_validade_fim').value = data.dados.validade_fim;
+            status.textContent = '✅ Certificado lido com sucesso!';
+            status.className = 'text-xs text-green-600 mt-1';
+        } else {
+            status.textContent = '❌ ' + (data.erro || 'Erro ao ler certificado');
+            status.className = 'text-xs text-red-600 mt-1';
+        }
+    })
+    .catch(err => {
+        status.textContent = '❌ Erro de conexão: ' + err.message;
+        status.className = 'text-xs text-red-600 mt-1';
+    });
+});
+
+document.getElementById('id_senha').addEventListener('input', function() {
+    if (document.getElementById('id_arquivo').files.length > 0) {
+        document.getElementById('id_arquivo').dispatchEvent(new Event('change'));
+    }
+});
+</script>
+{% endblock %}

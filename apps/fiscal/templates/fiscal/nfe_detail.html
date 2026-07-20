@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+{% block title %}NF-e {{ nota.numero }}{% endblock %}
+{% block page_title %}📄 NF-e #{{ nota.numero }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-6">
+    <div class="flex flex-wrap gap-2 mb-6">
+        <a href="{% url 'fiscal:nfe_list' %}" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+            <i class="fas fa-arrow-left"></i> Voltar
+        </a>
+        {% if nota.status == 'VALIDADO' %}
+        <button onclick="enviarLote({{ nota.pk }})" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+            <i class="fas fa-paper-plane"></i> Autorizar
+        </button>
+        {% endif %}
+        {% if nota.status == 'AUTORIZADO' %}
+        <a href="{% url 'fiscal:nfe_cancelar' nota.pk %}" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+            <i class="fas fa-ban"></i> Cancelar
+        </a>
+        <a href="{% url 'fiscal:nfe_cce' nota.pk %}" class="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700">
+            <i class="fas fa-pen"></i> Carta de Correção
+        </a>
+        <a href="{% url 'fiscal:nfe_danfe' nota.pk %}" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+            <i class="fas fa-file-pdf"></i> DANFE
+        </a>
+        {% endif %}
+        {% if debug and nota.status == 'VALIDADO' %}
+        <a href="{% url 'fiscal:nfe_simular_autorizar' nota.pk %}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
+            <i class="fas fa-flask"></i> Simular Autorização
+        </a>
+        {% endif %}
+        {% if nota.xml_enviado %}
+        <a href="{% url 'fiscal:nfe_download_xml' nota.pk %}" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+            <i class="fas fa-file-code"></i> Download XML
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="font-bold text-gray-900 mb-3">Identificação</h3>
+            <dl class="space-y-2 text-sm">
+                <div class="flex justify-between"><dt class="text-gray-500">Número:</dt><dd class="font-medium">{{ nota.numero }}</dd></div>
+                <div class="flex justify-between"><dt class="text-gray-500">Série:</dt><dd class="font-medium">{{ nota.serie }}</dd></div>
+                <div class="flex justify-between"><dt class="text-gray-500">Modelo:</dt><dd class="font-medium">{{ nota.get_modelo_display }}</dd></div>
+                <div class="flex justify-between"><dt class="text-gray-500">Origem:</dt>
+                    <dd class="font-medium">{% if nota.movimentacao %}<a href="{% url 'cadastros:venda_detail' nota.movimentacao.pk_chave %}" class="text-blue-600 hover:underline">Venda #{{ nota.movimentacao.pk_chave }}</a>{% else %}Manual{% endif %}</dd>
+                </div>
+                <div class="flex justify-between"><dt class="text-gray-500">Chave:</dt><dd class="font-medium text-xs break-all">{{ nota.chave_acesso }}</dd></div>
+                <div class="flex justify-between"><dt class="text-gray-500">Status:</dt>
+                    <dd><span class="px-2 py-1 rounded text-xs font-bold
+                        {% if nota.status == 'AUTORIZADO' %}bg-green-100 text-green-700
+                        {% elif nota.status == 'REJEITADO' or nota.status == 'DENEGADO' %}bg-red-100 text-red-700
+                        {% elif nota.status == 'CANCELADO' %}bg-gray-100 text-gray-700
+                        {% else %}bg-yellow-100 text-yellow-700{% endif %}">
+                        {{ nota.get_status_display }}</span></dd>
+                </div>
+                {% if nota.protocolo %}
+                <div class="flex justify-between"><dt class="text-gray-500">Protocolo:</dt><dd class="font-medium">{{ nota.protocolo }}</dd></div>
+                {% endif %}
+            </dl>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="font-bold text-gray-900 mb-3">Destinatário</h3>
+            <dl class="space-y-2 text-sm">
+                <div class="flex justify-between"><dt class="text-gray-500">Nome:</dt><dd class="font-medium">{{ nota.destinatario.nome }}</dd></div>
+                <div class="flex justify-between"><dt class="text-gray-500">CPF/CNPJ:</dt><dd class="font-medium">{{ nota.destinatario.cpf_cnpj }}</dd></div>
+                <div class="flex justify-between"><dt class="text-gray-500">IE:</dt><dd class="font-medium">{{ nota.destinatario.rg_ie|default:'-' }}</dd></div>
+            </dl>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="font-bold text-gray-900 mb-3">Valores</h3>
+            <dl class="space-y-2 text-sm">
+                <div class="flex justify-between"><dt class="text-gray-500">Total Produtos:</dt><dd class="font-medium">R$ {{ nota.valor_total_produtos|floatformat:2 }}</dd></div>
+                <div class="flex justify-between"><dt class="text-gray-500">Desconto:</dt><dd class="font-medium text-red-600">R$ {{ nota.valor_desconto|floatformat:2 }}</dd></div>
+                <div class="flex justify-between"><dt class="text-gray-500">Frete:</dt><dd class="font-medium">R$ {{ nota.valor_frete|floatformat:2 }}</dd></div>
+                <div class="border-t pt-2 mt-2 flex justify-between"><dt class="text-gray-800 font-bold">Total NF-e:</dt><dd class="font-bold text-lg text-blue-600">R$ {{ nota.valor_total|floatformat:2 }}</dd></div>
+                <div class="flex justify-between"><dt class="text-gray-500">ICMS:</dt><dd class="font-medium">R$ {{ nota.valor_icms|floatformat:2 }}</dd></div>
+            </dl>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow overflow-hidden mb-6">
+        <div class="px-6 py-4 bg-gray-50 border-b">
+            <h3 class="font-bold text-gray-900">Itens</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="px-4 py-3 text-left">#</th>
+                        <th class="px-4 py-3 text-left">Produto</th>
+                        <th class="px-4 py-3 text-center">NCM</th>
+                        <th class="px-4 py-3 text-center">CFOP</th>
+                        <th class="px-4 py-3 text-right">Qtd</th>
+                        <th class="px-4 py-3 text-right">Valor Unit.</th>
+                        <th class="px-4 py-3 text-right">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in itens %}
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="px-4 py-3">{{ item.numero_item }}</td>
+                        <td class="px-4 py-3">{{ item.nome }}</td>
+                        <td class="px-4 py-3 text-center">{{ item.ncm }}</td>
+                        <td class="px-4 py-3 text-center">{{ item.cfop }}</td>
+                        <td class="px-4 py-3 text-right">{{ item.quantidade|floatformat:4 }}</td>
+                        <td class="px-4 py-3 text-right">R$ {{ item.valor_unitario|floatformat:6 }}</td>
+                        <td class="px-4 py-3 text-right font-medium">R$ {{ item.valor_total|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if pagamentos %}
+    <div class="bg-white rounded-lg shadow overflow-hidden mb-6">
+        <div class="px-6 py-4 bg-gray-50 border-b">
+            <h3 class="font-bold text-gray-900">Pagamentos</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 border-b">
+                    <tr><th class="px-4 py-3 text-left">Forma</th><th class="px-4 py-3 text-right">Valor</th></tr>
+                </thead>
+                <tbody>
+                    {% for pag in pagamentos %}
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="px-4 py-3">{{ pag.get_forma_pagamento_display }}</td>
+                        <td class="px-4 py-3 text-right font-medium">R$ {{ pag.valor|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if eventos %}
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="px-6 py-4 bg-gray-50 border-b">
+            <h3 class="font-bold text-gray-900">Eventos</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 border-b">
+                    <tr><th class="px-4 py-3 text-left">Tipo</th><th class="px-4 py-3 text-left">Data</th><th class="px-4 py-3 text-left">Justificativa</th><th class="px-4 py-3 text-left">Protocolo</th></tr>
+                </thead>
+                <tbody>
+                    {% for ev in eventos %}
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="px-4 py-3">{{ ev.get_tipo_display }}</td>
+                        <td class="px-4 py-3 text-xs">{{ ev.data_evento|date:"d/m/Y H:i" }}</td>
+                        <td class="px-4 py-3">{{ ev.justificativa|truncatechars:60 }}</td>
+                        <td class="px-4 py-3">{{ ev.protocolo|default:'-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function enviarLote(nfeId) {
+    if (!confirm('Enviar esta NF-e para autorização?')) return;
+    fetch('{% url "fiscal:nfe_enviar_lote" %}', {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'nfe_ids=' + nfeId
+    }).then(() => location.reload());
+}
+</script>
+{% endblock %}

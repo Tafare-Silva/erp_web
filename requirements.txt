@@ -1,0 +1,51 @@
+# Core Django
+Django==5.0.1
+psycopg2-binary==2.9.9
+
+# Django REST Framework (para APIs futuras)
+djangorestframework==3.14.0
+
+# Autenticação e Segurança
+django-environ==0.11.2
+
+# Frontend
+django-htmx==1.17.3
+django-widget-tweaks==1.5.0
+
+# Imagens e Arquivos
+Pillow==10.2.0
+
+# WSGI Server
+gunicorn==22.0.0
+
+# Utilitários
+python-decouple==3.8
+
+# Desenvolvimento
+django-debug-toolbar==4.2.0
+ipython==8.20.0
+
+# Relatórios (opcional, para o futuro)
+reportlab==4.0.8
+openpyxl==3.1.2
+
+# Criptografia para certificados digitais
+cryptography>=49.0.0
+
+# Validações brasileiras
+validate-docbr==1.10.0
+# Parse de XML da NFe
+lxml>=4.9.0
+
+# Comunicação SOAP com SEFAZ
+zeep>=4.3.3
+
+# Assinatura XML de documentos fiscais
+signxml>=5.1.0
+
+# HTTP requests
+requests>=2.34.2
+
+# Validação de dados
+python-dateutil>=2.8.0
+

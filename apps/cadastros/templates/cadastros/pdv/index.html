@@ -1,0 +1,1429 @@
+{% extends 'pdv_base.html' %}
+{% block title %}PDV Rápido{% endblock %}
+{% block content %}
+<div class="h-screen flex flex-col" x-data="pdvApp()" @keydown.window="handleShortcut($event)">
+
+    <!-- Top Bar -->
+    <header class="bg-gradient-to-r from-blue-700 to-blue-600 text-white px-4 py-2 flex items-center justify-between shadow-lg">
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2">
+                <i class="fas fa-cash-register text-xl"></i>
+                <span class="font-bold text-lg">PDV</span>
+            </div>
+            <span class="text-blue-200 text-sm">{% now "d/m/Y H:i" %}</span>
+        </div>
+        <div class="flex items-center gap-3">
+            <button @click="abrirResumoCaixa" class="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition">
+                <i class="fas fa-wallet"></i>
+                <span>Caixa</span>
+            </button>
+            <a href="/" class="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition">
+                <i class="fas fa-arrow-left"></i>
+                <span>Sair</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- Alertas -->
+    <div x-show="alerta.show" x-transition class="px-4 pt-2">
+        <div :class="alerta.tipo === 'sucesso' ? 'bg-green-100 border-green-500 text-green-800' : 'bg-red-100 border-red-500 text-red-800'"
+             class="p-3 border-l-4 rounded-lg flex items-center justify-between shadow-sm">
+            <div class="flex items-center gap-2">
+                <i class="fas" :class="alerta.tipo === 'sucesso' ? 'fa-check-circle' : 'fa-exclamation-circle'"></i>
+                <span x-text="alerta.mensagem" class="text-sm font-medium"></span>
+            </div>
+            <button @click="alerta.show = false" class="text-current opacity-60 hover:opacity-100"><i class="fas fa-times"></i></button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex gap-3 p-3 min-h-0 transition-all duration-300"
+         :class="tipoOperacao === 'CONDICIONAL' ? 'bg-yellow-100' : 'bg-gray-50'">
+
+        <!-- Left Panel: Items -->
+        <div class="flex-1 flex flex-col gap-3 min-w-0">
+
+            <!-- Tipo Operação + Cliente + Vendedor -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-3">
+                <div class="flex items-center gap-4">
+                    <div class="flex bg-gray-100 rounded-lg p-0.5">
+                        <button @click="tipoOperacao = 'VENDA'" :class="tipoOperacao === 'VENDA' ? 'bg-white shadow-sm text-blue-700' : 'text-gray-500 hover:text-gray-700'"
+                                class="px-3 py-1.5 rounded-md text-sm font-medium transition">
+                            <i class="fas fa-shopping-cart mr-1"></i>Venda
+                        </button>
+                        <button @click="tipoOperacao = 'CONDICIONAL'" :class="tipoOperacao === 'CONDICIONAL' ? 'bg-white shadow-sm text-yellow-700' : 'text-gray-500 hover:text-gray-700'"
+                                class="px-3 py-1.5 rounded-md text-sm font-medium transition">
+                            <i class="fas fa-clipboard-list mr-1"></i>Condicional
+                        </button>
+                        <button @click="abrirImportarCondicional" :class="tipoOperacao === 'DEVOLUCAO' ? 'bg-white shadow-sm text-red-700' : 'text-gray-500 hover:text-gray-700'"
+                                class="px-3 py-1.5 rounded-md text-sm font-medium transition">
+                            <i class="fas fa-download mr-1"></i>Importar Condicional
+                        </button>
+                    </div>
+                    <div class="flex-1 flex items-center gap-3">
+                        <div class="flex-1 relative">
+                            <input type="text" x-model="buscaCliente"
+                                   @input.debounce="buscarClientes"
+                                   @keydown.enter="selecionarPrimeiroCliente"
+                                   :placeholder="clienteSelecionado ? clienteSelecionado.nome : 'Cliente (nome, CPF ou CNPJ)'"
+                                   class="w-full pl-9 pr-8 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   :class="clienteSelecionado ? 'bg-green-50 border-green-300 text-green-800 font-medium' : ''">
+                            <i class="fas fa-user absolute left-3 top-2.5 text-gray-400 text-sm"></i>
+                            <button @click="clienteSelecionado ? limparCliente() : (modalCadastroCliente = true)"
+                                    class="absolute right-2 top-1.5 text-blue-500 hover:text-blue-700">
+                                <i :class="clienteSelecionado ? 'fas fa-times text-green-600' : 'fas fa-plus-circle'"></i>
+                            </button>
+                        </div>
+                        <div class="relative" x-data="{ open: false }">
+                            <button @click="open = !open" class="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-800 bg-gray-50 px-3 py-1.5 rounded-lg border">
+                                <i class="fas fa-user-tie"></i>
+                                <span x-text="vendedorId ? vendedores.find(v => v.chave == vendedorId)?.nome?.substring(0, 15) || 'Vendedor' : 'Vendedor'"></span>
+                                <i class="fas fa-chevron-down text-xs"></i>
+                            </button>
+                            <div x-show="open" @click.away="open = false"
+                                 class="absolute right-0 mt-1 bg-white border rounded-lg shadow-lg z-20 w-56 max-h-48 overflow-y-auto">
+                                <template x-for="v in vendedores" :key="v.chave">
+                                    <button @click="vendedorId = v.chave; open = false"
+                                            class="w-full text-left px-3 py-2 text-sm hover:bg-blue-50"
+                                            :class="vendedorId == v.chave ? 'bg-blue-50 text-blue-700 font-medium' : ''"
+                                            x-text="v.nome"></button>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search + Items Card -->
+            <div class="flex-1 rounded-xl shadow-sm border flex flex-col min-h-0 transition-colors duration-300"
+                 :class="tipoOperacao === 'CONDICIONAL' ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-100'">
+                <!-- Search Bar -->
+                <div class="p-3 border-b border-gray-100">
+                    <div class="relative">
+                        <i class="fas fa-barcode absolute left-3 top-3 text-gray-400"></i>
+                        <input type="text" x-ref="inputProduto" x-model="codigoBusca"
+                               @keydown.enter="buscarProduto"
+                               placeholder="Código, código de barras ou nome do produto (Enter)"
+                               class="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" autofocus>
+                    </div>
+                </div>
+
+                <!-- Items Table -->
+                <div class="flex-1 overflow-y-auto p-3 pt-0">
+                    <table class="w-full text-sm">
+                        <thead class="text-xs text-gray-500 uppercase tracking-wider">
+                            <tr>
+                                <th class="px-3 py-2 text-left font-medium">Produto</th>
+                                <th class="px-3 py-2 text-center font-medium w-20">Qtd</th>
+                                <th class="px-3 py-2 text-right font-medium w-24">Preço</th>
+                                <th class="px-3 py-2 text-right font-medium w-24">Desc.</th>
+                                <th class="px-3 py-2 text-right font-medium w-24">Acrés.</th>
+                                <th class="px-3 py-2 text-right font-medium w-28">Total</th>
+                                <th class="px-3 py-2 w-10"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="(item, idx) in itens" :key="idx">
+                                <tr class="border-b border-gray-50 hover:bg-blue-50/30 transition">
+                                    <td class="px-3 py-2.5">
+                                        <div class="font-medium text-gray-800" x-text="item.nome"></div>
+                                        <div class="text-xs text-gray-400">Cód: <span x-text="item.produto_id"></span></div>
+                                    </td>
+                                    <td class="px-3 py-2.5">
+                                        <input type="number" x-model="item.quantidade" @input="calcularTotais"
+                                               class="w-16 px-2 py-1 text-xs border border-gray-200 rounded text-center focus:ring-2 focus:ring-blue-500" min="0.01" step="0.01">
+                                    </td>
+                                    <td class="px-3 py-2.5 text-right font-medium" x-text="formatMoney(item.preco)"></td>
+                                    <td class="px-3 py-2.5">
+                                        <div class="flex gap-1">
+                                            <input type="number" x-model="item.desconto" @input="calcularTotais"
+                                                   class="w-14 px-1 py-1 text-xs border border-gray-200 rounded text-right" min="0" step="0.01">
+                                            <select x-model="item.tipoDesconto" @change="calcularTotais"
+                                                    class="w-9 px-1 py-1 text-xs border border-gray-200 rounded bg-white">
+                                                <option value="valor">R$</option>
+                                                <option value="percent">%</option>
+                                            </select>
+                                        </div>
+                                    </td>
+                                    <td class="px-3 py-2.5">
+                                        <div class="flex gap-1">
+                                            <input type="number" x-model="item.acrescimo" @input="calcularTotais"
+                                                   class="w-14 px-1 py-1 text-xs border border-gray-200 rounded text-right" min="0" step="0.01">
+                                            <select x-model="item.tipoAcrescimo" @change="calcularTotais"
+                                                    class="w-9 px-1 py-1 text-xs border border-gray-200 rounded bg-white">
+                                                <option value="valor">R$</option>
+                                                <option value="percent">%</option>
+                                            </select>
+                                        </div>
+                                    </td>
+                                    <td class="px-3 py-2.5 text-right font-bold text-blue-700" x-text="formatMoney(item.total)"></td>
+                                    <td class="px-3 py-2.5">
+                                        <button @click="removerItem(idx)" class="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded transition">
+                                            <i class="fas fa-trash-alt text-xs"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </template>
+                            <template x-if="itens.length === 0">
+                                <tr>
+                                    <td colspan="7" class="px-3 py-16 text-center">
+                                        <div class="text-gray-300">
+                                            <i class="fas fa-shopping-basket text-5xl mb-3"></i>
+                                            <p class="text-gray-400 text-sm">Nenhum item adicionado</p>
+                                            <p class="text-gray-300 text-xs mt-1">Digite o código ou nome do produto acima</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Totals -->
+        <div class="w-80 flex flex-col gap-3">
+            <div class="rounded-xl shadow-sm border p-4 flex flex-col gap-3 transition-colors duration-300"
+                 :class="tipoOperacao === 'CONDICIONAL' ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-100'">
+                <div class="space-y-2.5 text-sm">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-500">Subtotal</span>
+                        <span class="font-semibold text-gray-800" x-text="formatMoney(subtotal)"></span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-500">Desconto</span>
+                        <div class="flex gap-1">
+                            <input type="number" x-model="descontoGeral" @input="calcularTotais"
+                                   class="w-16 px-2 py-1 text-xs border border-gray-200 rounded text-right" min="0" step="0.01">
+                            <select x-model="tipoDescontoGeral" @change="calcularTotais"
+                                    class="w-11 px-1 py-1 text-xs border border-gray-200 rounded bg-white">
+                                <option value="valor">R$</option>
+                                <option value="percent">%</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div x-show="totalDesconto > 0" class="flex justify-between text-red-500 text-xs">
+                        <span>Total descontado</span>
+                        <span class="font-bold" x-text="formatMoney(totalDesconto)"></span>
+                    </div>
+                </div>
+
+                <div class="border-t border-gray-100 pt-3 text-center">
+                    <div class="text-xs text-gray-400 mb-1">Total da <span x-text="tipoOperacao === 'CONDICIONAL' ? 'Condicional' : 'Venda'"></span></div>
+                    <div class="text-3xl font-extrabold text-blue-600" x-text="formatMoney(totalGeral)"></div>
+                    <div class="text-xs text-gray-400 mt-1"><span x-text="itens.length"></span> item(ns)</div>
+                </div>
+
+                <div class="space-y-2 pt-1">
+                    <button @click="finalizarOuPagamento" :disabled="itens.length === 0"
+                            :class="itens.length === 0 ? 'bg-gray-300 cursor-not-allowed' : tipoOperacao === 'CONDICIONAL' ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 shadow-md hover:shadow-lg' : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-md hover:shadow-lg'"
+                            class="w-full py-3 text-white rounded-xl font-bold text-sm transition-all active:scale-[0.98]">
+                        <i class="fas" :class="tipoOperacao === 'CONDICIONAL' ? 'fa-save' : 'fa-check-circle'" class="mr-2"></i><span x-text="tipoOperacao === 'CONDICIONAL' ? 'Salvar Condicional [F2]' : 'Finalizar [F2]'"></span>
+                    </button>
+                    <button @click="limpar" class="w-full py-2.5 border border-gray-200 rounded-xl hover:bg-gray-50 text-sm text-gray-600 transition">
+                        <i class="fas fa-broom mr-2"></i>Limpar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Info -->
+            <div class="rounded-xl shadow-sm border p-4 text-xs text-gray-500 space-y-2 transition-colors duration-300"
+                 :class="tipoOperacao === 'CONDICIONAL' ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-100'">
+                <div class="flex justify-between">
+                    <span>Atalhos</span>
+                    <span class="text-gray-400"><kbd class="px-1.5 py-0.5 bg-gray-100 border rounded text-[10px]">F2</kbd> Finalizar</span>
+                </div>
+                <div x-show="modalPagamento" class="flex justify-between">
+                    <span>Pgto</span>
+                    <span class="text-gray-400"><kbd class="px-1.5 py-0.5 bg-gray-100 border rounded text-[10px]">F3</kbd>..<kbd class="px-1.5 py-0.5 bg-gray-100 border rounded text-[10px]">F12</kbd></span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Cliente</span>
+                    <span x-text="clienteSelecionado?.nome || 'Não selecionado'" class="text-gray-700 font-medium"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL SELEÇÃO CLIENTE -->
+    <div x-show="resultadosClientes.length > 0 && !clienteSelecionado" x-transition class="fixed inset-0 bg-black/50 flex items-start justify-center pt-24 z-50" @click.away="resultadosClientes = []">
+        <div class="bg-white rounded-2xl shadow-2xl w-[500px] max-h-[60vh] overflow-y-auto">
+            <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-t-2xl">
+                <h3 class="font-bold"><i class="fas fa-user mr-2"></i>Selecione o Cliente</h3>
+                <button @click="resultadosClientes = []" class="text-white/80 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-3 space-y-1">
+                <template x-for="cli in resultadosClientes" :key="cli.chave">
+                    <button @click="selecionarCliente(cli)"
+                            class="w-full text-left p-3 border border-gray-100 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <div class="font-medium text-gray-800" x-text="cli.nome"></div>
+                                <div class="text-xs text-gray-500 mt-0.5 flex gap-3">
+                                    <span x-show="cli.cpf_cnpj"><i class="fas fa-id-card mr-1"></i><span x-text="cli.cpf_cnpj"></span></span>
+                                    <span x-show="cli.telefone"><i class="fas fa-phone mr-1"></i><span x-text="cli.telefone"></span></span>
+                                </div>
+                            </div>
+                            <div class="text-xs text-gray-400 text-right" x-text="cli.cidade"></div>
+                        </div>
+                    </button>
+                </template>
+            </div>
+        </div>
+    </div>
+    <div x-show="modalResumoCaixa" x-transition class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div @click.away="modalResumoCaixa = false" class="bg-white rounded-2xl shadow-2xl w-[520px] max-h-[90vh] flex flex-col">
+            <div class="p-5 border-b border-gray-100 flex justify-between items-center flex-shrink-0">
+                <h3 class="font-bold text-lg text-gray-800"><i class="fas fa-wallet mr-2 text-blue-600"></i>Resumo do Caixa</h3>
+                <button @click="modalResumoCaixa = false" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5 flex-1 overflow-y-auto">
+                <template x-if="caixaCarregando">
+                    <div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl"></i></div>
+                </template>
+                <template x-if="!caixaCarregando && !caixaAberto">
+                    <div class="text-center py-8">
+                        <i class="fas fa-lock text-4xl text-gray-300 mb-3"></i>
+                        <p class="text-gray-500 font-medium">Caixa fechado</p>
+                        <button @click="abrirNovoCaixa" class="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-md">
+                            <i class="fas fa-unlock mr-1"></i>Abrir Caixa
+                        </button>
+                    </div>
+                </template>
+                <template x-if="!caixaCarregando && caixaAberto">
+                    <div class="space-y-4">
+                        <!-- Cards resumo -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-green-50 rounded-xl p-4 text-center">
+                                <div class="text-xs text-green-600 font-medium uppercase">Saldo</div>
+                                <div class="text-2xl font-bold text-green-700 mt-1" x-text="formatMoney(caixaSaldo)"></div>
+                            </div>
+                            <div class="bg-blue-50 rounded-xl p-4 text-center">
+                                <div class="text-xs text-blue-600 font-medium uppercase">Abertura</div>
+                                <div class="text-lg font-bold text-blue-700 mt-1" x-text="formatMoney(caixaAbertura)"></div>
+                            </div>
+                        </div>
+
+                        <!-- Resumo por tipo de pagamento -->
+                        <div x-show="caixaResumoPagamentos.length > 0" class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                            <h4 class="font-bold text-sm text-gray-700 mb-3"><i class="fas fa-chart-pie mr-1 text-blue-500"></i>Resumo por Pagamento</h4>
+                            <div class="space-y-2">
+                                <template x-for="rp in caixaResumoPagamentos" :key="rp.tipo">
+                                    <div class="flex justify-between items-center text-sm">
+                                        <span class="text-gray-600 font-medium" x-text="rp.tipo"></span>
+                                        <div class="text-right">
+                                            <span class="text-green-600 font-medium" x-show="rp.entradas > 0" x-text="'E: ' + formatMoney(rp.entradas)"></span>
+                                            <span class="text-red-600 font-medium" x-show="rp.saidas > 0 && rp.entradas > 0" class="mx-1">|</span>
+                                            <span class="text-red-600 font-medium" x-show="rp.saidas > 0" x-text="'S: ' + formatMoney(rp.saidas)"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Totais -->
+                        <div class="border-t border-gray-100 pt-3 space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-500">Entradas</span>
+                                <span class="font-medium text-green-600" x-text="formatMoney(caixaEntradas)"></span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-500">Saídas</span>
+                                <span class="font-medium text-red-600" x-text="formatMoney(caixaSaidas)"></span>
+                            </div>
+                            <div class="flex justify-between text-sm pt-2 border-t">
+                                <span class="font-medium text-gray-700">Saldo atual</span>
+                                <span class="font-bold text-lg" x-text="formatMoney(caixaSaldo)"></span>
+                            </div>
+                        </div>
+
+                        <!-- Movimentações detalhadas -->
+                        <div x-show="caixaMovimentacoes.length > 0">
+                            <h4 class="font-bold text-sm text-gray-700 mb-2"><i class="fas fa-list mr-1 text-gray-500"></i>Movimentações</h4>
+                            <div class="space-y-1 max-h-48 overflow-y-auto border border-gray-100 rounded-xl">
+                                <template x-for="mov in caixaMovimentacoes" :key="mov.id">
+                                    <div class="flex justify-between items-center px-3 py-2 text-sm border-b border-gray-50 last:border-0 hover:bg-gray-50">
+                                        <div class="flex items-center gap-2 min-w-0">
+                                            <span class="text-xs text-gray-400 flex-shrink-0" x-text="mov.hora"></span>
+                                            <span class="text-gray-600 truncate" x-text="mov.descricao"></span>
+                                        </div>
+                                        <div class="flex items-center gap-2 flex-shrink-0">
+                                            <span class="text-xs text-gray-400" x-text="mov.tipo_pgto_nome"></span>
+                                            <span class="font-medium" :class="mov.tipo === 'E' ? 'text-green-600' : 'text-red-600'"
+                                                  x-text="(mov.tipo === 'E' ? '+' : '-') + formatMoney(mov.valor).replace('R$ ', '')"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <button @click="caixaFechar" class="w-full py-2.5 bg-red-500 text-white rounded-xl hover:bg-red-600 font-medium shadow-md transition">
+                            <i class="fas fa-times-circle mr-1"></i>Fechar Caixa
+                        </button>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL SELEÇÃO PRODUTO -->
+    <div x-show="modalSelecaoProduto" x-transition class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div @click.away="modalSelecaoProduto = false" class="bg-white rounded-2xl shadow-2xl w-[600px] max-h-[80vh] overflow-y-auto">
+            <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-t-2xl">
+                <h3 class="font-bold"><i class="fas fa-search mr-2"></i>Selecione o Produto</h3>
+                <button @click="modalSelecaoProduto = false" class="text-white/80 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-4 space-y-2">
+                <template x-for="prod in produtosEncontrados" :key="prod.id">
+                    <button @click="adicionarProdutoSelecionado(prod)"
+                            class="w-full text-left p-3 border border-gray-100 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <div class="font-medium text-gray-800" x-text="prod.nome"></div>
+                                <div class="text-xs text-gray-400 mt-0.5">Cód: <span x-text="prod.id"></span></div>
+                            </div>
+                            <div class="font-bold text-blue-600" x-text="formatMoney(prod.preco)"></div>
+                        </div>
+                    </button>
+                </template>
+                <template x-if="produtosEncontrados.length === 0">
+                    <div class="text-center py-8 text-gray-400"><i class="fas fa-box-open text-4xl mb-2"></i><p>Nenhum produto encontrado</p></div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PAGAMENTO -->
+    <div x-show="modalPagamento" x-transition class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div @click.away="false" class="bg-white rounded-2xl shadow-2xl w-[640px] max-h-[90vh] overflow-y-auto">
+            <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-t-2xl">
+                <h3 class="text-lg font-bold"><i class="fas fa-credit-card mr-2"></i>Pagamento</h3>
+                <button @click="fecharModalPagamento" class="text-white/80 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5">
+                <!-- Totais -->
+                <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 mb-4 border border-blue-100">
+                    <div class="grid grid-cols-3 gap-3 text-center">
+                        <div>
+                            <div class="text-xs text-gray-500">Total</div>
+                            <div class="text-lg font-bold text-blue-700" x-text="formatMoney(totalGeral)"></div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500">Pago</div>
+                            <div class="text-lg font-bold" :class="totalPago >= totalGeral ? 'text-green-600' : 'text-red-500'" x-text="formatMoney(totalPago)"></div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500">Falta</div>
+                            <div class="text-lg font-bold text-orange-600" x-text="formatMoney(Math.max(0, totalGeral - totalPago))"></div>
+                        </div>
+                    </div>
+                    <div x-show="troco > 0" class="mt-3 pt-3 border-t border-blue-200 text-center">
+                        <span class="text-sm font-medium text-gray-600">Troco: </span>
+                        <span class="text-xl font-bold text-gray-800" x-text="formatMoney(troco)"></span>
+                    </div>
+                </div>
+
+                <!-- Grid Tipos Pagamento -->
+                <div class="grid grid-cols-4 gap-2 mb-4">
+                    <template x-for="(tp, idx) in tiposPagamento" :key="tp.id">
+                        <button @click="selecionarTipoPagamento(tp)"
+                                class="p-3 border-2 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition text-center relative"
+                                :class="tipoPagamentoSelecionado?.id === tp.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'">
+                            <i :class="tp.icone" class="text-xl"></i>
+                            <div class="text-[10px] font-medium mt-1 text-gray-600" x-text="tp.nome"></div>
+                            <span class="absolute -top-1.5 -right-1.5 bg-gray-700 text-white text-[9px] px-1 rounded-full flex items-center justify-center font-bold" x-text="'F' + (idx + 3)"></span>
+                        </button>
+                    </template>
+                </div>
+
+                <!-- Form Adicionar Pagamento -->
+                <div x-show="tipoPagamentoSelecionado" class="border border-gray-200 rounded-xl p-4 mb-4 bg-gray-50/50">
+                    <h4 class="font-bold text-sm mb-3 text-gray-700">
+                        <i :class="tipoPagamentoSelecionado.icone" class="mr-1"></i>
+                        <span x-text="tipoPagamentoSelecionado.nome"></span>
+                    </h4>
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Valor</label>
+                            <input type="number" x-model="valorPagamento" x-ref="inputValor"
+                                   @keydown.enter="adicionarPagamento" @input="gerarParcelamento"
+                                   class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" step="0.01" min="0.01">
+                        </div>
+                        <div x-show="tipoPagamentoSelecionado?.prazo">
+                            <label class="block text-xs text-gray-500 mb-1">Parcelas</label>
+                            <input type="number" x-model="parcelas" @input="gerarParcelamento"
+                                   class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" min="1">
+                        </div>
+                    </div>
+                    <div x-show="parcelas > 1" class="mb-3 bg-white rounded-lg border border-gray-200 p-3 space-y-1.5">
+                        <p class="text-xs font-bold text-gray-500 uppercase">Parcelamento</p>
+                        <template x-for="(parc, pIdx) in parcelasDetalhes" :key="pIdx">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-gray-400 w-5" x-text="(pIdx+1) + 'ª'"></span>
+                                <span class="text-xs text-gray-500">Venc:</span>
+                                <input type="date" x-model="parcelasDetalhes[pIdx].vencimento"
+                                       class="text-xs border border-gray-200 rounded px-2 py-1 w-32">
+                                <span class="text-xs text-gray-500">R$:</span>
+                                <input type="number" x-model="parcelasDetalhes[pIdx].valor" step="0.01"
+                                       class="text-xs border border-gray-200 rounded px-2 py-1 w-24">
+                            </div>
+                        </template>
+                    </div>
+                    <div class="flex gap-2">
+                        <button @click="adicionarPagamento" class="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-bold shadow-md transition">
+                            <i class="fas fa-plus mr-2"></i>Adicionar
+                        </button>
+                        <button x-show="pagamentos.length > 0" @click="fecharModalPagamentoSemConfirmar()"
+                                class="px-4 py-2.5 bg-yellow-500 text-white rounded-xl hover:bg-yellow-600 font-bold shadow-md text-sm transition">
+                            <i class="fas fa-check mr-1"></i>Fechar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Lista Pagamentos -->
+                <div x-show="pagamentos.length > 0" class="space-y-1.5 mb-4">
+                    <h4 class="font-bold text-sm text-gray-700 mb-2">Pagamentos adicionados</h4>
+                    <template x-for="(pag, idx) in pagamentos" :key="idx">
+                        <div class="flex justify-between items-center p-3 bg-green-50 border border-green-200 rounded-xl">
+                            <div class="flex items-center gap-2.5">
+                                <i :class="pag.icone" class="text-lg"></i>
+                                <div>
+                                    <span class="font-medium text-sm" x-text="pag.tipo"></span>
+                                    <span x-show="pag.parcelas > 1" class="text-xs text-gray-500 ml-1">(<span x-text="pag.parcelas"></span>x)</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="font-bold text-green-800" x-text="formatMoney(pag.valor)"></span>
+                                <button @click="removerPagamento(idx)" class="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded"><i class="fas fa-trash-alt text-xs"></i></button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- NF-e Opções -->
+                <div class="border-t border-gray-100 pt-4 mb-4">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" x-model="emitirNFe" class="rounded text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm font-medium text-gray-700"><i class="fas fa-file-invoice text-blue-600 mr-1"></i>Emitir NF-e / NFC-e</span>
+                    </label>
+                    <div x-show="emitirNFe" class="mt-3 ml-6 space-y-3">
+                        <select x-model="tipoDocumentoFiscal" class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm w-48 focus:ring-2 focus:ring-blue-500">
+                            <option value="55">NF-e (Modelo 55)</option>
+                            <option value="65">NFC-e (Modelo 65)</option>
+                        </select>
+                        <div x-show="tipoDocumentoFiscal === '65' && !clienteSelecionado" class="flex items-center gap-2">
+                            <label class="text-xs text-gray-500">CPF Consumidor:</label>
+                            <input type="text" x-model="cpfConsumidor" placeholder="Digite o CPF ou Enter p/ omitir"
+                                   class="border border-gray-200 rounded px-2 py-1 text-sm w-44" maxlength="14"
+                                   @keydown.enter.prevent="if(!cpfConsumidor) cpfConsumidor = 'ISENTO'">
+                            <span x-show="cpfConsumidor === 'ISENTO'" class="text-xs text-green-600 font-medium">SEM CPF</span>
+                        </div>
+                        <div x-show="tipoDocumentoFiscal === '55'" class="grid grid-cols-3 gap-2 pt-2">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Frete</label>
+                                <select x-model="modalidadeFrete" class="border border-gray-200 rounded px-2 py-1 text-xs w-full">
+                                    <option value="9">Sem Frete</option>
+                                    <option value="0">Conta Emitente</option>
+                                    <option value="1">Conta Destinatário</option>
+                                    <option value="2">Conta Terceiros</option>
+                                    <option value="3">Transp. Próprio Remetente</option>
+                                    <option value="4">Transp. Próprio Destinatário</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Volumes</label>
+                                <input type="number" x-model="volumes" min="0" class="border border-gray-200 rounded px-2 py-1 text-xs w-full">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Espécie</label>
+                                <input type="text" x-model="especie" placeholder="CAIXA" class="border border-gray-200 rounded px-2 py-1 text-xs w-full">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Peso Bruto (kg)</label>
+                                <input type="number" x-model="pesoBruto" step="0.001" class="border border-gray-200 rounded px-2 py-1 text-xs w-full">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Peso Líquido (kg)</label>
+                                <input type="number" x-model="pesoLiquido" step="0.001" class="border border-gray-200 rounded px-2 py-1 text-xs w-full">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botões Finais -->
+                <div class="flex gap-3">
+                    <button @click="fecharModalPagamento" class="flex-1 py-2.5 border-2 border-gray-200 rounded-xl hover:bg-gray-50 font-bold text-gray-600 transition">
+                        Cancelar
+                    </button>
+                    <button @click="confirmarVenda" :disabled="totalPago < totalGeral"
+                            :class="totalPago >= totalGeral ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-md' : 'bg-gray-300 cursor-not-allowed'"
+                            class="flex-1 py-2.5 text-white rounded-xl font-bold shadow-md transition-all active:scale-[0.98]">
+                        <i class="fas fa-check mr-2"></i>Confirmar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CADASTRO CLIENTE -->
+    <div x-show="modalCadastroCliente" x-transition class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-2xl shadow-2xl w-[500px]">
+            <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-t-2xl">
+                <h3 class="font-bold"><i class="fas fa-user-plus mr-2"></i>Cadastro Rápido</h3>
+                <button @click="modalCadastroCliente = false" class="text-white/80 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
+                    <input type="text" x-model="novoCliente.nome" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">CPF/CNPJ</label>
+                        <input type="text" x-model="novoCliente.cpf_cnpj" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+                        <input type="text" x-model="novoCliente.telefone" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button @click="modalCadastroCliente = false" class="flex-1 py-2.5 border-2 border-gray-200 rounded-xl hover:bg-gray-50 font-medium text-gray-600 transition">Cancelar</button>
+                    <button @click="salvarNovoCliente" class="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl hover:from-blue-700 hover:to-blue-600 font-bold shadow-md transition">
+                        <i class="fas fa-check mr-2"></i>Salvar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL IMPORTAR CONDICIONAL -->
+    <div x-show="modalImportarCondicional" x-transition class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-2xl shadow-2xl w-[600px]">
+            <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-yellow-500 to-yellow-400 text-white rounded-t-2xl">
+                <h3 class="font-bold"><i class="fas fa-download mr-2"></i>Importar Condicional</h3>
+                <button @click="modalImportarCondicional = false" class="text-white/80 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5 space-y-3">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Buscar Condicional</label>
+                    <div class="flex gap-2">
+                        <input type="text" x-model="buscaCondicional"
+                               @keydown.enter="buscarCondicional"
+                               placeholder="Número (#123) ou Cliente"
+                               class="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-yellow-500">
+                        <button @click="buscarCondicional" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md transition">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                <div x-show="condicionaisEncontrados.length > 0">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                            <input type="checkbox" x-model="selecionarTodosCondicionais" @change="toggleTodosCondicionais" class="rounded">
+                            <span>Selecionar Todos</span>
+                        </label>
+                        <div class="flex gap-2">
+                            <button @click="importarCondicionalSelecionados"
+                                    class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition"
+                                    x-show="condicionaisSelecionados.length > 0">
+                                <i class="fas fa-download mr-1"></i>Devolver Selecionados (<span x-text="condicionaisSelecionados.length"></span>)
+                            </button>
+                        </div>
+                    </div>
+                    <div class="border border-gray-200 rounded-xl max-h-56 overflow-y-auto">
+                        <template x-for="cond in condicionaisEncontrados" :key="cond.id">
+                            <div class="flex items-center p-3 border-b border-gray-100 last:border-0 hover:bg-yellow-50 transition cursor-pointer"
+                                 @click="alternarCondicional(cond)">
+                                <input type="checkbox" :checked="condicionalEstaSelecionado(cond.id)"
+                                       class="mr-3 rounded flex-shrink-0" @click.stop>
+                                <div class="flex-1 min-w-0">
+                                    <div class="font-bold text-sm text-gray-800">#<span x-text="cond.id"></span> - <span x-text="cond.cliente"></span></div>
+                                    <div class="text-xs text-gray-500 mt-0.5">
+                                        Data: <span x-text="cond.data"></span> | Total: R$ <span x-text="cond.total"></span>
+                                    </div>
+                                </div>
+                                <button @click.stop="importarCondicional(cond)"
+                                        class="ml-2 px-2.5 py-1.5 text-xs bg-yellow-500 text-white rounded hover:bg-yellow-600 transition flex-shrink-0">
+                                    <i class="fas fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                <div x-show="condicionaisEncontrados.length === 0 && buscaCondicional"
+                     class="text-center py-8 text-gray-400">
+                    <i class="fas fa-inbox text-4xl mb-2"></i>
+                    <p class="text-sm">Nenhum condicional encontrado</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CPF CONSUMIDOR -->
+    <div x-show="modalCPF" x-transition class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div @click.away="modalCPF = false" class="bg-white rounded-2xl shadow-2xl w-[420px]">
+            <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-t-2xl">
+                <h3 class="font-bold"><i class="fas fa-id-card mr-2"></i>CPF na Nota Fiscal</h3>
+                <button @click="modalCPF = false" class="text-white/80 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6 space-y-4">
+                <p class="text-sm text-gray-600">Informe o CPF do consumidor para emissão da NFC-e:</p>
+                <input type="text" x-model="cpfConsumidor" x-ref="inputCPF"
+                       placeholder="Digite o CPF (somente números)"
+                       class="w-full px-4 py-3 border-2 border-blue-300 rounded-xl text-lg text-center font-bold focus:ring-2 focus:ring-blue-500"
+                       maxlength="14" @keydown.enter="confirmarCPF">
+                <p class="text-xs text-gray-400 text-center">Deixe em branco para emitir sem CPF</p>
+                <div class="flex gap-3 pt-2">
+                    <button @click="cpfConsumidor = 'ISENTO'; confirmarCPF()"
+                            class="flex-1 py-2.5 border-2 border-gray-200 rounded-xl hover:bg-gray-50 font-medium text-sm transition">
+                        <i class="fas fa-times-circle mr-1"></i>Emitir sem CPF
+                    </button>
+                    <button @click="confirmarCPF"
+                            class="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl hover:from-blue-700 hover:to-blue-600 font-bold shadow-md transition">
+                        <i class="fas fa-check mr-1"></i>Confirmar CPF
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PÓS-VENDA -->
+    <div x-show="modalPosVenda" x-transition class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div @click.away="false" class="bg-white rounded-2xl shadow-2xl w-[500px]">
+            <div class="p-4 border-b flex justify-between rounded-t-2xl"
+                 :class="posVenda.sucesso ? 'bg-gradient-to-r from-green-500 to-green-600 text-white' : 'bg-gradient-to-r from-red-500 to-red-600 text-white'">
+                <h3 class="font-bold text-lg"><i class="fas" :class="posVenda.sucesso ? 'fa-check-circle' : 'fa-exclamation-circle'" class="mr-2"></i><span x-text="posVenda.titulo"></span></h3>
+                <button @click="fecharPosVenda" class="text-white/80 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6 space-y-4">
+                <p class="text-sm text-gray-700" x-text="posVenda.mensagem"></p>
+
+                <template x-if="posVenda.mostrarOpcaoNFE">
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
+                        <div class="flex items-center gap-2 text-blue-800">
+                            <i class="fas fa-file-invoice text-xl"></i>
+                            <span class="font-bold">NF-e criada com sucesso!</span>
+                        </div>
+                        <p class="text-sm text-blue-700">Deseja transmitir para a SEFAZ agora?</p>
+                        <div class="flex gap-3 pt-1">
+                            <button @click="transmitirNFE()" class="flex-1 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-bold shadow-md transition">
+                                <i class="fas fa-upload mr-1"></i>Sim, transmitir
+                            </button>
+                            <button @click="posVenda.mostrarOpcaoNFE = false; posVenda.mostrarOpcaoCupom = true"
+                                    class="flex-1 py-2.5 border-2 border-gray-200 rounded-xl hover:bg-gray-50 font-medium text-sm transition">
+                                <i class="fas fa-times mr-1"></i>Não, só imprimir
+                            </button>
+                        </div>
+                    </div>
+                </template>
+
+                <template x-if="posVenda.mostrarOpcaoCupom">
+                    <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+                        <p class="text-sm text-gray-700 font-medium">Deseja imprimir o comprovante da venda?</p>
+                        <div class="flex gap-3">
+                            <button @click="imprimirCupom()" class="flex-1 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 font-bold shadow-md transition">
+                                <i class="fas fa-print mr-1"></i>Sim, imprimir
+                            </button>
+                            <button @click="fecharPosVenda()" class="flex-1 py-2.5 border-2 border-gray-200 rounded-xl hover:bg-gray-50 font-medium text-sm transition">
+                                <i class="fas fa-times mr-1"></i>Fechar
+                            </button>
+                        </div>
+                    </div>
+                </template>
+
+                <template x-if="posVenda.mostrarDANFE">
+                    <div class="bg-green-50 border border-green-200 rounded-xl p-4 space-y-3">
+                        <div class="flex items-center gap-2 text-green-800">
+                            <i class="fas fa-check-circle text-xl"></i>
+                            <span class="font-bold">NF-e autorizada!</span>
+                        </div>
+                        <p class="text-sm text-green-700">Protocolo: <span class="font-mono font-bold" x-text="posVenda.protocolo"></span></p>
+                        <button @click="imprimirDANFE()" class="w-full py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 font-bold shadow-md transition">
+                            <i class="fas fa-file-pdf mr-1"></i>Imprimir DANFE
+                        </button>
+                    </div>
+                </template>
+
+                <template x-if="posVenda.mostrarErroNFE">
+                    <div class="bg-red-50 border border-red-200 rounded-xl p-4 space-y-3">
+                        <div class="flex items-center gap-2 text-red-800">
+                            <i class="fas fa-exclamation-triangle text-xl"></i>
+                            <span class="font-bold" x-text="posVenda.tituloErro || 'Erro na transmissão'"></span>
+                        </div>
+                        <p class="text-sm text-red-700" x-text="posVenda.erroNFE"></p>
+                        <div class="flex gap-3">
+                            <button x-show="posVenda.nfeId" @click="transmitirNFE()" class="flex-1 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 font-bold shadow-md transition">
+                                <i class="fas fa-redo mr-1"></i>Tentar novamente
+                            </button>
+                            <button @click="fecharPosVenda()" class="flex-1 py-2.5 border-2 border-gray-200 rounded-xl hover:bg-gray-50 font-medium text-sm transition">Fechar</button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- LOADING OVERLAY -->
+    <div x-show="loading" x-transition class="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p class="text-gray-700 font-medium text-lg" x-text="loadingMensagem"></p>
+            <p class="text-gray-400 text-sm mt-1">Aguarde...</p>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function pdvApp() {
+    return {
+        tipoOperacao: 'VENDA',
+        codigoBusca: '',
+        buscaCliente: '',
+        clienteSelecionado: null,
+        resultadosClientes: [],
+        vendedorId: '',
+        vendedores: {{ vendedores_json|safe }},
+        clientePadrao: {{ cliente_padrao_json|safe }},
+        vendedorPadrao: {{ vendedor_padrao_json|safe }},
+
+        init() {
+            if (this.clientePadrao) this.clienteSelecionado = this.clientePadrao;
+            if (this.vendedorPadrao) this.vendedorId = this.vendedorPadrao.chave;
+            const params = new URLSearchParams(window.location.search);
+            const condicionalId = params.get('condicional');
+            if (condicionalId) {
+                this.autoImportarCondicional(condicionalId);
+            }
+        },
+        itens: [],
+        descontoGeral: 0,
+        tipoDescontoGeral: 'valor',
+        subtotal: 0,
+        totalGeral: 0,
+        totalDesconto: 0,
+        alerta: { show: false, mensagem: '', tipo: '' },
+        modalPagamento: false,
+        tipoPagamentoSelecionado: null,
+        valorPagamento: '',
+        parcelas: 1,
+        parcelasDetalhes: [],
+        pagamentos: [],
+        tiposPagamento: {{ tipos_pagamento_json|safe }},
+        emitirNFe: false,
+        tipoDocumentoFiscal: '65',
+        cpfConsumidor: '',
+        modalidadeFrete: '9',
+        volumes: 0,
+        especie: '',
+        pesoBruto: 0,
+        pesoLiquido: 0,
+        modalCPF: false,
+        modalPosVenda: false,
+        posVenda: { sucesso: false, titulo: '', mensagem: '', mostrarOpcaoNFE: false, mostrarOpcaoCupom: false, mostrarDANFE: false, mostrarErroNFE: false },
+        modalSelecaoProduto: false,
+        produtosEncontrados: [],
+        modalCadastroCliente: false,
+        novoCliente: { nome: '', cpf_cnpj: '', telefone: '' },
+        modalImportarCondicional: false,
+        buscaCondicional: '',
+        condicionaisEncontrados: [],
+        condicionaisSelecionados: [],
+        selecionarTodosCondicionais: false,
+        loading: false,
+        loadingMensagem: '',
+        // Caixa
+        modalResumoCaixa: false,
+        caixaCarregando: false,
+        caixaAberto: false,
+        caixaSaldo: 0,
+        caixaAbertura: 0,
+        caixaEntradas: 0,
+        caixaSaidas: 0,
+        caixaMovimentacoes: [],
+        caixaResumoPagamentos: [],
+
+        formatMoney(value) {
+            return 'R$ ' + parseFloat(value || 0).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        },
+
+        handleShortcut(e) {
+            if (e.key === 'F2') {
+                e.preventDefault();
+                if (this.itens.length > 0) this.finalizarOuPagamento();
+            }
+            // Atalhos do modal de pagamento: F3..F12 mapeiam para tipos de pagamento
+            if (this.modalPagamento) {
+                const fMap = { F3: 0, F4: 1, F5: 2, F6: 3, F7: 4, F8: 5, F9: 6, F10: 7, F11: 8, F12: 9 };
+                const idx = fMap[e.key];
+                if (idx !== undefined && this.tiposPagamento[idx]) {
+                    e.preventDefault();
+                    this.selecionarTipoPagamento(this.tiposPagamento[idx]);
+                }
+                if (e.key === 'F2') {
+                    e.preventDefault();
+                    if (this.totalPago >= this.totalGeral) this.confirmarVenda();
+                }
+                if (e.key === 'Enter' && this.tipoPagamentoSelecionado && !e.shiftKey) {
+                    e.preventDefault();
+                    this.adicionarPagamento();
+                }
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    if (this.pagamentos.length > 0) {
+                        this.fecharModalPagamentoSemConfirmar();
+                    } else {
+                        this.fecharModalPagamento();
+                    }
+                }
+            }
+            // Atalhos do modal pós-venda
+            if (this.modalPosVenda) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (this.posVenda.mostrarOpcaoCupom) this.imprimirCupom();
+                }
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    this.fecharPosVenda();
+                }
+            }
+        },
+
+        async buscarProduto() {
+            const termo = this.codigoBusca.trim();
+            if (!termo) return;
+            try {
+                this.loading = true;
+                this.loadingMensagem = 'Buscando produto...';
+                const resp = await fetch(`{% url 'cadastros:pdv_buscar' %}?q=${encodeURIComponent(termo)}`);
+                const data = await resp.json();
+                if (data.produto) {
+                    this.adicionarItem(data.produto);
+                    this.codigoBusca = '';
+                    this.$refs.inputProduto.focus();
+                } else if (data.produtos && data.produtos.length > 0) {
+                    this.produtosEncontrados = data.produtos;
+                    this.modalSelecaoProduto = true;
+                } else {
+                    this.mostrarAlerta(data.erro || 'Produto não encontrado', 'erro');
+                }
+            } catch(e) {
+                this.mostrarAlerta('Erro ao buscar produto', 'erro');
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        adicionarProdutoSelecionado(prod) {
+            this.adicionarItem(prod);
+            this.modalSelecaoProduto = false;
+            this.codigoBusca = '';
+            this.$refs.inputProduto.focus();
+        },
+
+        adicionarItem(prod) {
+            const existente = this.itens.find(i => i.produto_id === prod.id);
+            if (existente) {
+                existente.quantidade = (parseFloat(existente.quantidade) || 0) + 1;
+            } else {
+                this.itens.push({
+                    produto_id: prod.id,
+                    nome: prod.nome,
+                    quantidade: 1,
+                    preco: parseFloat(prod.preco) || 0,
+                    desconto: 0,
+                    tipoDesconto: 'valor',
+                    acrescimo: 0,
+                    tipoAcrescimo: 'valor',
+                    total: parseFloat(prod.preco) || 0
+                });
+            }
+            this.calcularTotais();
+        },
+
+        removerItem(idx) {
+            this.itens.splice(idx, 1);
+            this.calcularTotais();
+        },
+
+        calcularTotais() {
+            let subtotal = 0;
+            let totalDesconto = 0;
+            this.itens.forEach(item => {
+                const qtd = parseFloat(item.quantidade) || 0;
+                const preco = parseFloat(item.preco) || 0;
+                const subtotalItem = qtd * preco;
+                let descItem = 0;
+                if (item.tipoDesconto === 'percent') {
+                    descItem = subtotalItem * (parseFloat(item.desconto) || 0) / 100;
+                } else {
+                    descItem = parseFloat(item.desconto) || 0;
+                }
+                let acrItem = 0;
+                if (item.tipoAcrescimo === 'percent') {
+                    acrItem = subtotalItem * (parseFloat(item.acrescimo) || 0) / 100;
+                } else {
+                    acrItem = parseFloat(item.acrescimo) || 0;
+                }
+                item.total = subtotalItem - descItem + acrItem;
+                subtotal += subtotalItem;
+                totalDesconto += descItem;
+            });
+            this.subtotal = subtotal;
+
+            let descGeral = 0;
+            if (this.tipoDescontoGeral === 'percent') {
+                descGeral = subtotal * (parseFloat(this.descontoGeral) || 0) / 100;
+            } else {
+                descGeral = parseFloat(this.descontoGeral) || 0;
+            }
+            this.totalDesconto = totalDesconto + descGeral;
+            this.totalGeral = subtotal - descGeral;
+        },
+
+        limpar() {
+            if (this.itens.length === 0) return;
+            if (!confirm('Limpar todos os itens?')) return;
+            this.itens = [];
+            this.descontoGeral = 0;
+            this.tipoDescontoGeral = 'valor';
+            this.clienteSelecionado = null;
+            this.buscaCliente = '';
+            this.calcularTotais();
+            this.$refs.inputProduto.focus();
+        },
+
+        mostrarAlerta(mensagem, tipo) {
+            this.alerta = { show: true, mensagem, tipo };
+            setTimeout(() => { this.alerta.show = false; }, 4000);
+        },
+
+        // Cliente
+        async buscarClientes() {
+            const termo = this.buscaCliente.trim();
+            if (termo.length < 3) { this.resultadosClientes = []; return; }
+            try {
+                const resp = await fetch(`{% url 'cadastros:api_pessoas' %}?q=${encodeURIComponent(termo)}`);
+                const data = await resp.json();
+                this.resultadosClientes = data.results || [];
+            } catch(e) {
+                this.resultadosClientes = [];
+            }
+        },
+
+        selecionarPrimeiroCliente() {
+            if (this.resultadosClientes.length > 0) {
+                this.selecionarCliente(this.resultadosClientes[0]);
+            }
+        },
+
+        selecionarCliente(cliente) {
+            this.clienteSelecionado = cliente;
+            this.buscaCliente = '';
+            this.resultadosClientes = [];
+        },
+
+        limparCliente() {
+            this.clienteSelecionado = null;
+        },
+
+        // Pagamento
+        finalizarOuPagamento() {
+            if (this.itens.length === 0) return;
+            if (this.tipoOperacao === 'CONDICIONAL') {
+                this._finalizarVenda();
+            } else {
+                this.abrirModalPagamento();
+            }
+        },
+
+        abrirModalPagamento() {
+            if (this.itens.length === 0) return;
+            this.modalPagamento = true;
+            this.tipoPagamentoSelecionado = null;
+            this.valorPagamento = '';
+            this.parcelas = 1;
+            this.parcelasDetalhes = [];
+            this.$nextTick(() => { if (this.$refs.inputValor) this.$refs.inputValor.focus(); });
+        },
+
+        fecharModalPagamento() {
+            this.modalPagamento = false;
+            this.pagamentos = [];
+            this.emitirNFe = false;
+        },
+
+        fecharModalPagamentoSemConfirmar() {
+            this.modalPagamento = false;
+        },
+
+        selecionarTipoPagamento(tp) {
+            this.tipoPagamentoSelecionado = tp;
+            const resto = this.totalGeral - this.totalPago;
+            this.valorPagamento = resto > 0 ? resto.toFixed(2) : '';
+            this.parcelas = 1;
+            this.parcelasDetalhes = [];
+            this.$nextTick(() => { if (this.$refs.inputValor) { this.$refs.inputValor.focus(); this.$refs.inputValor.select(); } });
+        },
+
+        gerarParcelamento() {
+            const numParcelas = parseInt(this.parcelas) || 1;
+            const valor = parseFloat(this.valorPagamento) || 0;
+            this.parcelasDetalhes = [];
+            if (numParcelas > 1) {
+                const valorBase = valor / numParcelas;
+                for (let i = 0; i < numParcelas; i++) {
+                    const data = new Date();
+                    data.setMonth(data.getMonth() + (i + 1));
+                    const v = i === numParcelas - 1 ? valor - (valorBase * (numParcelas - 1)) : valorBase;
+                    this.parcelasDetalhes.push({
+                        vencimento: data.toISOString().split('T')[0],
+                        valor: parseFloat(v.toFixed(2))
+                    });
+                }
+            }
+        },
+
+        adicionarPagamento() {
+            if (!this.tipoPagamentoSelecionado) return;
+            const valor = parseFloat(this.valorPagamento);
+            if (!valor || valor <= 0) {
+                this.mostrarAlerta('Informe um valor válido', 'erro');
+                return;
+            }
+            this.pagamentos.push({
+                tipo_id: this.tipoPagamentoSelecionado.id,
+                tipo: this.tipoPagamentoSelecionado.nome,
+                icone: this.tipoPagamentoSelecionado.icone,
+                valor: valor,
+                parcelas: parseInt(this.parcelas) || 1,
+                valores_parcela: this.parcelasDetalhes.map(p => p.valor),
+                vencimentos: this.parcelasDetalhes.map(p => p.vencimento)
+            });
+            this.tipoPagamentoSelecionado = null;
+            this.valorPagamento = '';
+            this.parcelas = 1;
+            this.parcelasDetalhes = [];
+        },
+
+        removerPagamento(idx) {
+            this.pagamentos.splice(idx, 1);
+        },
+
+        get totalPago() {
+            return this.pagamentos.reduce((s, p) => s + p.valor, 0);
+        },
+
+        get troco() {
+            return Math.max(0, this.totalPago - this.totalGeral);
+        },
+
+        async confirmarVenda() {
+            if (this.totalPago < this.totalGeral) return;
+
+            // Se NFC-e sem cliente e sem condicional, pedir CPF
+            if (this.tipoOperacao !== 'CONDICIONAL' && this.emitirNFe && this.tipoDocumentoFiscal === '65' && !this.clienteSelecionado) {
+                this.modalCPF = true;
+                this.modalPagamento = false;
+                this.$nextTick(() => { if (this.$refs.inputCPF) this.$refs.inputCPF.focus(); });
+                return;
+            }
+            await this._finalizarVenda();
+        },
+
+        confirmarCPF() {
+            this.modalCPF = false;
+            this.modalPagamento = false;
+            this._finalizarVenda();
+        },
+
+        async _finalizarVenda() {
+            this.loading = true;
+            this.loadingMensagem = this.tipoOperacao === 'CONDICIONAL' ? 'Salvando condicional...' : 'Finalizando venda...';
+            try {
+                const payload = {
+                    cliente_id: this.clienteSelecionado?.chave,
+                    vendedor_id: this.vendedorId || null,
+                    tipo_movimento: this.tipoOperacao,
+                    itens: this.itens.map(i => ({
+                        produto_id: i.produto_id,
+                        quantidade: i.quantidade,
+                        preco: i.preco,
+                        desconto: i.desconto,
+                        tipoDesconto: i.tipoDesconto,
+                        acrescimo: i.acrescimo,
+                        tipoAcrescimo: i.tipoAcrescimo
+                    })),
+                    local: 'LOJA',
+                    pagamentos: this.pagamentos,
+                    emitir_nfe: this.emitirNFe,
+                    tipo_documento_fiscal: this.tipoDocumentoFiscal,
+                    modalidade_frete: parseInt(this.modalidadeFrete),
+                    volumes: parseInt(this.volumes) || 0,
+                    especie: this.especie,
+                    peso_bruto: parseFloat(this.pesoBruto) || 0,
+                    peso_liquido: parseFloat(this.pesoLiquido) || 0,
+                    cpf_consumidor: this.cpfConsumidor
+                };
+                const resp = await fetch('{% url "cadastros:pdv_finalizar" %}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await resp.json();
+                if (data.sucesso) {
+                    this.modalPagamento = false;
+                    this.modalPosVenda = true;
+                    this.posVenda = {
+                        sucesso: true,
+                        titulo: this.tipoOperacao === 'CONDICIONAL' ? 'Condicional Salvo!' : 'Venda Finalizada!',
+                        mensagem: data.mensagem,
+                        movimentacaoId: data.movimentacao_id,
+                        mostrarOpcaoNFE: !!data.nfe,
+                        mostrarOpcaoCupom: !data.nfe,
+                        mostrarDANFE: false,
+                        mostrarErroNFE: false,
+                        nfeId: data.nfe?.id,
+                        protocolo: null,
+                        errosNFE: data.erros_nfe
+                    };
+                    // Se tem erros de NF-e, mostra junto
+                    if (data.erros_nfe && data.erros_nfe.length > 0) {
+                        this.posVenda.mostrarErroNFE = true;
+                        this.posVenda.erroNFE = data.erros_nfe.join('; ');
+                        this.posVenda.tituloErro = 'Atenção';
+                    }
+                    this.limparVenda();
+                } else {
+                    this.mostrarAlerta(data.erro || 'Erro ao finalizar venda', 'erro');
+                }
+            } catch(e) {
+                this.mostrarAlerta('Erro ao finalizar venda', 'erro');
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        limparVenda() {
+            this.itens = [];
+            this.descontoGeral = 0;
+            this.tipoDescontoGeral = 'valor';
+            this.pagamentos = [];
+            this.emitirNFe = false;
+            this.cpfConsumidor = '';
+            this.clienteSelecionado = this.clientePadrao || null;
+            this.buscaCliente = '';
+            this.vendedorId = this.vendedorPadrao ? this.vendedorPadrao.chave : '';
+            this.calcularTotais();
+        },
+
+        async transmitirNFE() {
+            this.mostrarAlerta('Transmitindo NF-e...', 'sucesso');
+        },
+
+        imprimirCupom() {
+            window.open(`{% url 'cadastros:venda_cupom' 0 %}`.replace('0', this.posVenda.movimentacaoId || ''), '_blank');
+            this.fecharPosVenda();
+        },
+
+        imprimirDANFE() {
+            this.fecharPosVenda();
+        },
+
+        fecharPosVenda() {
+            this.modalPosVenda = false;
+            this.$refs.inputProduto?.focus();
+        },
+
+        // Cadastro Cliente
+        async salvarNovoCliente() {
+            if (!this.novoCliente.nome.trim()) {
+                this.mostrarAlerta('Nome obrigatório', 'erro');
+                return;
+            }
+            try {
+                const resp = await fetch('{% url "cadastros:api_criar_cliente" %}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: JSON.stringify(this.novoCliente)
+                });
+                const data = await resp.json();
+                if (data.sucesso) {
+                    this.selecionarCliente(data.cliente);
+                    this.modalCadastroCliente = false;
+                    this.novoCliente = { nome: '', cpf_cnpj: '', telefone: '' };
+                    this.mostrarAlerta('Cliente cadastrado com sucesso!', 'sucesso');
+                } else {
+                    this.mostrarAlerta(data.erro || 'Erro ao cadastrar', 'erro');
+                }
+            } catch(e) {
+                this.mostrarAlerta('Erro ao cadastrar cliente', 'erro');
+            }
+        },
+
+        // Condicional
+        abrirImportarCondicional() {
+            this.modalImportarCondicional = true;
+            this.buscaCondicional = '';
+            this.condicionaisEncontrados = [];
+        },
+
+        async buscarCondicional() {
+            const termo = this.buscaCondicional.trim();
+            if (!termo) return;
+            try {
+                this.loading = true;
+                this.loadingMensagem = 'Buscando condicionais...';
+                const resp = await fetch(`{% url 'cadastros:condicional_buscar' %}?q=${encodeURIComponent(termo)}`);
+                const data = await resp.json();
+                this.condicionaisEncontrados = data.condicionais || [];
+            } catch(e) {
+                this.mostrarAlerta('Erro ao buscar condicional', 'erro');
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        alternarCondicional(cond) {
+            const idx = this.condicionaisSelecionados.indexOf(cond.id);
+            if (idx >= 0) {
+                this.condicionaisSelecionados.splice(idx, 1);
+            } else {
+                this.condicionaisSelecionados.push(cond.id);
+            }
+            this.selecionarTodosCondicionais = this.condicionaisSelecionados.length === this.condicionaisEncontrados.length;
+        },
+
+        condicionalEstaSelecionado(id) {
+            return this.condicionaisSelecionados.indexOf(id) >= 0;
+        },
+
+        toggleTodosCondicionais() {
+            if (this.selecionarTodosCondicionais) {
+                this.condicionaisSelecionados = this.condicionaisEncontrados.map(c => c.id);
+            } else {
+                this.condicionaisSelecionados = [];
+            }
+        },
+
+        importarCondicionalSelecionados() {
+            if (this.condicionaisSelecionados.length === 0) return;
+            this.modalImportarCondicional = false;
+            const ids = this.condicionaisSelecionados.join(',');
+            window.location.href = `/cadastros/condicionais/devolucao/?ids=${ids}`;
+        },
+
+        importarCondicional(cond) {
+            this.modalImportarCondicional = false;
+            window.location.href = `/cadastros/condicionais/${cond.id}/devolucao/`;
+        },
+
+        async autoImportarCondicional(id) {
+            this.loading = true;
+            this.loadingMensagem = 'Carregando condicional processado...';
+            try {
+                const hasMultiplos = String(id).indexOf(',') >= 0;
+                const url = hasMultiplos
+                    ? `/cadastros/condicionais/dados-pdv-multiplo/?ids=${id}`
+                    : `/cadastros/condicionais/${id}/dados-pdv/`;
+                const resp = await fetch(url);
+                const data = await resp.json();
+                if (data.sucesso) {
+                    if (data.cliente) {
+                        this.clienteSelecionado = data.cliente;
+                    }
+                    if (data.vendedor_id) {
+                        this.vendedorId = data.vendedor_id;
+                    }
+                    this.itens = (data.itens || []).map(i => ({
+                        produto_id: i.produto_id,
+                        nome: i.nome,
+                        quantidade: i.qtd || 1,
+                        preco: parseFloat(i.preco) || 0,
+                        desconto: 0,
+                        tipoDesconto: 'valor',
+                        acrescimo: 0,
+                        tipoAcrescimo: 'valor',
+                        total: (i.qtd || 1) * (parseFloat(i.preco) || 0)
+                    }));
+                    this.calcularTotais();
+                    this.tipoOperacao = 'VENDA';
+                    window.history.replaceState({}, '', '/cadastros/pdv/');
+                    this.mostrarAlerta('Condicional carregado com sucesso!', 'sucesso');
+                } else {
+                    this.mostrarAlerta('Erro ao carregar condicional', 'erro');
+                }
+            } catch(e) {
+                this.mostrarAlerta('Erro ao carregar condicional', 'erro');
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        // Caixa
+        async abrirResumoCaixa() {
+            this.modalResumoCaixa = true;
+            this.caixaCarregando = true;
+            try {
+                const resp = await fetch('{% url "cadastros:caixa_status" %}');
+                const data = await resp.json();
+                this.caixaAberto = data.caixa_aberto;
+                this.caixaSaldo = data.saldo || 0;
+                this.caixaAbertura = data.valor_abertura || 0;
+                this.caixaEntradas = data.entradas || 0;
+                this.caixaSaidas = data.saidas || 0;
+                this.caixaMovimentacoes = data.movimentacoes || [];
+                this.caixaResumoPagamentos = data.resumo_pagamentos || [];
+            } catch(e) {
+                this.caixaAberto = false;
+            } finally {
+                this.caixaCarregando = false;
+            }
+        },
+
+        async abrirNovoCaixa() {
+            if (!confirm('Abrir novo caixa?')) return;
+            try {
+                const resp = await fetch('{% url "cadastros:caixa_abrir" %}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: JSON.stringify({ valor_abertura: 0 })
+                });
+                const data = await resp.json();
+                if (data.sucesso) {
+                    this.mostrarAlerta('Caixa aberto com sucesso!', 'sucesso');
+                    await this.abrirResumoCaixa();
+                } else {
+                    this.mostrarAlerta(data.erro || 'Erro ao abrir caixa', 'erro');
+                }
+            } catch(e) {
+                this.mostrarAlerta('Erro ao abrir caixa', 'erro');
+            }
+        },
+
+        async caixaFechar() {
+            if (!confirm('Fechar o caixa?')) return;
+            try {
+                const resp = await fetch('{% url "cadastros:caixa_fechar" %}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: JSON.stringify({})
+                });
+                const data = await resp.json();
+                if (data.sucesso) {
+                    this.mostrarAlerta('Caixa fechado com sucesso!', 'sucesso');
+                    this.modalResumoCaixa = false;
+                    this.caixaAberto = false;
+                } else {
+                    this.mostrarAlerta(data.erro || 'Erro ao fechar caixa', 'erro');
+                }
+            } catch(e) {
+                this.mostrarAlerta('Erro ao fechar caixa', 'erro');
+            }
+        }
+    };
+}
+</script>
+{% endblock %}

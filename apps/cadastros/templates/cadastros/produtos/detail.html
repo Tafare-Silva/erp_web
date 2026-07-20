@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header com Botões -->
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Detalhes do Produto</h1>
+            <p class="text-gray-600 mt-1">Código: {{ produto.pk_chave }} - {{ produto.nome }}</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="{% url 'cadastros:produto_update' produto.pk %}" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold">Editar</a>
+            <a href="{% url 'cadastros:produto_list' %}" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold">Voltar à Lista</a>
+        </div>
+    </div>
+
+    <!-- Card Principal (Estilo Olist - Informações em Grid) -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <!-- Coluna 1: Básicos -->
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Dados Básicos</h3>
+                <dl class="space-y-3">
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Nome</dt>
+                        <dd class="text-lg text-gray-900 mt-1">{{ produto.nome }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Código</dt>
+                        <dd class="text-lg text-gray-900 mt-1">{{ produto.pk_chave }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Marca</dt>
+                        <dd class="text-sm text-gray-900 mt-1">{{ produto.marca|default:"—" }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Divisão</dt>
+                        <dd class="text-sm text-gray-900 mt-1">{{ produto.divisao|default:"—" }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Tipo</dt>
+                        <dd class="text-sm text-gray-900 mt-1">{{ produto.get_tipo_produto_display }}</dd>
+                    </div>
+                </dl>
+            </div>
+
+            <!-- Coluna 2: Fiscal (Destaque para NF-e) -->
+            <div class="bg-blue-50 rounded-lg p-4">
+                <h3 class="text-lg font-semibold text-blue-900 mb-4">Dados Fiscais (NF-e)</h3>
+                <dl class="space-y-3">
+                    <div>
+                        <dt class="text-sm font-medium text-blue-700">NCM</dt>
+                        <dd class="text-sm text-blue-900 mt-1 font-mono">{{ produto.ncm }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-blue-700">CEST</dt>
+                        <dd class="text-sm text-blue-900 mt-1 font-mono">{{ produto.cest }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-blue-700">Alíquota ICMS</dt>
+                        <dd class="text-sm text-blue-900 mt-1">{{ produto.icms_aliquota }}%</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-blue-700">Divisão Impostos</dt>
+                        <dd class="text-sm text-blue-900 mt-1">{{ produto.divisao_impostos_saida|default:"—" }}</dd>
+                    </div>
+                </dl>
+            </div>
+
+            <!-- Coluna 3: Preços e Estoque -->
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Preços e Estoque</h3>
+                <dl class="space-y-3">
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Preço Venda</dt>
+                        <dd class="text-2xl font-bold text-green-600 mt-1">R$ {{ produto.preco_venda|floatformat:2 }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Custo Referência</dt>
+                        <dd class="text-lg text-gray-900 mt-1">R$ {{ produto.custo_referencia|floatformat:2 }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Estoque Mínimo</dt>
+                        <dd class="text-lg {% if produto.estoque_minimo > 0 %}text-red-600 font-bold{% else %}text-gray-900{% endif %} mt-1">{{ produto.estoque_minimo|floatformat:2 }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Local Padrão</dt>
+                        <dd class="text-sm text-gray-900 mt-1">{{ produto.local_padrao|default:"—" }}</dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+
+        <!-- Descrição -->
+        {% if produto.aplicacao %}
+        <div class="mt-8 pt-6 border-t border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900 mb-3">Descrição/Aplicação</h3>
+            <p class="text-gray-700 leading-relaxed">{{ produto.aplicacao }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Seção de Imagens (Se Tiver) -->
+    {% if imagens %}
+    <div class="mb-8">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">Imagens</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {% for imagem in imagens %}
+            <div class="bg-gray-50 rounded-lg p-4 text-center">
+                <img src="{{ imagem.imagem.url }}" alt="{{ produto.nome }}" class="mx-auto h-32 w-32 object-cover rounded">
+                <p class="text-sm text-gray-600 mt-2">Imagem {{ forloop.counter }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Seção de Códigos de Barras (Se Tiver) -->
+    {% if codigos_barras %}
+    <div class="mb-8">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">Códigos de Barras</h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {% for codigo in codigos_barras %}
+            <div class="bg-blue-50 rounded-lg p-3 text-center">
+                <p class="font-mono text-sm text-blue-900">{{ codigo.codigo_barras }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Seção de Saldos (Se Tiver) -->
+    {% if saldos %}
+    <div>
+        <h2 class="text-xl font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">Saldos de Estoque</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Local</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantidade</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for saldo in saldos %}
+                    <tr>
+                        <td class="px-6 py-4 text-sm text-gray-900">{{ saldo.local }}</td>
+                        <td class="px-6 py-4 text-sm text-green-600 font-medium">{{ saldo.quantidade|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

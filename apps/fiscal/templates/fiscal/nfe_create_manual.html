@@ -1,0 +1,301 @@
+{% extends 'base.html' %}
+{% block title %}Nova NF-e Manual{% endblock %}
+{% block page_title %}<i class="fas fa-file-invoice text-blue-600"></i> NF-e Manual{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-6">
+    <form method="post" id="formNfe" class="space-y-6">
+        {% csrf_token %}
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="font-bold text-gray-900 mb-4">Cabeçalho</h3>
+            <div class="grid grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Destinatário</label>
+                    <div x-data="clienteSearch()">
+                        <input type="hidden" name="destinatario" x-ref="hiddenInput">
+                        <input type="text" x-model="query" @input.debounce="buscar"
+                               placeholder="Digite nome ou CPF/CNPJ..."
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                               x-ref="searchInput">
+                        <div x-show="resultados.length > 0 && !selecionado"
+                             class="absolute z-50 mt-1 w-full bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                            <template x-for="r in resultados" :key="r.id">
+                                <div @click="selecionar(r)"
+                                     class="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm border-b">
+                                    <span x-text="r.text"></span>
+                                </div>
+                            </template>
+                        </div>
+                        <div x-show="selecionado" class="mt-1 flex items-center gap-2">
+                            <span class="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                                <i class="fas fa-check-circle"></i>
+                                <span x-text="selecionado.text"></span>
+                            </span>
+                            <button type="button" @click="limpar()" class="text-red-500 hover:text-red-700 text-xs">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Modelo</label>
+                    <select name="modelo" class="w-full border rounded px-3 py-2">
+                        <option value="55">NF-e (55)</option>
+                        <option value="65">NFC-e (65)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Série</label>
+                    <input type="number" name="serie" value="1" class="w-full border rounded px-3 py-2">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Natureza Operação</label>
+                    <input type="text" name="natureza_operacao" value="VENDA" class="w-full border rounded px-3 py-2">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Finalidade</label>
+                    <select name="finalidade" class="w-full border rounded px-3 py-2">
+                        <option value="1">Normal</option>
+                        <option value="2">Complementar</option>
+                        <option value="3">Ajuste</option>
+                        <option value="4">Devolução</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Presença Comprador</label>
+                    <select name="presenca_comprador" class="w-full border rounded px-3 py-2">
+                        <option value="0">Não</option>
+                        <option value="1" selected>Presencial</option>
+                        <option value="2">Internet</option>
+                        <option value="3">Teleatendimento</option>
+                        <option value="4">NFC-e entrega</option>
+                        <option value="5">Presencial fora</option>
+                        <option value="9">Outros</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tipo Pagamento</label>
+                    <select name="tipo_pagamento" class="w-full border rounded px-3 py-2">
+                        <option value="">Selecione...</option>
+                        {% for tp in tipos_pagamento %}
+                        <option value="{{ tp.pk_tipo_pagamento }}">{{ tp.tipo_pagamento }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Valor Pagamento</label>
+                    <input type="number" name="valor_pagamento" step="0.01" class="w-full border rounded px-3 py-2">
+                </div>
+            </div>
+            <div class="mt-3 flex items-center gap-2">
+                <input type="checkbox" name="consumo_final" id="consumo_final" checked class="rounded">
+                <label for="consumo_final" class="text-sm text-gray-700">Consumo Final</label>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-gray-900">Itens</h3>
+                <button type="button" onclick="adicionarItem()"
+                        class="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700">
+                    <i class="fas fa-plus"></i> Adicionar Item
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm" id="tabelaItens">
+                    <thead>
+                        <tr class="bg-gray-50 text-left">
+                            <th class="p-2">Produto</th>
+                            <th class="p-2">NCM</th>
+                            <th class="p-2">CFOP</th>
+                            <th class="p-2">CST ICMS</th>
+                            <th class="p-2">Aliq ICMS %</th>
+                            <th class="p-2">Qtd</th>
+                            <th class="p-2">Valor Unit.</th>
+                            <th class="p-2">Total</th>
+                            <th class="p-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="itensBody">
+                    </tbody>
+                </table>
+            </div>
+            <div class="text-right mt-4 p-4 bg-gray-50 rounded">
+                <p class="text-lg font-bold">Total: R$ <span id="totalGeral">0,00</span></p>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="font-bold text-gray-900 mb-4"><i class="fas fa-truck text-purple-600"></i> Transporte</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Modalidade do Frete</label>
+                    <select name="modalidade_frete" class="w-full border rounded px-3 py-2 text-sm">
+                        <option value="9">Sem Frete</option>
+                        <option value="0">Contratação Frete por conta Emitente</option>
+                        <option value="1">Contratação Frete por conta Destinatário</option>
+                        <option value="2">Contratação Frete por conta Terceiros</option>
+                        <option value="3">Transporte Próprio por conta Remetente</option>
+                        <option value="4">Transporte Próprio por conta Destinatário</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Transportadora</label>
+                    <select name="transportadora" class="w-full border rounded px-3 py-2 text-sm">
+                        <option value="">Selecione...</option>
+                        {% for t in transportadoras %}
+                        <option value="{{ t.chave }}">{{ t.nome }} — {{ t.cpf_cnpj }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Volumes</label>
+                    <input type="number" name="volumes" value="0" min="0" class="w-full border rounded px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Espécie</label>
+                    <input type="text" name="especie" placeholder="Ex.: CAIXA, PALLET" class="w-full border rounded px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Peso Bruto (kg)</label>
+                    <input type="number" name="peso_bruto" step="0.001" value="0" class="w-full border rounded px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Peso Líquido (kg)</label>
+                    <input type="number" name="peso_liquido" step="0.001" value="0" class="w-full border rounded px-3 py-2 text-sm">
+                </div>
+            </div>
+        </div>
+
+        <div class="flex gap-4">
+            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+                <i class="fas fa-file-invoice"></i> Emitir NF-e
+            </button>
+            <a href="{% url 'fiscal:nfe_list' %}" class="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600">
+                Cancelar
+            </a>
+        </div>
+    </form>
+</div>
+
+<script>
+const produtos = {{ produtos_json|safe }};
+let itemCount = 0;
+
+function clienteSearch() {
+    return {
+        query: '',
+        resultados: [],
+        selecionado: null,
+        async buscar() {
+            if (this.query.length < 2) { this.resultados = []; return; }
+            const r = await fetch(`/fiscal/api/buscar-clientes/?q=${encodeURIComponent(this.query)}`);
+            const d = await r.json();
+            this.resultados = d.results;
+        },
+        selecionar(r) {
+            this.selecionado = r;
+            this.query = '';
+            this.resultados = [];
+            this.$refs.hiddenInput.value = r.id;
+        },
+        limpar() {
+            this.selecionado = null;
+            this.query = '';
+            this.resultados = [];
+            this.$refs.hiddenInput.value = '';
+            this.$refs.searchInput.focus();
+        }
+    };
+}
+
+function adicionarItem(produto) {
+    itemCount++;
+    const idx = itemCount;
+    const tbody = document.getElementById('itensBody');
+    const tr = document.createElement('tr');
+    tr.className = 'border-t hover:bg-gray-50';
+    tr.id = `item_${idx}`;
+    tr.innerHTML = `
+        <td class="p-2">
+            <select name="produto_id" onchange="carregarProduto(${idx}, this)" class="w-48 border rounded px-2 py-1 text-sm">
+                <option value="">Selecione...</option>
+                {% for p in produtos %}
+                <option value="{{ p.pk_chave }}" data-ncm="{{ p.ncm.ncm|default:'00000000' }}"
+                        data-cfop="{{ p.cfop_venda_estadual|default:'5102' }}"
+                        data-cst="{{ p.cst_icms|default:'' }}"
+                        data-aliq="{{ p.aliquota_icms|default:'0' }}"
+                        data-preco="{{ p.preco_venda|default:'0' }}">
+                    {{ p.nome }}
+                </option>
+                {% endfor %}
+            </select>
+        </td>
+        <td class="p-2"><input type="text" name="ncm" class="w-24 border rounded px-2 py-1 text-sm"></td>
+        <td class="p-2"><input type="text" name="cfop" class="w-16 border rounded px-2 py-1 text-sm"></td>
+        <td class="p-2"><input type="text" name="cst_icms" class="w-16 border rounded px-2 py-1 text-sm"></td>
+        <td class="p-2"><input type="number" name="aliquota_icms" step="0.01" value="0" class="w-20 border rounded px-2 py-1 text-sm"></td>
+        <td class="p-2"><input type="number" name="quantidade" step="0.001" value="1" onchange="calcularLinha(${idx})" class="w-20 border rounded px-2 py-1 text-sm"></td>
+        <td class="p-2"><input type="number" name="valor_unitario" step="0.001" onchange="calcularLinha(${idx})" class="w-24 border rounded px-2 py-1 text-sm"></td>
+        <td class="p-2 font-medium"><span class="total-item">0,00</span></td>
+        <td class="p-2">
+            <button type="button" onclick="this.closest('tr').remove(); recalcularTotal();"
+                    class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+        </td>
+    `;
+    tbody.appendChild(tr);
+
+    if (produto) {
+        const selects = tr.querySelectorAll('select[name="produto_id"] option');
+        for (let opt of selects) {
+            if (opt.value == produto.id) {
+                opt.selected = true;
+                carregarProduto(idx, tr.querySelector('select[name="produto_id"]'));
+                break;
+            }
+        }
+        if (produto.preco) {
+            tr.querySelector('input[name="valor_unitario"]').value = produto.preco;
+        }
+    }
+}
+
+function carregarProduto(idx, select) {
+    const opt = select.options[select.selectedIndex];
+    const tr = select.closest('tr');
+    if (opt.value) {
+        tr.querySelector('input[name="ncm"]').value = opt.dataset.ncm || '00000000';
+        tr.querySelector('input[name="cfop"]').value = opt.dataset.cfop || '5102';
+        tr.querySelector('input[name="cst_icms"]').value = opt.dataset.cst || '';
+        tr.querySelector('input[name="aliquota_icms"]').value = opt.dataset.aliq || '0';
+        if (!tr.querySelector('input[name="valor_unitario"]').value || tr.querySelector('input[name="valor_unitario"]').value == '0') {
+            tr.querySelector('input[name="valor_unitario"]').value = opt.dataset.preco || '0';
+        }
+        calcularLinha(idx);
+    }
+}
+
+function calcularLinha(idx) {
+    const tr = document.getElementById(`item_${idx}`);
+    if (!tr) return;
+    const qtd = parseFloat(tr.querySelector('input[name="quantidade"]').value) || 0;
+    const vUnit = parseFloat(tr.querySelector('input[name="valor_unitario"]').value) || 0;
+    const total = qtd * vUnit;
+    tr.querySelector('.total-item').textContent = total.toFixed(2).replace('.', ',');
+    recalcularTotal();
+}
+
+function recalcularTotal() {
+    let total = 0;
+    document.querySelectorAll('.total-item').forEach(el => {
+        total += parseFloat(el.textContent.replace(',', '.')) || 0;
+    });
+    document.getElementById('totalGeral').textContent = total.toFixed(2).replace('.', ',');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    adicionarItem();
+});
+</script>
+{% endblock %}

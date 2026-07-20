@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-6xl mx-auto bg-white rounded shadow p-6">
+    <div class="flex justify-between items-center mb-4">
+        <div>
+            <h2 class="text-2xl font-bold">Imagens do Produto</h2>
+            <p class="text-gray-600">Produto: <strong>{{ produto.nome }}</strong></p>
+        </div>
+        <div class="flex gap-2">
+            <a href="{% url 'cadastros:produto_list' %}" class="px-4 py-2 border rounded">
+                <i class="fas fa-arrow-left mr-2"></i>Voltar
+            </a>
+            <a href="{% url 'cadastros:imagem_create' produto.pk_chave %}" class="px-4 py-2 bg-blue-600 text-white rounded">
+                <i class="fas fa-upload mr-2"></i>Upload Imagem
+            </a>
+        </div>
+    </div>
+    
+    {% if imagens %}
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {% for img in imagens %}
+        <div class="border rounded-lg p-3">
+            <a href="{% url 'cadastros:imagem_view' img.pk_chave %}" target="_blank">
+                <img src="data:image/jpeg;base64,{{ img.imagem_base64 }}" 
+                     alt="Imagem {{ img.pk_chave }}"
+                     class="w-full h-48 object-cover rounded cursor-pointer hover:opacity-80 transition">
+            </a>
+            <div class="mt-2 text-center">
+                <span class="text-xs text-gray-500">ID: {{ img.pk_chave }}</span>
+                <div class="mt-2">
+                    <a href="{% url 'cadastros:imagem_delete' produto.pk_chave img.pk_chave %}" 
+                       class="text-xs text-red-600 hover:text-red-800">
+                        <i class="fas fa-trash mr-1"></i>Excluir
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-12">
+        <i class="fas fa-images text-6xl text-gray-300 mb-4"></i>
+        <p class="text-gray-500">Nenhuma imagem cadastrada</p>
+        <a href="{% url 'cadastros:imagem_create' produto.pk_chave %}" 
+           class="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded">
+            <i class="fas fa-upload mr-2"></i>Adicionar Primeira Imagem
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block title %}Histórico - Estoque{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">
+            📋 Histórico de Movimentações
+        </h1>
+        <a href="{% url 'estoque:consulta_estoque' %}" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">
+            <i class="fas fa-arrow-left mr-2"></i>Voltar
+        </a>
+    </div>
+
+    <!-- Filtros -->
+    <form method="GET" class="bg-white rounded-lg shadow p-4 mb-6">
+        <div class="flex gap-4">
+            <div class="flex-1">
+                <label class="block text-sm font-medium mb-1">Produto ID (opcional)</label>
+                <input type="number" name="produto_id" value="{{ produto_id }}" placeholder="ID do produto" class="w-full px-3 py-2 border rounded-lg">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Limite</label>
+                <select name="limite" class="px-3 py-2 border rounded-lg">
+                    <option value="100" {% if limite == 100 %}selected{% endif %}>100</option>
+                    <option value="500" {% if limite == 500 %}selected{% endif %}>500</option>
+                    <option value="1000" {% if limite == 1000 %}selected{% endif %}>1000</option>
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    <i class="fas fa-search mr-2"></i>Filtrar
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Tabela -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="w-full">
+            <thead class="bg-gray-50">
+                <tr class="text-xs uppercase text-gray-500">
+                    <th class="px-4 py-3 text-left">Data</th>
+                    <th class="px-4 py-3 text-left">Tipo</th>
+                    <th class="px-4 py-3 text-left">Produto</th>
+                    <th class="px-4 py-3 text-right">Quantidade</th>
+                    <th class="px-4 py-3 text-left">Local</th>
+                    <th class="px-4 py-3 text-left">Observação</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y">
+                {% for mov in historico %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3 text-sm">{{ mov.data|date:"d/m/Y" }}</td>
+                    <td class="px-4 py-3 text-sm">
+                        <span class="px-2 py-1 text-xs rounded-full 
+                            {% if 'ENTRADA' in mov.tipo %}bg-green-100 text-green-800
+                            {% else %}bg-red-100 text-red-800{% endif %}">
+                            {{ mov.tipo }}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-sm">{{ mov.produto_nome }}</td>
+                    <td class="px-4 py-3 text-sm text-right font-semibold
+                        {% if mov.quantidade > 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                        {{ mov.quantidade|floatformat:2 }}
+                    </td>
+                    <td class="px-4 py-3 text-sm">{{ mov.local }}</td>
+                    <td class="px-4 py-3 text-sm text-gray-600">{{ mov.obs|truncatewords:10 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="px-4 py-8 text-center text-gray-500">
+                        Nenhuma movimentação encontrada
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

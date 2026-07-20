@@ -1,0 +1,232 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ titulo }} - ERP Web{% endblock %}
+
+{% block page_title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <div class="bg-white rounded-lg shadow-sm">
+        <div class="p-6 border-b border-gray-200">
+            <div class="flex items-center">
+                <a href="{% url 'cadastros:plano_contas_list' %}" 
+                   class="mr-4 text-gray-600 hover:text-gray-800">
+                    <i class="fas fa-arrow-left text-xl"></i>
+                </a>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800">{{ titulo }}</h3>
+                    <p class="text-sm text-gray-600 mt-1">Preencha os dados da conta</p>
+                </div>
+            </div>
+        </div>
+        
+        <form method="post" class="p-6" x-data="{ abaAtiva: 'identificacao' }">
+            {% csrf_token %}
+            
+            <!-- Navegação de Abas -->
+            <div class="mb-6 border-b border-gray-200">
+                <nav class="flex space-x-8" aria-label="Tabs">
+                    <button type="button"
+                            @click="abaAtiva = 'identificacao'"
+                            :class="abaAtiva === 'identificacao' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                        <i class="fas fa-id-card mr-2"></i>
+                        Identificação
+                    </button>
+                    
+                    <button type="button"
+                            @click="abaAtiva = 'configuracoes'"
+                            :class="abaAtiva === 'configuracoes' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                        <i class="fas fa-cog mr-2"></i>
+                        Configurações
+                    </button>
+                    
+                    <button type="button"
+                            @click="abaAtiva = 'padroes'"
+                            :class="abaAtiva === 'padroes' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                        <i class="fas fa-dollar-sign mr-2"></i>
+                        Valores Padrão
+                    </button>
+                </nav>
+            </div>
+            
+            <!-- Aba 1: Identificação -->
+            <div x-show="abaAtiva === 'identificacao'" x-transition>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
+                        <label for="{{ form.nome.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Nome da Conta <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.nome }}
+                        {% if form.nome.errors %}
+                            <div class="mt-2 text-sm text-red-600">
+                                {% for error in form.nome.errors %}
+                                    <p><i class="fas fa-exclamation-circle mr-1"></i>{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <p class="mt-1 text-xs text-gray-500">Ex: Vendas de Produtos, Aluguel, Energia Elétrica</p>
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.tipo_conta.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Tipo de Conta <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.tipo_conta }}
+                        {% if form.tipo_conta.errors %}
+                            <div class="mt-2 text-sm text-red-600">
+                                {% for error in form.tipo_conta.errors %}
+                                    <p>{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <p class="mt-1 text-xs text-gray-500">Receita, Despesa ou Ambas</p>
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.pai.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Conta Pai
+                        </label>
+                        {{ form.pai }}
+                        <p class="mt-1 text-xs text-gray-500">Deixe vazio para criar conta raiz</p>
+                    </div>
+                    
+                    <div class="md:col-span-2">
+                        <label for="{{ form.observacoes.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Observações
+                        </label>
+                        {{ form.observacoes }}
+                        <p class="mt-1 text-xs text-gray-500">Observações ou explicações sobre esta conta</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Aba 2: Configurações -->
+            <div x-show="abaAtiva === 'configuracoes'" x-transition>
+                <div class="space-y-6">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div class="flex items-start">
+                            <i class="fas fa-info-circle text-blue-600 mt-1 mr-3"></i>
+                            <div>
+                                <h4 class="text-sm font-medium text-blue-900 mb-1">Configurações de Lançamento</h4>
+                                <p class="text-sm text-blue-700">Configure como esta conta se comporta nos lançamentos automáticos.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="flex items-start">
+                            <div class="flex items-center h-5">
+                                {{ form.fixo }}
+                            </div>
+                            <div class="ml-3">
+                                <label for="{{ form.fixo.id_for_label }}" class="font-medium text-gray-700">
+                                    Despesa/Receita Fixa
+                                </label>
+                                <p class="text-sm text-gray-500">Ex: Aluguel, Salário, Energia</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start">
+                            <div class="flex items-center h-5">
+                                {{ form.apenas_previsao }}
+                            </div>
+                            <div class="ml-3">
+                                <label for="{{ form.apenas_previsao.id_for_label }}" class="font-medium text-gray-700">
+                                    Apenas Previsão
+                                </label>
+                                <p class="text-sm text-gray-500">Não gera lançamento, só previsão</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.dia_do_lancamento.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Dia do Lançamento Automático
+                        </label>
+                        {{ form.dia_do_lancamento }}
+                        <p class="mt-1 text-xs text-gray-500">Dia do mês (1-31) para lançamento automático de contas fixas</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Aba 3: Valores Padrão -->
+            <div x-show="abaAtiva === 'padroes'" x-transition>
+                <div class="space-y-4">
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                        <div class="flex items-start">
+                            <i class="fas fa-lightbulb text-yellow-600 mt-1 mr-3"></i>
+                            <div>
+                                <h4 class="text-sm font-medium text-yellow-900 mb-1">Valores Padrão</h4>
+                                <p class="text-sm text-yellow-700">Estes valores serão sugeridos automaticamente ao criar novos lançamentos desta conta.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="{{ form.valor_padrao.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Valor Padrão
+                            </label>
+                            {{ form.valor_padrao }}
+                            <p class="mt-1 text-xs text-gray-500">Valor sugerido para lançamentos</p>
+                        </div>
+                        
+                        <div>
+                            <label for="{{ form.centro_custo_padrao.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Centro de Custo Padrão
+                            </label>
+                            {{ form.centro_custo_padrao }}
+                            <p class="mt-1 text-xs text-gray-500">Centro de custo sugerido</p>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.obs_padrao.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Observação Padrão
+                        </label>
+                        {{ form.obs_padrao }}
+                        <p class="mt-1 text-xs text-gray-500">Texto sugerido no histórico do lançamento</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex items-center justify-between pt-6 mt-6 border-t border-gray-200">
+                <a href="{% url 'cadastros:plano_contas_list' %}" 
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">
+                    <i class="fas fa-times mr-2"></i>
+                    Cancelar
+                </a>
+                
+                <button type="submit" 
+                        class="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                    <i class="fas fa-check mr-2"></i>
+                    {{ botao_texto }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    form input, form select, form textarea {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+    }
+    form input:focus, form select:focus, form textarea:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    form input[type="checkbox"] {
+        width: 1rem;
+        height: 1rem;
+        margin: 0;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,352 @@
+{% extends 'base.html' %}
+
+{% block title %}Movimentação de Estoque{% endblock %}
+
+{% block content %}
+<div class="max-w-full mx-auto px-2">
+    <!-- Header Compacto -->
+    <div class="flex justify-between items-center mb-3">
+        <div>
+            <h1 class="text-xl font-bold text-gray-900">🔄 Movimentação de Estoque</h1>
+            <p class="text-xs text-gray-600">Gestão de entrada, saída e transferência de produtos</p>
+        </div>
+        <div class="text-right">
+            <p class="text-xs text-gray-600">Total de Itens</p>
+            <p class="text-2xl font-bold text-blue-600" id="totalItensHeader">0</p>
+        </div>
+        <div class="text-right ml-8">
+            <p class="text-xs text-gray-600">Valor Total</p>
+            <p class="text-2xl font-bold text-blue-600" id="valorTotalHeader">R$ 0,00</p>
+        </div>
+        <a href="{% url 'estoque:consulta_estoque' %}" class="text-blue-600 hover:underline font-bold text-sm">
+            ← Consultar
+        </a>
+    </div>
+
+    <!-- Alerts -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="mb-2 p-2 px-3 bg-green-100 border-l-4 border-green-600 text-green-700 rounded text-xs">
+                <i class="fas fa-check-circle mr-2"></i>{{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
+        <!-- FORMULÁRIO ESQUERDA (3 colunas) -->
+        <div class="lg:col-span-3">
+            <form method="post" id="formMovimentacao" class="bg-white rounded-lg shadow p-3 sticky top-20 max-h-[calc(100vh-120px)] overflow-y-auto">
+                {% csrf_token %}
+                <input type="hidden" id="produtos_json" name="produtos_json">
+
+                <h3 class="font-bold text-gray-900 mb-2 text-xs">⚙️ Configuração</h3>
+
+                <!-- Tipo de Movimentação -->
+                <div class="mb-2">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Tipo</label>
+                    <select id="tipoMovimento" name="tipo_movimento" class="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:border-blue-600 focus:outline-none" required onchange="atualizarCamposDinamicos()">
+                        <option value="">Selecione...</option>
+                        {% for valor, label, descricao in tipos_movimento %}
+                            <option value="{{ valor }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Local de Origem -->
+                <div class="mb-2">
+                    <label class="block text-xs font-bold text-gray-700 mb-1" id="labelLocalOrigem">Local</label>
+                    <select id="localOrigem" name="local_origem" class="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:border-blue-600 focus:outline-none">
+                        <option value="">Selecione...</option>
+                        {% for local in locais %}
+                            <option value="{{ local.pk }}">{{ local.local }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Local de Destino (oculto até transferência) -->
+                <div class="mb-2 hidden" id="containerLocalDestino">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Local Destino</label>
+                    <select id="localDestino" name="local_destino" class="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:border-blue-600 focus:outline-none">
+                        <option value="">Selecione...</option>
+                        {% for local in locais %}
+                            <option value="{{ local.pk }}">{{ local.local }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Motivo -->
+                <div class="mb-2">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Motivo *</label>
+                    <textarea id="motivo" name="motivo" class="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:border-blue-600 focus:outline-none" rows="2" placeholder="Descrição..." required></textarea>
+                </div>
+
+                <!-- Resumo -->
+                <div class="bg-blue-50 rounded p-2 mb-2 border border-blue-200 text-xs">
+                    <p class="text-gray-600 font-bold mb-1">📊 Resumo</p>
+                    <p class="text-lg font-bold text-blue-600">
+                        <span id="totalProdutos">0</span> produto(s)
+                    </p>
+                    <p class="text-xs text-gray-600">
+                        Total: <span id="totalQtd">0</span> un.
+                    </p>
+                </div>
+
+                <!-- Botões -->
+                <div class="flex flex-col gap-2">
+                    <button type="submit" class="w-full bg-green-600 text-white px-2 py-1 rounded font-bold text-xs hover:bg-green-700 transition">
+                        ✅ Confirmar
+                    </button>
+                    <a href="{% url 'estoque:consulta_estoque' %}" class="w-full bg-gray-400 text-white px-2 py-1 rounded font-bold text-xs text-center hover:bg-gray-500 transition">
+                        ❌ Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <!-- TABELA DE PRODUTOS DIREITA (9 colunas) -->
+        <div class="lg:col-span-9">
+            <div class="bg-white rounded-lg shadow p-3">
+                <!-- Input de Busca -->
+                <div class="mb-3">
+                    <input 
+                        type="text"
+                        id="produtoInput"
+                        placeholder="Digite produto e pressione ENTER para buscar..."
+                        class="w-full px-2 py-1 border-2 border-gray-300 rounded-lg focus:border-blue-600 focus:outline-none text-xs"
+                        autocomplete="off"
+                    >
+                    <p class="text-xs text-gray-500 mt-1">💡 Após selecionar, o cursor volta aqui automaticamente</p>
+                </div>
+
+                <!-- Tabela de Produtos -->
+                <div class="overflow-x-auto max-h-96 overflow-y-auto border border-gray-200 rounded">
+                    <table class="w-full text-xs border-collapse">
+                        <thead class="bg-gray-100 sticky top-0">
+                            <tr class="border-b border-gray-300">
+                                <th class="border-r border-gray-300 px-2 py-1 text-left font-bold">Tipo</th>
+                                <th class="border-r border-gray-300 px-2 py-1 text-left font-bold">Código</th>
+                                <th class="border-r border-gray-300 px-2 py-1 text-left font-bold">Produto</th>
+                                <th class="border-r border-gray-300 px-2 py-1 text-center font-bold">Qtd</th>
+                                <th class="border-r border-gray-300 px-2 py-1 text-right font-bold">Valor Unit.</th>
+                                <th class="border-r border-gray-300 px-2 py-1 text-right font-bold">Valor Total</th>
+                                <th class="border-r border-gray-300 px-2 py-1 text-center font-bold">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaProdutos">
+                            <tr>
+                                <td colspan="7" class="text-center py-8 text-gray-400">
+                                    <i class="fas fa-inbox text-2xl mb-2"></i>
+                                    <p>Nenhum produto selecionado</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Busca -->
+{% include 'components/modal_busca_produto.html' %}
+
+<script>
+// Estado Global
+let produtosSelecionados = [];
+
+// Atualizar campos dinâmicos
+function atualizarCamposDinamicos() {
+    const tipo = document.getElementById('tipoMovimento').value;
+    const containerDestino = document.getElementById('containerLocalDestino');
+    const labelOrigem = document.getElementById('labelLocalOrigem');
+    
+    if (tipo === 'TRANSFERENCIA') {
+        containerDestino.classList.remove('hidden');
+        labelOrigem.textContent = 'Local Origem';
+        document.getElementById('localOrigem').setAttribute('required', 'required');
+        document.getElementById('localDestino').setAttribute('required', 'required');
+    } else {
+        containerDestino.classList.add('hidden');
+        labelOrigem.textContent = 'Local';
+        document.getElementById('localOrigem').setAttribute('required', 'required');
+        document.getElementById('localDestino').removeAttribute('required');
+    }
+}
+
+// Buscar Produto (ENTER)
+const produtoInput = document.getElementById('produtoInput');
+produtoInput.addEventListener('keydown', async function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const termo = this.value.trim();
+        
+        if (termo.length < 2) {
+            alert('❌ Digite pelo menos 2 caracteres');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`{% url 'estoque:api_buscar_produto' %}?q=${encodeURIComponent(termo)}`);
+            const data = await response.json();
+            
+            if (data.produtos && data.produtos.length > 0) {
+                abrirModalProduto(data.produtos, selecionarProdutoCallback);
+            } else {
+                alert('❌ Nenhum produto encontrado');
+            }
+        } catch (error) {
+            alert('❌ Erro ao buscar');
+        }
+    }
+});
+
+// Callback de seleção
+function selecionarProdutoCallback(produto) {
+    if (produtosSelecionados.find(p => p.pk_chave === produto.pk_chave)) {
+        alert('⚠️ Este produto já foi selecionado');
+        produtoInput.focus();
+        return;
+    }
+    
+    produtosSelecionados.push({
+        pk_chave: produto.pk_chave,
+        nome: produto.nome,
+        preco_venda: produto.preco_venda,
+        referencia_fabrica: produto.referencia_fabrica,
+        quantidade: 1
+    });
+    
+    produtoInput.value = '';
+    produtoInput.focus();
+    
+    renderizarTabela();
+    atualizarResumo();
+}
+
+// Renderizar Tabela
+function renderizarTabela() {
+    const tabela = document.getElementById('tabelaProdutos');
+    
+    if (produtosSelecionados.length === 0) {
+        tabela.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-8 text-gray-400">
+                    <i class="fas fa-inbox text-2xl mb-2"></i>
+                    <p>Nenhum produto selecionado</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tabela.innerHTML = produtosSelecionados.map((produto, index) => `
+        <tr class="border-b border-gray-200 hover:bg-blue-50">
+            <td class="border-r border-gray-200 px-2 py-1">
+                <span class="bg-green-100 text-green-700 px-1 py-0 rounded text-xs font-bold">✔ Ent.</span>
+            </td>
+            <td class="border-r border-gray-200 px-2 py-1 text-gray-700">${produto.referencia_fabrica || '-'}</td>
+            <td class="border-r border-gray-200 px-2 py-1 font-bold text-gray-900">${produto.nome}</td>
+            <td class="border-r border-gray-200 px-2 py-1 text-center">
+                <div class="flex items-center justify-center gap-1">
+                    <button type="button" onclick="diminuirQtd(${index})" class="bg-red-500 text-white px-1 rounded text-xs hover:bg-red-600">−</button>
+                    <input type="number" 
+                           value="${produto.quantidade}" 
+                           onchange="atualizarQuantidade(${index}, this.value)"
+                           class="w-10 text-center px-1 py-0 border border-gray-300 rounded text-xs"
+                           min="0.0001" 
+                           step="0.0001">
+                    <button type="button" onclick="aumentarQtd(${index})" class="bg-green-500 text-white px-1 rounded text-xs hover:bg-green-600">+</button>
+                </div>
+            </td>
+            <td class="border-r border-gray-200 px-2 py-1 text-right text-gray-700">R$ ${parseFloat(produto.preco_venda).toFixed(2)}</td>
+            <td class="border-r border-gray-200 px-2 py-1 text-right font-bold text-gray-900">R$ ${(produto.quantidade * produto.preco_venda).toFixed(2)}</td>
+            <td class="px-2 py-1 text-center">
+                <button type="button" onclick="removerProduto(${index})" class="text-red-600 hover:bg-red-100 p-1 rounded">
+                    <i class="fas fa-trash text-xs"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Funções de Manipulação
+function atualizarQuantidade(index, valor) {
+    const qtd = parseFloat(valor) || 0;
+    if (qtd > 0) {
+        produtosSelecionados[index].quantidade = qtd;
+        renderizarTabela();
+        atualizarResumo();
+    }
+}
+
+function aumentarQtd(index) {
+    produtosSelecionados[index].quantidade += 1;
+    renderizarTabela();
+    atualizarResumo();
+}
+
+function diminuirQtd(index) {
+    const nova = produtosSelecionados[index].quantidade - 1;
+    if (nova > 0) {
+        produtosSelecionados[index].quantidade = nova;
+    } else {
+        produtosSelecionados.splice(index, 1);
+    }
+    renderizarTabela();
+    atualizarResumo();
+}
+
+function removerProduto(index) {
+    produtosSelecionados.splice(index, 1);
+    renderizarTabela();
+    atualizarResumo();
+}
+
+// Atualizar Resumo
+function atualizarResumo() {
+    const total = produtosSelecionados.length;
+    const qtd = produtosSelecionados.reduce((sum, p) => sum + p.quantidade, 0);
+    const valor = produtosSelecionados.reduce((sum, p) => sum + (p.quantidade * p.preco_venda), 0);
+    
+    document.getElementById('totalProdutos').textContent = total;
+    document.getElementById('totalQtd').textContent = qtd.toFixed(4);
+    document.getElementById('totalItensHeader').textContent = total;
+    document.getElementById('valorTotalHeader').textContent = `R$ ${valor.toFixed(2).replace('.', ',').replace(/(\d)(?=(\d{3})+,)/g, '$1.')}`;
+}
+
+// Submeter Formulário
+document.getElementById('formMovimentacao').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    if (produtosSelecionados.length === 0) {
+        alert('❌ Adicione pelo menos um produto!');
+        return;
+    }
+    
+    if (!document.getElementById('tipoMovimento').value) {
+        alert('❌ Selecione o tipo de movimentação!');
+        return;
+    }
+    
+    if (!document.getElementById('localOrigem').value) {
+        alert('❌ Selecione um local!');
+        return;
+    }
+    
+    if (!document.getElementById('motivo').value) {
+        alert('❌ Descreva o motivo!');
+        return;
+    }
+    
+    document.getElementById('produtos_json').value = JSON.stringify(produtosSelecionados);
+    this.submit();
+});
+
+// Atalhos de Teclado
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'Enter') {
+        document.getElementById('formMovimentacao').dispatchEvent(new Event('submit'));
+    }
+});
+</script>
+{% endblock %}

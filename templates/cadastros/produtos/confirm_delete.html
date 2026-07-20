@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-16">
+    <div class="max-w-md mx-auto bg-white rounded-xl shadow-lg border border-red-100 p-8">
+        <div class="text-center mb-8">
+            <div class="bg-red-50 text-red-500 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-exclamation-triangle text-4xl"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">Confirmar Exclusão</h2>
+            <p class="text-gray-600 mt-4">
+                Tem certeza que deseja excluir o produto <br>
+                <strong class="text-gray-900 text-lg">"{{ produto.nome }}"</strong>?
+            </p>
+            <p class="text-sm text-red-500 mt-2 font-medium">Esta ação não poderá ser desfeita.</p>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="flex gap-4 justify-center">
+                <a href="{% url 'cadastros:produto_list' %}" class="w-1/2 text-center bg-white border-2 border-gray-300 hover:bg-gray-50 text-gray-700 font-bold py-3 rounded-lg transition-colors">
+                    Cancelar
+                </a>
+                <button type="submit" class="w-1/2 bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg shadow-md transition-colors">
+                    Sim, Excluir
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

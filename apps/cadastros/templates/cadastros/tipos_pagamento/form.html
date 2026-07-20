@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block title %}{{ titulo }} - ERP Web{% endblock %}
+{% block page_title %}{{ titulo }}{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="bg-white rounded-lg shadow-sm">
+        <div class="p-6 border-b border-gray-200">
+            <div class="flex items-center">
+                <a href="{% url 'cadastros:tipo_pagamento_list' %}" class="mr-4 text-gray-600 hover:text-gray-800">
+                    <i class="fas fa-arrow-left text-xl"></i>
+                </a>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800">{{ titulo }}</h3>
+                    <p class="text-sm text-gray-600 mt-1">Preencha os dados do tipo de pagamento</p>
+                </div>
+            </div>
+        </div>
+        
+        <form method="post" class="p-6" x-data="{ abaAtiva: 'principais' }">
+            {% csrf_token %}
+            
+            <div class="mb-6 border-b border-gray-200">
+                <nav class="flex space-x-8">
+                    <button type="button" @click="abaAtiva = 'principais'"
+                            :class="abaAtiva === 'principais' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'"
+                            class="py-4 px-1 border-b-2 font-medium text-sm">
+                        <i class="fas fa-info-circle mr-2"></i>Principais
+                    </button>
+                    <button type="button" @click="abaAtiva = 'avancado'"
+                            :class="abaAtiva === 'avancado' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'"
+                            class="py-4 px-1 border-b-2 font-medium text-sm">
+                        <i class="fas fa-cog mr-2"></i>Avançado
+                    </button>
+                </nav>
+            </div>
+            
+            <div x-show="abaAtiva === 'principais'" x-transition>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Nome <span class="text-red-500">*</span></label>
+                        {{ form.nome }}
+                    </div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2">Prazo Padrão (dias)</label>{{ form.prazo_padrao }}</div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2">Parcelas Padrão</label>{{ form.qtd_parcelas_padrao }}</div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2">Situações Permitidas</label>{{ form.situacoes_permitidas }}</div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2">Tipos de Títulos</label>{{ form.tipos_titulos_permitidos }}</div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2">Parcelamento</label>{{ form.tipos_parcelamentos_permitidos }}</div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2">Controle Cheque</label>{{ form.controle_cheque }}</div>
+                </div>
+            </div>
+            
+            <div x-show="abaAtiva === 'avancado'" x-transition>
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-medium text-gray-700 mb-2">Modalidade Cartão</label>{{ form.modalidade }}</div>
+                        <div><label class="block text-sm font-medium text-gray-700 mb-2">Taxa Admin. (%)</label>{{ form.taxa_administracao }}</div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="flex items-center"><div class="flex h-5">{{ form.chamar_tef }}</div><label class="ml-2">Chamar TEF</label></div>
+                        <div class="flex items-center"><div class="flex h-5">{{ form.exigir_conta_bancaria }}</div><label class="ml-2">Exigir Conta Bancária</label></div>
+                        <div class="flex items-center"><div class="flex h-5">{{ form.entrar_caixa_usuario }}</div><label class="ml-2">Entrar no Caixa do Usuário</label></div>
+                        <div class="flex items-center"><div class="flex h-5">{{ form.centavos_por_ultimo_nas_parcelas }}</div><label class="ml-2">Centavos na Última Parcela</label></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex justify-between pt-6 mt-6 border-t">
+                <a href="{% url 'cadastros:tipo_pagamento_list' %}" class="px-4 py-2 border rounded-lg">Cancelar</a>
+                <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg">{{ botao_texto }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+<style>
+    form input, form select { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; }
+    form input[type="checkbox"] { width: 1rem; height: 1rem; margin: 0; }
+</style>
+{% endblock %}

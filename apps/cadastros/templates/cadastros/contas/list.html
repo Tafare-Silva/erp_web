@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% block title %}Contas Bancárias - ERP Web{% endblock %}
+{% block page_title %}Contas Bancárias{% endblock %}
+{% block content %}
+<div class="bg-white rounded-lg shadow-sm">
+    <div class="p-6 border-b border-gray-200">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div class="flex-1">
+                <h3 class="text-lg font-semibold text-gray-800">Cadastro de Contas Bancárias</h3>
+                <p class="text-sm text-gray-600 mt-1">Gerenciar contas bancárias</p>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-3">
+                <form method="get" class="flex-1 sm:flex-initial">
+                    <div class="relative">
+                        <input type="text" name="q" value="{{ search }}" placeholder="Buscar conta..." 
+                               class="w-full sm:w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                    </div>
+                </form>
+                <a href="{% url 'cadastros:conta_create' %}" 
+                   class="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                    <i class="fas fa-plus mr-2"></i>Nova Conta
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Banco</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agência</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Conta</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for conta in contas %}
+                <tr class="hover:bg-gray-50 transition {% if conta.inativo %}opacity-60{% endif %}">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 h-10 w-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-wallet text-emerald-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <div class="text-sm font-medium text-gray-900">
+                                    {% if conta.banco_obj %}
+                                        {{ conta.banco_obj.nome|default:"—" }}
+                                    {% else %}
+                                        Banco {{ conta.banco }}
+                                    {% endif %}
+                                </div>
+                                <div class="text-sm text-gray-500">Código: {{ conta.banco }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm text-gray-900">{{ conta.agencia }}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                            {{ conta.conta }}{% if conta.digito %}-{{ conta.digito }}{% endif %}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ conta.get_tipo_conta_bancaria_display }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% if conta.inativo %}
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Inativa</span>
+                        {% else %}
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Ativa</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div class="flex items-center justify-end gap-2">
+                            <a href="{% url 'cadastros:conta_update' conta.pk_composto %}" 
+                               class="inline-flex items-center px-3 py-1.5 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 transition">
+                                <i class="fas fa-edit mr-1"></i>Editar
+                            </a>
+                            <a href="{% url 'cadastros:conta_delete' conta.pk_composto %}" 
+                               class="inline-flex items-center px-3 py-1.5 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition">
+                                <i class="fas fa-trash mr-1"></i>Excluir
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="px-6 py-12 text-center">
+                        <div class="flex flex-col items-center">
+                            <i class="fas fa-inbox text-4xl text-gray-300 mb-3"></i>
+                            <p class="text-gray-500 text-sm">{% if search %}Nenhuma conta encontrada{% else %}Nenhuma conta cadastrada{% endif %}</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

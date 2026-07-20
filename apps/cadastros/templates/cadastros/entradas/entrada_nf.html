@@ -1,0 +1,1222 @@
+{% extends 'base.html' %}
+{% block title %}Entrada de Nota Fiscal{% endblock %}
+
+{% block content %}
+
+{% block page_title %}
+    {% if modo_edicao %}
+        ✏️ Editar Entrada #{{ entrada.numero_nf }}
+    {% else %}
+        📦 Entrada de Nota Fiscal
+    {% endif %}
+{% endblock %}
+
+<style>
+/* Scroll para grid de itens */
+.scroll-itens {
+    display: block;
+    overflow-y: auto;
+    max-height: 400px;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e0 #f7fafc;
+}
+
+.scroll-itens::-webkit-scrollbar {
+    width: 8px;
+}
+
+.scroll-itens::-webkit-scrollbar-track {
+    background: #f7fafc;
+    border-radius: 4px;
+}
+
+.scroll-itens::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 4px;
+}
+
+.scroll-itens::-webkit-scrollbar-thumb:hover {
+    background: #a0aec0;
+}
+
+.scroll-itens table {
+    width: 100%;
+    display: table;
+}
+
+.scroll-itens thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #f9fafb;
+}
+</style>
+
+<div x-data="entradaNFApp()" class="space-y-4">
+    
+    <!-- Alertas -->
+    <div x-show="alerta.show" x-transition
+         :class="alerta.tipo === 'sucesso' ? 'bg-green-100 border-green-500 text-green-800' : 'bg-red-100 border-red-500 text-red-800'"
+         class="p-3 border-l-4 rounded-lg flex items-center justify-between">
+        <div class="flex items-center">
+            <i class="fas" :class="alerta.tipo === 'sucesso' ? 'fa-check-circle' : 'fa-exclamation-circle'" class="mr-2"></i>
+            <span x-text="alerta.mensagem" class="text-sm"></span>
+        </div>
+        <button @click="alerta.show = false"><i class="fas fa-times"></i></button>
+    </div>
+    
+    <!-- Dados da NF -->
+    <div class="bg-white rounded-lg shadow p-4">
+        <h3 class="text-sm font-bold mb-3 pb-2 border-b">
+            <i class="fas fa-file-invoice mr-2 text-blue-600"></i>Dados da Nota Fiscal
+        </h3>
+        <!-- Botão Upload XML -->
+            <div class="mb-3 flex justify-between items-center">
+                <h3 class="text-sm font-bold pb-2 border-b flex-1">
+                    <i class="fas fa-file-invoice mr-2 text-blue-600"></i>Dados da Nota Fiscal
+                </h3>
+                <button @click="modalUploadXML = true" 
+                        class="px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm">
+                    <i class="fas fa-upload mr-2"></i>Importar XML
+                </button>
+            </div>
+        <div class="grid grid-cols-4 gap-3">
+            <div class="col-span-2">
+                <label class="block text-xs font-medium mb-1">Fornecedor *</label>
+                <div class="relative">
+                    <input type="text" x-model="buscaFornecedor" 
+                           @input="buscarFornecedores"
+                           placeholder="Digite o nome..."
+                           class="w-full px-3 py-2 text-sm border rounded-lg">
+                    
+                    <!-- Dropdown -->
+                    <div x-show="resultadosFornecedores.length > 0 && !fornecedorSelecionado" 
+                         class="absolute z-10 mt-1 w-full border rounded-lg max-h-48 overflow-y-auto bg-white shadow-lg">
+                        <template x-for="forn in resultadosFornecedores" :key="forn.chave">
+                            <button @click="selecionarFornecedor(forn)" 
+                                    class="w-full text-left px-3 py-2 hover:bg-blue-50 border-b last:border-0">
+                                <div class="font-medium text-sm" x-text="forn.nome"></div>
+                                <div class="text-xs text-gray-600" x-show="forn.cpf_cnpj">
+                                    CNPJ: <span x-text="forn.cpf_cnpj"></span>
+                                </div>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+                <div x-show="fornecedorSelecionado" class="mt-1 text-sm text-green-600">
+                    <i class="fas fa-check mr-1"></i><span x-text="fornecedorSelecionado?.nome"></span>
+                    <button @click="limparFornecedor()" class="ml-2 text-red-600 hover:text-red-800">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-xs font-medium mb-1">Tipo Documento *</label>
+                <select x-model="tipoDocumento" class="w-full px-3 py-2 text-sm border rounded-lg">
+                    {% for td in tipos_doc %}
+                    <option value="{{ td }}">{{ td }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-xs font-medium mb-1">Data Emissão *</label>
+                <input type="date" x-model="dataEmissao" class="w-full px-3 py-2 text-sm border rounded-lg">
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-4 gap-3 mt-3">
+            <div>
+                <label class="block text-xs font-medium mb-1">Nº NF *</label>
+                <input type="number" x-model="numeroNF" class="w-full px-3 py-2 text-sm border rounded-lg">
+            </div>
+            
+            <div>
+                <label class="block text-xs font-medium mb-1">Série</label>
+                <input type="text" x-model="serieNF" class="w-full px-3 py-2 text-sm border rounded-lg">
+            </div>
+            
+            <div class="col-span-2">
+                <label class="block text-xs font-medium mb-1">Chave NFe (44 dígitos)</label>
+                <input type="text" x-model="chaveNFe" maxlength="44" 
+                       class="w-full px-3 py-2 text-sm border rounded-lg font-mono">
+            </div>
+        </div>
+    </div>
+    
+    <!-- Buscar Produto -->
+    <div class="bg-white rounded-lg shadow p-4">
+        <h3 class="text-sm font-bold mb-3">
+            <i class="fas fa-search mr-2 text-blue-600"></i>Buscar Produto
+        </h3>
+        
+        <div class="flex gap-2">
+            <input type="text" x-model="buscaProduto" 
+                   @keydown.enter="buscarProduto"
+                   placeholder="Código ou nome do produto (Enter)"
+                   class="flex-1 px-3 py-2 text-sm border rounded-lg">
+            <button @click="buscarProduto" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                <i class="fas fa-search"></i>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Grid de Itens -->
+    <div class="bg-white rounded-lg shadow p-4">
+        <div class="flex justify-between items-center mb-3">
+            <h3 class="text-sm font-bold">
+                <i class="fas fa-boxes mr-2 text-blue-600"></i>
+                Itens da Nota (<span x-text="itens.length"></span>)
+            </h3>
+            <div class="text-sm font-bold text-blue-600">
+                Total NF: <span x-text="formatMoney(totalNF)"></span>
+            </div>
+        </div>
+        <div class="mb-2 flex gap-2 items-center">
+            <label class="text-sm font-medium">Margem Padrão:</label>
+            <input type="number" x-model="margemPadrao" 
+                value="30" step="1"
+                class="w-20 px-2 py-1 border rounded">
+            <span class="text-sm">%</span>
+            <button @click="aplicarMargemPadrao(margemPadrao)" 
+                    class="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700">
+                <i class="fas fa-percentage mr-1"></i>Aplicar em Todos
+            </button>
+        </div>
+        
+        <div class="border rounded-lg overflow-hidden">
+            <div class="scroll-itens">
+                <table class="w-full text-xs">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-2 py-2 text-left w-16">Código</th>
+                            <th class="px-2 py-2 text-left">Produto</th>
+                            <th class="px-2 py-2 text-center w-16">Qtd</th>
+                            <th class="px-2 py-2 text-right w-24">Vr. Unit</th>
+                            <th class="px-2 py-1 text-center w-20 bg-green-50">Margem %</th>
+                            <th class="px-2 py-1 text-center w-24 bg-green-50">Preço Venda</th>
+                            <th class="px-2 py-2 text-right w-20">ICMS%</th>
+                            <th class="px-2 py-2 text-right w-20">IPI%</th>
+                            <th class="px-2 py-2 text-right w-24">Frete</th>
+                            <th class="px-2 py-2 text-right w-24">Total</th>
+                            <th class="px-2 py-2 text-center w-10"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="(item, idx) in itens" :key="idx">
+                            <tr class="border-t hover:bg-gray-50">
+                                <td class="px-2 py-2 text-center" x-text="item.produto_id"></td>
+                                <td class="px-2 py-2">
+                                    <div class="font-medium" x-text="item.nome"></div>
+                                </td>
+                                <td class="px-2 py-2">
+                                    <input type="number" x-model="item.quantidade" @input="calcularTotais"
+                                           class="w-14 px-1 py-1 text-xs border rounded text-center" step="0.01">
+                                </td>
+                                <td class="px-2 py-2">
+                                    <input type="number" x-model="item.vr_unitario" @input="calcularTotais"
+                                           class="w-20 px-1 py-1 text-xs border rounded text-right" step="0.01">
+                                </td>
+                                <td class="px-2 py-1 bg-green-50">
+                                    <input type="number" step="0.01" x-model="item.margem"
+                                        @input="calcularPrecoVenda(item)"
+                                        placeholder="30"
+                                        class="w-full px-1 py-1 text-center border rounded bg-green-100">
+                                </td>
+                                <td class="px-2 py-1 bg-green-50">
+                                    <input type="number" step="0.01" x-model="item.preco_venda"
+                                        @input="recalcularMargem(item)"
+                                        class="w-full px-1 py-1 text-center border rounded bg-green-100 font-medium">
+                                </td>
+                                <td class="px-2 py-2">
+                                    <input type="number" x-model="item.aliq_icms_compra" @input="calcularCusto(item)"
+                                           class="w-16 px-1 py-1 text-xs border rounded text-right" step="0.01">
+                                </td>
+                                <td class="px-2 py-2">
+                                    <input type="number" x-model="item.aliq_ipi" @input="calcularCusto(item)"
+                                           class="w-16 px-1 py-1 text-xs border rounded text-right" step="0.01">
+                                </td>
+                                <td class="px-2 py-2">
+                                    <input type="number" x-model="item.vr_frete" @input="calcularTotais"
+                                           class="w-20 px-1 py-1 text-xs border rounded text-right" step="0.01">
+                                </td>
+                                <td class="px-2 py-2 text-right font-bold" x-text="formatMoney(item.total)"></td>
+                                <td class="px-2 py-2 text-center">
+                                    <button @click="removerItem(idx)" class="text-red-600 hover:text-red-800">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </template>
+                        <template x-if="itens.length === 0">
+                            <tr>
+                                <td colspan="9" class="px-3 py-12 text-center text-gray-400">
+                                    <i class="fas fa-inbox text-4xl mb-2"></i>
+                                    <p class="text-sm">Nenhum item adicionado</p>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Rodapé com Totais e Ações -->
+    <div class="bg-white rounded-lg shadow p-4">
+        <div class="grid grid-cols-3 gap-4">
+            <div class="col-span-2 space-y-2">
+                <div class="flex justify-between text-sm">
+                    <span>Total Produtos:</span>
+                    <span class="font-bold" x-text="formatMoney(totalProdutos)"></span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span>Total ICMS ST:</span>
+                    <span class="font-bold text-orange-600" x-text="formatMoney(totalICMSST)"></span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span>Total IPI:</span>
+                    <span class="font-bold text-purple-600" x-text="formatMoney(totalIPI)"></span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span>Total Frete:</span>
+                    <span class="font-bold text-blue-600" x-text="formatMoney(totalFrete)"></span>
+                </div>
+                <div class="flex justify-between text-lg font-bold pt-2 border-t">
+                    <span>Total da NF:</span>
+                    <span class="text-green-600" x-text="formatMoney(totalNF)"></span>
+                </div>
+            </div>
+            
+            <div class="space-y-2">
+                <button @click="finalizarEntrada()" :disabled="itens.length === 0"
+                        class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-bold">
+                    <i class="fas fa-check mr-2"></i>
+                    {% if modo_edicao %}Atualizar Entrada{% else %}Finalizar Entrada{% endif %}
+                </button>
+                <button @click="limparTudo" class="w-full py-2 border rounded-lg hover:bg-gray-50">
+                    <i class="fas fa-broom mr-2"></i>Limpar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PRÉ-CADASTRO DE PRODUTOS -->
+        <div x-show="modalPreCadastro" x-transition 
+            class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div @click.away="modalPreCadastro = false" 
+                class="bg-white rounded-lg shadow-xl w-[95%] max-h-[90vh] overflow-hidden">
+                
+                <!-- Header -->
+                <div class="p-4 border-b flex justify-between items-center bg-purple-600 text-white">
+                    <h3 class="font-bold text-lg">
+                        <i class="fas fa-box-open mr-2"></i>
+                        Cadastro de Produtos por XML 
+                        (<span x-text="produtosParaCadastrar.length"></span>)
+                    </h3>
+                    <button @click="modalPreCadastro = false" class="hover:bg-purple-700 p-2 rounded">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <!-- Botões de Ação Rápida -->
+                <div class="p-3 bg-gray-50 border-b flex gap-2">
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs font-medium">Marca:</label>
+                        <select x-model="marcaSelecionada" class="px-2 py-1 text-xs border rounded">
+                            <option value="">Selecione...</option>
+                            {% for marca in marcas %}
+                            <option value="{{ marca }}">{{ marca }}</option>
+                            {% endfor %}
+                        </select>
+                        <button @click="replicarMarca()" 
+                                class="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
+                            Replicar Marca
+                        </button>
+                    </div>
+                    
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs font-medium">Divisão:</label>
+                        <select x-model="divisaoSelecionada" class="px-2 py-1 text-xs border rounded">
+                            <option value="">Selecione...</option>
+                            {% for divisao in divisoes %}
+                            <option value="{{ divisao }}">{{ divisao }}</option>
+                            {% endfor %}
+                        </select>
+                        <button @click="replicarDivisao()" 
+                                class="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
+                            Replicar Divisão
+                        </button>
+                    </div>
+                    
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs font-medium">Unidade:</label>
+                        <select x-model="unidadeSelecionada" class="px-2 py-1 text-xs border rounded">
+                            <option value="">Selecione...</option>
+                            {% for unidade in unidades %}
+                            <option value="{{ unidade }}">{{ unidade }}</option>
+                            {% endfor %}
+                        </select>
+                        <button @click="replicarUnidade()" 
+                                class="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
+                            Replicar Unidade
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Tabela de Produtos -->
+                <div class="overflow-y-auto" style="max-height: 400px;">
+                    <table class="w-full text-xs">
+                        <thead class="bg-gray-100 sticky top-0">
+                            <tr>
+                                <th class="px-2 py-2 text-left w-24">Cód. Forn.</th>
+                                <th class="px-2 py-2 text-left">Descrição</th>
+                                <th class="px-2 py-2 text-left w-32">Marca *</th>
+                                <th class="px-2 py-2 text-left w-32">Divisão *</th>
+                                <th class="px-2 py-2 text-left w-24">Unidade *</th>
+                                <th class="px-2 py-2 text-left w-32">EAN</th>
+                                <th class="px-2 py-2 text-left w-20">NCM</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="(prod, idx) in produtosParaCadastrar" :key="idx">
+                                <tr class="border-t hover:bg-gray-50">
+                                    <td class="px-2 py-2 font-mono text-xs" x-text="prod.codigo_fornecedor"></td>
+                                    <td class="px-2 py-2">
+                                        <input type="text" x-model="prod.nome" 
+                                            class="w-full px-1 py-1 text-xs border rounded">
+                                    </td>
+                                    <td class="px-2 py-2">
+                                        <select x-model="prod.marca" 
+                                                class="w-full px-1 py-1 text-xs border rounded"
+                                                :class="!prod.marca ? 'border-red-500' : ''">
+                                            <option value="">Selecione</option>
+                                            {% for marca in marcas %}
+                                            <option value="{{ marca }}">{{ marca }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td class="px-2 py-2">
+                                        <select x-model="prod.divisao" 
+                                                class="w-full px-1 py-1 text-xs border rounded"
+                                                :class="!prod.divisao ? 'border-red-500' : ''">
+                                            <option value="">Selecione</option>
+                                            {% for divisao in divisoes %}
+                                            <option value="{{ divisao }}">{{ divisao }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td class="px-2 py-2">
+                                        <select x-model="prod.unidade" 
+                                                class="w-full px-1 py-1 text-xs border rounded"
+                                                :class="!prod.unidade ? 'border-red-500' : ''">
+                                            <option value="">Selecione</option>
+                                            {% for unidade in unidades %}
+                                            <option value="{{ unidade }}">{{ unidade }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td class="px-2 py-2">
+                                        <input type="text" x-model="prod.ean" 
+                                            class="w-full px-1 py-1 text-xs border rounded font-mono">
+                                    </td>
+                                    <td class="px-2 py-2 text-center text-gray-600" x-text="prod.ncm"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Footer -->
+                <div class="p-4 border-t bg-gray-50 flex justify-between items-center">
+                    <div class="text-sm text-gray-600">
+                        * Campos obrigatórios
+                    </div>
+                    <div class="flex gap-2">
+                        <button @click="modalPreCadastro = false" 
+                                class="px-4 py-2 border rounded-lg hover:bg-gray-100">
+                            <i class="fas fa-times mr-2"></i>Cancelar - ESC
+                        </button>
+                        <button @click="confirmarPreCadastro()" 
+                                ::disabled="cadastrandoProdutos"
+                                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                            <i class="fas fa-check mr-2"></i>Confirmar - F2
+                        </button>
+                    </div>
+                </div>
+                <!-- OVERLAY DE LOADING ===== -->
+            <div x-show="cadastrandoProdutos" 
+                class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white rounded-lg p-6 shadow-xl">
+                    <div class="flex items-center gap-3">
+                        <svg class="animate-spin h-8 w-8 text-purple-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <div>
+                            <div class="font-bold text-lg">Cadastrando produtos...</div>
+                            <div class="text-sm text-gray-600">
+                                <span x-text="produtosParaCadastrar.length"></span> produtos
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </div>
+            
+        </div>
+    
+    
+    <!-- Modal Seleção Produto -->
+    <div x-show="modalProdutos" x-transition class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div @click.away="modalProdutos = false" class="bg-white rounded-lg shadow-xl w-[700px] max-h-[80vh] overflow-y-auto">
+            <div class="p-4 border-b flex justify-between bg-blue-600 text-white">
+                <h3 class="font-bold"><i class="fas fa-search mr-2"></i>Selecione o Produto</h3>
+                <button @click="modalProdutos = false"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-4 space-y-2">
+                <template x-for="prod in produtosEncontrados" :key="prod.id">
+                    <button @click="adicionarProduto(prod)" 
+                            class="w-full text-left p-3 border rounded-lg hover:bg-blue-50 hover:border-blue-400">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <div class="font-medium text-sm" x-text="prod.nome"></div>
+                                <div class="text-xs text-gray-600 mt-1">
+                                    Cód: <span x-text="prod.id"></span> | 
+                                    Marca: <span x-text="prod.marca"></span>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xs text-gray-600">Último custo:</div>
+                                <div class="font-bold text-blue-600" x-text="formatMoney(prod.ultimo_custo)"></div>
+                            </div>
+                        </div>
+                    </button>
+                </template>
+            </div>
+        </div>
+    </div>
+    <!-- MODAL UPLOAD XML -->
+<div x-show="modalUploadXML" x-transition class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div @click.away="modalUploadXML = false" class="bg-white rounded-lg shadow-xl w-[600px]">
+        <div class="p-4 border-b flex justify-between bg-purple-600 text-white">
+            <h3 class="font-bold"><i class="fas fa-upload mr-2"></i>Importar XML da NFe</h3>
+            <button @click="modalUploadXML = false"><i class="fas fa-times"></i></button>
+        </div>
+        
+        <div class="p-4">
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                <i class="fas fa-file-code text-5xl text-purple-600 mb-3"></i>
+                <p class="text-sm mb-3">Arraste o arquivo XML ou clique para selecionar</p>
+                <input type="file" 
+                       @change="handleFileUpload($event)" 
+                       accept=".xml"
+                       class="hidden" 
+                       x-ref="fileInput">
+                <button @click="$refs.fileInput.click()" 
+                        class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                    <i class="fas fa-folder-open mr-2"></i>Selecionar Arquivo
+                </button>
+            </div>
+            
+            <!-- Loading -->
+            <div x-show="uploadingXML" class="mt-4 text-center">
+                <i class="fas fa-spinner fa-spin text-3xl text-purple-600"></i>
+                <p class="text-sm mt-2">Processando XML...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div x-show="finalizandoEntrada" 
+     x-transition
+     class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-8 shadow-2xl max-w-md">
+        <div class="flex flex-col items-center gap-4">
+            <!-- Spinner -->
+            <svg class="animate-spin h-16 w-16 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            
+            <!-- Texto -->
+            <div class="text-center">
+                <div class="font-bold text-xl text-gray-900 mb-2">
+                    Finalizando entrada...
+                </div>
+                <div class="text-sm text-gray-600">
+                    Gravando <span x-text="itens.length"></span> itens
+                </div>
+                <div class="text-xs text-gray-500 mt-2">
+                    Aguarde, não feche a janela
+                </div>
+            </div>
+            
+            <!-- Progress bar animado -->
+            <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div class="bg-blue-600 h-2 rounded-full animate-pulse" style="width: 100%"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+</div>
+
+<script>
+function entradaNFApp() {
+    return {
+        // Dados NF
+        fornecedorSelecionado: null,
+        buscaFornecedor: '',
+        resultadosFornecedores: [],
+        tipoDocumento: 'NFE',
+        dataEmissao: new Date().toISOString().split('T')[0],
+        numeroNF: '',
+        serieNF: '1',
+        chaveNFe: '',
+        modalUploadXML: false,
+        uploadingXML: false,
+        finalizandoEntrada: false, 
+        cadastrandoProdutos: false, 
+        margemPadrao: 30,
+        
+        // Produtos
+        buscaProduto: '',
+        produtosEncontrados: [],
+        modalProdutos: false,
+        itens: [],
+        modalPreCadastro: false,
+        produtosParaCadastrar: [],
+        produtosEncontrados: [],
+        marcaSelecionada: '',
+        divisaoSelecionada: '',
+        unidadeSelecionada: '',
+        
+        // Totais
+        totalProdutos: 0,
+        totalICMSST: 0,
+        totalIPI: 0,
+        totalFrete: 0,
+        totalNF: 0,
+        
+        alerta: { show: false, mensagem: '', tipo: '' },
+        
+        init() {
+            // ===== ADICIONAR ESTE BLOCO =====
+            // Carregar dados se for edição
+            const modoEdicao = {{ modo_edicao|default:'false'|lower }};
+            
+            if (modoEdicao) {
+                console.log('🔧 Modo Edição Ativado');
+                this.carregarDadosEdicao();
+            }
+            // ===== FIM DO BLOCO =====
+        },
+
+        buscarFornecedores() {
+            if (this.buscaFornecedor.length < 3) {
+                this.resultadosFornecedores = [];
+                return;
+            }
+            
+            fetch(`/cadastros/api/pessoas?q=${this.buscaFornecedor}&fornecedor=true`)
+                .then(r => r.json())
+                .then(data => {
+                    this.resultadosFornecedores = data.results || [];
+                });
+        },
+
+        handleFileUpload(event) {
+            const file = event.target.files[0];
+            
+            console.log('=== DEBUG UPLOAD ===');
+            console.log('File:', file);
+            console.log('File name:', file?.name);
+            console.log('File size:', file?.size);
+            console.log('File type:', file?.type);
+            
+            if (!file) {
+                console.error('Nenhum arquivo selecionado');
+                this.mostrarAlerta('Nenhum arquivo selecionado', 'erro');
+                return;
+            }
+            
+            if (!file.name.endsWith('.xml')) {
+                this.mostrarAlerta('Selecione um arquivo XML válido', 'erro');
+                return;
+            }
+            
+            if (file.size === 0) {
+                this.mostrarAlerta('Arquivo XML vazio', 'erro');
+                return;
+            }
+            
+            this.uploadingXML = true;
+            
+            const formData = new FormData();
+            formData.append('xml_file', file);
+            
+            console.log('FormData criado');
+            console.log('Enviando para:', '/cadastros/entradas/upload-xml/');
+            
+            fetch('/cadastros/entradas/upload-xml/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': this.getCookie('csrftoken')
+                },
+                body: formData
+            })
+            .then(response => {
+                console.log('Response status:', response.status);
+                console.log('Response ok:', response.ok);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Response data:', data);
+                this.uploadingXML = false;
+                
+                if (data.sucesso) {
+                    // Preencher dados da NF
+                    this.numeroNF = data.dados_nf.numero_nf;
+                    this.serieNF = data.dados_nf.serie_nf;
+                    this.dataEmissao = data.dados_nf.data_emissao;
+                    this.chaveNFe = data.dados_nf.chave_nfe;
+                    this.tipoDocumento = data.dados_nf.tipo_documento;
+                    
+                    // Fornecedor
+                    this.fornecedorSelecionado = {
+                        chave: data.fornecedor.chave,
+                        nome: data.fornecedor.nome
+                    };
+                    this.buscaFornecedor = data.fornecedor.nome;
+                    
+                    // Avisar se fornecedor foi criado
+                    if (data.fornecedor.criado_automaticamente) {
+                        this.mostrarAlerta(
+                            `✅ Fornecedor "${data.fornecedor.nome}" cadastrado automaticamente!`,
+                            'sucesso'
+                        );
+                    }
+                    
+                    // CORRIGIDO: Verificar produtos_nao_encontrados ao invés de itens
+                    if (data.produtos_nao_encontrados && data.produtos_nao_encontrados.length > 0) {
+                        // Tem produtos não encontrados
+                        console.log('Produtos não encontrados:', data.produtos_nao_encontrados.length);
+                        
+                        // ABRIR MODAL DE PRÉ-CADASTRO
+                            console.log('Produtos não encontrados:', data.produtos_nao_encontrados.length);
+
+                            // Preparar produtos para cadastro
+                            this.produtosParaCadastrar = data.produtos_nao_encontrados.map(p => ({
+                                ...p,
+                                nome: p.produto_nome_xml,
+                                marca: '',
+                                divisao: '',
+                                unidade: 'UN',
+                                
+                            }));
+
+                            // Guardar produtos encontrados para adicionar depois
+                            this.produtosEncontrados = data.produtos_encontrados || [];
+
+                            // ABRIR O MODAL
+                            this.modalPreCadastro = true;
+                            this.uploadingXML = false;
+                        
+                        this.modalUploadXML = false;
+                        
+                    } else if (data.produtos_encontrados && data.produtos_encontrados.length > 0) {
+                        // Todos produtos encontrados! Adicionar ao grid
+                        console.log('Todos produtos encontrados:', data.produtos_encontrados.length);
+
+                        this.itens = [];
+                        data.produtos_encontrados.forEach(prod => {
+                            const custo = parseFloat(prod.valor_unitario || prod.vr_unitario || 0);
+                            this.itens.push({
+                                produto_id: prod.produto_id,
+                                nome: prod.produto_nome_sistema,
+                                quantidade: parseFloat(prod.quantidade || 1),
+                                vr_unitario: custo,
+                                vr_desconto: parseFloat(prod.valor_desconto || 0),
+                                vr_acrescimo: 0,
+                                bc_icms: parseFloat(prod.bc_icms || 0),
+                                aliq_icms_compra: parseFloat(prod.aliq_icms || 0),
+                                aliq_icms_venda: 18,
+                                bc_icms_st: parseFloat(prod.bc_icms_st || 0),
+                                aliq_iva: parseFloat(prod.aliq_mva || 0),
+                                vr_icms_st: parseFloat(prod.valor_icms_st || 0),
+                                bc_ipi: parseFloat(prod.bc_ipi || 0),
+                                aliq_ipi: parseFloat(prod.aliq_ipi || 0),
+                                bc_pis: parseFloat(prod.bc_pis || 0),
+                                aliq_pis: parseFloat(prod.aliq_pis || 0),
+                                bc_cofins: parseFloat(prod.bc_cofins || 0),
+                                aliq_cofins: parseFloat(prod.aliq_cofins || 0),
+                                vr_frete: parseFloat(prod.valor_frete || 0),
+                                vr_seguro: parseFloat(prod.valor_seguro || 0),
+                                vr_outras: parseFloat(prod.valor_outras || 0),
+                                cfop: prod.cfop || '',
+                                local: '{{ locais.0|default:"LOJA" }}',
+                                margem: this.margemPadrao,
+                                preco_venda: 0,
+                                total: parseFloat(prod.valor_total || 0),
+                                produto_encontrado: true
+                            });
+                        });
+                        this.itens.forEach(item => this.calcularPrecoVenda(item));
+                        
+                        this.calcularTotais();
+                        this.modalUploadXML = false;
+                        
+                        this.mostrarAlerta(
+                            `✅ XML importado! ${data.produtos_encontrados.length} produtos carregados.`,
+                            'sucesso'
+                        );
+                        
+                    } else {
+                        // Nenhum produto?
+                        this.mostrarAlerta('Nenhum produto encontrado no XML', 'erro');
+                        this.modalUploadXML = false;
+                    }
+                    
+                } else {
+                    console.error('Erro do servidor:', data.erro);
+                    this.mostrarAlerta(data.erro || 'Erro ao processar XML', 'erro');
+                }
+            })
+            .catch(err => {
+                console.error('Erro no fetch:', err);
+                this.uploadingXML = false;
+                this.mostrarAlerta('Erro ao fazer upload do XML: ' + err.message, 'erro');
+            });
+        },
+
+        // Replicar marca para todos
+            replicarMarca() {
+                if (!this.marcaSelecionada) {
+                    this.mostrarAlerta('Selecione uma marca', 'erro');
+                    return;
+                }
+                this.produtosParaCadastrar.forEach(p => p.marca = this.marcaSelecionada);
+            },
+
+            // Replicar divisão para todos
+            replicarDivisao() {
+                if (!this.divisaoSelecionada) {
+                    this.mostrarAlerta('Selecione uma divisão', 'erro');
+                    return;
+                }
+                this.produtosParaCadastrar.forEach(p => p.divisao = this.divisaoSelecionada);
+            },
+
+            // Replicar unidade para todos
+            replicarUnidade() {
+                if (!this.unidadeSelecionada) {
+                    this.mostrarAlerta('Selecione uma unidade', 'erro');
+                    return;
+                }
+                this.produtosParaCadastrar.forEach(p => p.unidade = this.unidadeSelecionada);
+            },
+
+            // Confirmar pré-cadastro
+            async confirmarPreCadastro() {
+                // Validar se todos têm marca, divisão e unidade
+                const invalidos = this.produtosParaCadastrar.filter(p => 
+                    !p.marca || !p.divisao || !p.unidade
+                );
+                
+                if (invalidos.length > 0) {
+                    this.mostrarAlerta(
+                        `${invalidos.length} produtos sem marca/divisão/unidade. Preencha todos os campos obrigatórios.`,
+                        'erro'
+                    );
+                    return;
+                }
+                
+                this.cadastrandoProdutos = true;
+                
+                try {
+                    const response = await fetch('/cadastros/entradas/cadastrar-produtos/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({
+                            fornecedor_id: this.fornecedorSelecionado.chave,
+                            produtos: this.produtosParaCadastrar.map(p => ({
+                            ...p,
+                            custo_referencia: p.valor_unitario,  // ← Garantir que vai o custo
+                            preco_venda: p.preco_venda || 0      // ← Garantir que vai o preço
+                        }))
+                            })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.sucesso) {
+                        // Montar mapa numero_item → produto_id retornado pelo backend
+                        const mapeamento = {};
+                        data.produtos.forEach(p => { mapeamento[p.numero_item] = p; });
+
+                        // Usar dados originais do XML (produtosParaCadastrar) com o novo produto_id
+                        this.produtosParaCadastrar.forEach(xmlProd => {
+                            const cadastrado = mapeamento[xmlProd.numero_item];
+                            if (!cadastrado) return;
+                            const custo = parseFloat(xmlProd.valor_unitario || xmlProd.vr_unitario || 0);
+                            this.itens.push({
+                                produto_id: cadastrado.produto_id,
+                                nome: cadastrado.nome,
+                                quantidade: parseFloat(xmlProd.quantidade || 1),
+                                vr_unitario: custo,
+                                vr_desconto: parseFloat(xmlProd.valor_desconto || 0),
+                                vr_acrescimo: 0,
+                                bc_icms: parseFloat(xmlProd.bc_icms || 0),
+                                aliq_icms_compra: parseFloat(xmlProd.aliq_icms || 0),
+                                aliq_icms_venda: 18,
+                                bc_icms_st: parseFloat(xmlProd.bc_icms_st || 0),
+                                aliq_iva: parseFloat(xmlProd.aliq_mva || 0),
+                                vr_icms_st: parseFloat(xmlProd.valor_icms_st || 0),
+                                bc_ipi: parseFloat(xmlProd.bc_ipi || 0),
+                                aliq_ipi: parseFloat(xmlProd.aliq_ipi || 0),
+                                bc_pis: parseFloat(xmlProd.bc_pis || 0),
+                                aliq_pis: parseFloat(xmlProd.aliq_pis || 0),
+                                bc_cofins: parseFloat(xmlProd.bc_cofins || 0),
+                                aliq_cofins: parseFloat(xmlProd.aliq_cofins || 0),
+                                vr_frete: parseFloat(xmlProd.valor_frete || 0),
+                                vr_seguro: parseFloat(xmlProd.valor_seguro || 0),
+                                vr_outras: parseFloat(xmlProd.valor_outras || 0),
+                                cfop: xmlProd.cfop || '1102',
+                                local: '{{ locais.0|default:"LOJA" }}',
+                                margem: this.margemPadrao,
+                                preco_venda: 0,
+                                total: parseFloat(xmlProd.valor_total || 0),
+                                produto_encontrado: true
+                            });
+                        });
+
+                        // Adicionar produtos que já foram encontrados antes do pré-cadastro
+                        this.produtosEncontrados.forEach(prod => {
+                            const custo = parseFloat(prod.valor_unitario || prod.vr_unitario || 0);
+                            this.itens.push({
+                                produto_id: prod.produto_id,
+                                nome: prod.produto_nome_sistema,
+                                quantidade: parseFloat(prod.quantidade || 1),
+                                vr_unitario: custo,
+                                vr_desconto: parseFloat(prod.valor_desconto || 0),
+                                vr_acrescimo: 0,
+                                bc_icms: parseFloat(prod.bc_icms || 0),
+                                aliq_icms_compra: parseFloat(prod.aliq_icms || 0),
+                                aliq_icms_venda: 18,
+                                bc_icms_st: parseFloat(prod.bc_icms_st || 0),
+                                aliq_iva: parseFloat(prod.aliq_mva || 0),
+                                vr_icms_st: parseFloat(prod.valor_icms_st || 0),
+                                bc_ipi: parseFloat(prod.bc_ipi || 0),
+                                aliq_ipi: parseFloat(prod.aliq_ipi || 0),
+                                bc_pis: parseFloat(prod.bc_pis || 0),
+                                aliq_pis: parseFloat(prod.aliq_pis || 0),
+                                bc_cofins: parseFloat(prod.bc_cofins || 0),
+                                aliq_cofins: parseFloat(prod.aliq_cofins || 0),
+                                vr_frete: parseFloat(prod.valor_frete || 0),
+                                vr_seguro: parseFloat(prod.valor_seguro || 0),
+                                vr_outras: parseFloat(prod.valor_outras || 0),
+                                cfop: prod.cfop || '',
+                                local: '{{ locais.0|default:"LOJA" }}',
+                                margem: this.margemPadrao,
+                                preco_venda: 0,
+                                total: parseFloat(prod.valor_total || 0),
+                                produto_encontrado: true
+                            });
+                        });
+                        
+                        this.itens.forEach(item => this.calcularPrecoVenda(item));
+                        this.calcularTotais();
+                        this.modalPreCadastro = false;
+                        this.modalUploadXML = false;
+                        this.mostrarAlerta(data.mensagem, 'sucesso');
+                    } else {
+                        this.mostrarAlerta(data.erro, 'erro');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    this.mostrarAlerta('Erro ao cadastrar produtos', 'erro');
+                } finally {
+                    this.cadastrandoProdutos = false;
+                }
+            },
+        
+        selecionarFornecedor(forn) {
+            this.fornecedorSelecionado = forn;
+            this.buscaFornecedor = forn.nome;
+            this.resultadosFornecedores = [];
+        },
+        
+        limparFornecedor() {
+            this.fornecedorSelecionado = null;
+            this.buscaFornecedor = '';
+            this.resultadosFornecedores = [];
+        },
+        
+        buscarProduto() {
+            if (!this.buscaProduto) return;
+            
+            fetch(`/cadastros/entradas/buscar-produto?q=${this.buscaProduto}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.produtos && data.produtos.length > 1) {
+                        this.produtosEncontrados = data.produtos;
+                        this.modalProdutos = true;
+                    } else if (data.produtos && data.produtos.length === 1) {
+                        this.adicionarProduto(data.produtos[0]);
+                        this.buscaProduto = '';
+                    } else {
+                        this.mostrarAlerta('Produto não encontrado', 'erro');
+                    }
+                });
+        },
+        
+        adicionarProduto(produto) {
+            // Calcular margem e preço
+            const custo = parseFloat(produto.custo_referencia || produto.ultimo_custo || 0);
+            const margem = 30;
+            const preco_venda = custo > 0 ? (custo * (1 + margem / 100)).toFixed(2) : 0;
+            
+            this.itens.push({
+                produto_id: produto.id,  // ← VERIFICAR SE É 'id' OU 'chave'
+                nome: produto.nome,
+                quantidade: 1,
+                vr_unitario: custo,
+                vr_desconto: 0,
+                vr_acrescimo: 0,
+                bc_icms: 0,
+                aliq_icms_compra: 18,
+                aliq_icms_venda: 18,
+                bc_icms_st: 0,
+                aliq_iva: 0,
+                vr_icms_st: 0,
+                bc_ipi: 0,
+                aliq_ipi: 0,
+                bc_pis: 0,
+                aliq_pis: 0,
+                bc_cofins: 0,
+                aliq_cofins: 0,
+                vr_frete: 0,
+                vr_seguro: 0,
+                vr_outras: 0,
+                cfop: '1102',
+                local: '{{ locais.0|default:"LOJA" }}',
+                margem: margem,
+                preco_venda: preco_venda,
+                total: custo,
+                produto_encontrado: true
+            });
+            
+            this.calcularTotais();
+            this.modalProdutos = false;  // ← FECHAR MODAL
+            this.buscaProduto = '';      // ← LIMPAR CAMPO
+            this.produtosEncontrados = []; // ← LIMPAR LISTA
+            
+            this.mostrarAlerta(`Produto "${produto.nome}" adicionado!`, 'sucesso');
+        },
+        
+        removerItem(idx) {
+            this.itens.splice(idx, 1);
+            this.calcularTotais();
+        },
+        
+        calcularCusto(item) {
+            // Recalcular base de ICMS
+            const subtotal = item.quantidade * item.vr_unitario;
+            item.bc_icms = subtotal;
+            
+            // Recalcular base de IPI
+            item.bc_ipi = subtotal;
+            
+            this.calcularTotais();
+        },
+        
+        calcularTotais() {
+            this.totalProdutos = 0;
+            this.totalICMSST = 0;
+            this.totalIPI = 0;
+            this.totalFrete = 0;
+            
+            this.itens.forEach(item => {
+                const subtotal = parseFloat(item.quantidade) * parseFloat(item.vr_unitario);
+                const desconto = parseFloat(item.vr_desconto || 0);
+                const acrescimo = parseFloat(item.vr_acrescimo || 0);
+                const frete = parseFloat(item.vr_frete || 0);
+                const icms_st = parseFloat(item.vr_icms_st || 0);
+                
+                // Calcular IPI
+                const bc_ipi = subtotal;
+                const vr_ipi = bc_ipi * (parseFloat(item.aliq_ipi || 0) / 100);
+                
+                item.total = subtotal - desconto + acrescimo + frete + icms_st + vr_ipi;
+                
+                this.totalProdutos += subtotal;
+                this.totalICMSST += icms_st;
+                this.totalIPI += vr_ipi;
+                this.totalFrete += frete;
+            });
+            
+            this.totalNF = this.totalProdutos + this.totalICMSST + this.totalIPI + this.totalFrete;
+        },
+        
+        finalizarEntrada() {
+            if (!this.fornecedorSelecionado) {
+                this.mostrarAlerta('Selecione o fornecedor', 'erro');
+                return;
+            }
+            
+            if (!this.numeroNF) {
+                this.mostrarAlerta('Informe o número da NF', 'erro');
+                return;
+            }
+            
+            if (this.itens.length === 0) {
+                this.mostrarAlerta('Adicione pelo menos 1 item', 'erro');
+                return;
+            }
+            
+            if (!confirm(`Confirmar entrada da NF ${this.numeroNF}?`)) {
+                return;
+            }
+            
+            this.finalizandoEntrada = true;  // ✅ LIGA
+
+            const payload = {
+                fornecedor_id: this.fornecedorSelecionado.chave,
+                tipo_documento: this.tipoDocumento,
+                numero_nf: this.numeroNF,
+                serie_nf: this.serieNF,
+                data_emissao: this.dataEmissao,
+                chave_nfe: this.chaveNFe,
+                valor_total_nf: this.totalGeral,
+                itens: this.itens
+            };
+            const modoEdicao = {{ modo_edicao|default:'false'|lower }};
+            const url = modoEdicao 
+                ? '/cadastros/entradas/{{ entrada.pk }}/atualizar/'
+                : '/cadastros/entradas/finalizar/';
+
+            fetch('/cadastros/entradas/finalizar/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCookie('csrftoken')
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.sucesso) {
+                    this.mostrarAlerta(data.mensagem, 'sucesso');
+                    
+                    setTimeout(() => {
+                        if (confirm('NF lançada! Deseja lançar outra?')) {
+                            this.limparTudo();
+                        } else {
+                            window.location.href = '/cadastros/entradas/';
+                        }
+                    }, 1500);
+                } else {
+                    this.mostrarAlerta(data.erro || 'Erro ao finalizar', 'erro');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                this.mostrarAlerta('Erro ao finalizar entrada', 'erro');
+            })
+            .finally(() => {
+                this.finalizandoEntrada = false;  // ✅ DESLIGA NO FINAL
+            });
+        },
+            
+        
+        limparTudo() {
+            this.itens = [];
+            this.numeroNF = '';
+            this.serieNF = '1';
+            this.chaveNFe = '';
+            this.buscaProduto = '';
+            this.calcularTotais();
+        },
+        
+        calcularPrecoVenda(item) {
+        // Calcula preço de venda baseado na margem
+        const custo = parseFloat(item.vr_unitario) || 0;
+        const margem = parseFloat(item.margem) || 0;
+        
+        if (custo > 0 && margem > 0) {
+            // Fórmula: Preço = Custo × (1 + Margem/100)
+            item.preco_venda = (custo * (1 + margem / 100)).toFixed(2);
+        } else if (custo > 0) {
+            item.preco_venda = custo.toFixed(2);
+        }
+    },
+        carregarDadosEdicao() {
+            // Dados da entrada
+            {% if entrada %}
+            this.fornecedorSelecionado = {
+                chave: {{ entrada.fornecedor_id }},
+                nome: '{{ entrada.fornecedor_nome|escapejs }}'
+            };
+            this.buscaFornecedor = '{{ entrada.fornecedor_nome|escapejs }}';
+            this.numeroNF = '{{ entrada.numero_nf }}';
+            this.serieNF = '{{ entrada.serie_nf }}';
+            this.dataEmissao = '{{ entrada.data_emissao|date:"Y-m-d" }}';
+            this.chaveNFe = '{{ entrada.chave_nfe }}';
+            this.tipoDocumento = '{{ entrada.tipo_documento }}';
+            {% endif %}
+            
+            // Itens
+            {% if itens_json %}
+            this.itens = {{ itens_json|safe }};
+            this.calcularTotais();
+            console.log('📦 Carregados', this.itens.length, 'itens');
+            {% endif %}
+        },
+
+    recalcularMargem(item) {
+        // Recalcula margem se usuário digitar preço de venda manualmente
+        const custo = parseFloat(item.vr_unitario) || 0;
+        const precoVenda = parseFloat(item.preco_venda) || 0;
+        
+        if (custo > 0 && precoVenda > 0) {
+            // Fórmula: Margem = ((Preço - Custo) / Custo) × 100
+            item.margem = (((precoVenda - custo) / custo) * 100).toFixed(2);
+        }
+    },
+
+    aplicarMargemPadrao(margem = 30) {
+        // Aplica margem padrão em todos os itens sem margem
+        this.itens.forEach(item => {
+            if (!item.margem || item.margem == 0) {
+                item.margem = margem;
+                this.calcularPrecoVenda(item);
+            }
+        });
+        this.mostrarAlerta(`Margem de ${margem}% aplicada aos itens`, 'sucesso');
+    },
+        
+        mostrarAlerta(mensagem, tipo) {
+            this.alerta = { show: true, mensagem, tipo };
+            setTimeout(() => { this.alerta.show = false; }, 3000);
+        },
+        
+        formatMoney(val) {
+            return 'R$ ' + parseFloat(val || 0).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        },
+        
+        getCookie(name) {
+            let value = `; ${document.cookie}`;
+            let parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+        
+    }
+}
+</script>
+{% endblock %}

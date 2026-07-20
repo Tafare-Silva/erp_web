@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Nova NF-e{% endblock %}
+{% block page_title %}📄 Nova NF-e{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-4">
+        <p class="text-gray-600">Selecione uma venda para emitir a NF-e automaticamente.</p>
+        <a href="{% url 'fiscal:nfe_create_manual' %}" class="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700 text-sm">
+            <i class="fas fa-pen-alt"></i> Criar Manualmente
+        </a>
+    </div>
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="font-bold text-gray-900 mb-4">Selecione a Venda para emitir NF-e</h3>
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Venda</label>
+                <select name="movimentacao_id" required class="w-full border rounded px-3 py-2" size="10">
+                    {% for venda in vendas %}
+                    <option value="{{ venda.pk_chave }}">
+                        #{{ venda.pk_chave }} - {{ venda.pessoa.nome }} - R$ {{ venda.vr_total_liquido|floatformat:2 }} - {{ venda.data|date:"d/m/Y" }}
+                    </option>
+                    {% empty %}
+                    <option disabled>Nenhuma venda disponível</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex gap-4">
+                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+                    <i class="fas fa-file-invoice"></i> Criar NF-e
+                </button>
+                <a href="{% url 'fiscal:nfe_list' %}" class="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600">
+                    Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block title %}Entradas de NF{% endblock %}
+{% block page_title %}📦 Entradas de Nota Fiscal{% endblock %}
+{% block content %}
+<div class="space-y-4">
+    
+    <!-- Filtros -->
+    <div class="bg-white rounded-lg shadow p-4">
+        <h3 class="text-sm font-bold mb-3">
+            <i class="fas fa-filter mr-2"></i>Filtros
+        </h3>
+        
+        <form method="GET" class="bg-white rounded-lg shadow p-4 mb-4">
+            <div class="grid grid-cols-4 gap-3">
+                <!-- Data Operação (Lançamento) -->
+                <div>
+                    <label class="block text-xs font-medium mb-1">Data Operação (De)</label>
+                    <input type="date" name="data_ini" value="{{ filtros.data_ini }}"
+                        class="w-full px-2 py-1 text-sm border rounded">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium mb-1">Data Operação (Até)</label>
+                    <input type="date" name="data_fim" value="{{ filtros.data_fim }}"
+                        class="w-full px-2 py-1 text-sm border rounded">
+                </div>
+                
+                <!-- ===== NOVO: Data Emissão ===== -->
+                <div>
+                    <label class="block text-xs font-medium mb-1">Data Emissão (De)</label>
+                    <input type="date" name="data_emissao_ini" value="{{ filtros.data_emissao_ini }}"
+                        class="w-full px-2 py-1 text-sm border rounded">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium mb-1">Data Emissão (Até)</label>
+                    <input type="date" name="data_emissao_fim" value="{{ filtros.data_emissao_fim }}"
+                        class="w-full px-2 py-1 text-sm border rounded">
+                </div>
+                <!-- ===== FIM ===== -->
+                
+                <div>
+                    <label class="block text-xs font-medium mb-1">Fornecedor</label>
+                    <input type="text" name="fornecedor" value="{{ filtros.fornecedor }}"
+                        placeholder="Nome do fornecedor"
+                        class="w-full px-2 py-1 text-sm border rounded">
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-medium mb-1">Número NF</label>
+                    <input type="text" name="numero_nf" value="{{ filtros.numero_nf }}"
+                        placeholder="Número"
+                        class="w-full px-2 py-1 text-sm border rounded">
+                </div>
+                
+                <div class="flex items-end gap-2">
+                    <button type="submit" class="px-4 py-1 bg-blue-600 text-white rounded text-sm">
+                        <i class="fas fa-search mr-1"></i>Filtrar
+                    </button>
+                    <a href="/cadastros/entradas/" class="px-4 py-1 bg-gray-300 rounded text-sm">
+                        Limpar
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Listagem -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="p-4 border-b">
+            <h3 class="text-sm font-bold">
+                <i class="fas fa-list mr-2"></i>
+                Entradas Cadastradas ({{ entradas|length }})
+            </h3>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr class="text-xs">
+                        <th class="px-3 py-2 text-left">Data Operação</th>
+                        <th class="px-3 py-2 text-left">Data Emissão</th>
+                        <th class="px-3 py-2 text-left">Fornecedor</th>
+                        <th class="px-3 py-2 text-left">Nº NF</th>
+                        <th class="px-3 py-2 text-left">Série</th>
+                        <th class="px-3 py-2 text-right">Valor</th>
+                        <th class="px-3 py-2 text-center">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entrada in entradas %}
+                    <tr class="border-t hover:bg-gray-50 text-sm">
+                        <td class="px-3 py-2">{{ entrada.1|date:"d/m/Y" }}</td>
+                        <td class="px-3 py-2">{{ entrada.2|date:"d/m/Y" }}</td>
+                        <td class="px-3 py-2">{{ entrada.3 }}</td>
+                        <td class="px-3 py-2">{{ entrada.4 }}</td>
+                        <td class="px-3 py-2">{{ entrada.5 }}</td>
+                        <td class="px-3 py-2 text-right">R$ {{ entrada.6|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-center">
+                            <a href="/cadastros/entradas/{{ entrada.0|stringformat:'d' }}/" 
+                            class="text-blue-600 hover:text-blue-800 mr-2">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="/cadastros/entradas/{{ entrada.0|stringformat:'d' }}/editar/" 
+                            class="text-green-600 hover:text-green-800">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% block title %}Divisão de Impostos - ERP Web{% endblock %}
+{% block page_title %}Divisão de Impostos{% endblock %}
+{% block content %}
+<div class="bg-white rounded-lg shadow-sm">
+    <div class="p-6 border-b border-gray-200">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div class="flex-1">
+                <h3 class="text-lg font-semibold text-gray-800">Divisão de Impostos - Saída</h3>
+                <p class="text-sm text-gray-600 mt-1">Cadastros Reservados - Configurações Tributárias</p>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-3">
+                <form method="get" class="flex-1 sm:flex-initial">
+                    <div class="relative">
+                        <input type="text" name="q" value="{{ search }}" placeholder="Buscar divisão..." 
+                               class="w-full sm:w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                    </div>
+                </form>
+                <a href="{% url 'cadastros:divisao_impostos_create' %}" 
+                   class="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition whitespace-nowrap">
+                    <i class="fas fa-plus mr-2"></i>Nova Divisão
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
+                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">UF</th>
+                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">ICMS</th>
+                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">PIS</th>
+                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">COFINS</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for div in divisoes %}
+                <tr class="hover:bg-gray-50 transition">
+                    <td class="px-6 py-4">
+                        <div class="text-sm font-medium text-gray-900">{{ div.nome }}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                            {{ div.uf }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                        <span class="text-sm text-gray-900">{{ div.aliquota_icms }}%</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                        <span class="text-sm text-gray-900">{{ div.aliquota_pis }}%</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                        <span class="text-sm text-gray-900">{{ div.aliquota_cofins }}%</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div class="flex items-center justify-end gap-2">
+                            <a href="{% url 'cadastros:divisao_impostos_update' div.nome %}" 
+                               class="inline-flex items-center px-3 py-1.5 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 transition">
+                                <i class="fas fa-edit mr-1"></i>Editar
+                            </a>
+                            <a href="{% url 'cadastros:divisao_impostos_delete' div.nome %}" 
+                               class="inline-flex items-center px-3 py-1.5 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition">
+                                <i class="fas fa-trash mr-1"></i>Excluir
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="px-6 py-12 text-center">
+                        <div class="flex flex-col items-center">
+                            <i class="fas fa-inbox text-4xl text-gray-300 mb-3"></i>
+                            <p class="text-gray-500 text-sm">Nenhuma divisão cadastrada</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

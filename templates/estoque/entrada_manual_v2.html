@@ -1,0 +1,364 @@
+{% extends 'base.html' %}
+
+{% block title %}Entrada Manual de Estoque{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex justify-between items-center mb-4">
+            <div>
+                <h1 class="text-4xl font-bold text-gray-900">📥 Entrada Manual de Estoque</h1>
+                <p class="text-gray-600 mt-2">Adicione múltiplos produtos de uma vez</p>
+            </div>
+            <a href="{% url 'estoque:consulta_estoque' %}" 
+               class="inline-flex items-center gap-2 bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-smooth font-bold">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+        </div>
+    </div>
+
+    <!-- Alerts -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="mb-4 p-4 bg-green-100 border-l-4 border-green-600 text-green-700 rounded">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-check-circle text-xl"></i>
+                    <span>{{ message }}</span>
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Painel de Entrada -->
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-xl shadow-lg p-6 border-t-4 border-blue-600">
+                <h2 class="text-2xl font-bold mb-6 text-gray-900">
+                    <i class="fas fa-plus-circle text-blue-600 mr-2"></i>Adicionar Produtos
+                </h2>
+
+                <!-- Campo de Busca de Produto -->
+                <div class="mb-6">
+                    <label class="block text-gray-700 font-bold mb-3">
+                        <i class="fas fa-box text-blue-600 mr-2"></i>Produto
+                    </label>
+                    <div class="relative">
+                        <input 
+                            type="text"
+                            id="produtoInput"
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-600 focus:outline-none text-lg transition-smooth"
+                            placeholder="Digite o nome do produto e pressione ENTER..."
+                            autocomplete="off"
+                        >
+                        <div class="absolute right-3 top-3 text-gray-400 text-lg">
+                            <i class="fas fa-keyboard"></i>
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-2">
+                        💡 Dica: Digite o nome e pressione <kbd class="bg-gray-200 px-2 py-1 rounded">ENTER</kbd>
+                    </p>
+                </div>
+
+                <!-- Grid de Produtos Selecionados -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4">
+                        <i class="fas fa-shopping-cart text-green-600 mr-2"></i>
+                        Produtos Selecionados
+                        <span class="bg-blue-600 text-white rounded-full px-3 py-1 text-sm ml-2" id="contador">0</span>
+                    </h3>
+                    
+                    <div id="gridProdutos" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                        <!-- Será preenchido dinamicamente -->
+                        <div class="text-center text-gray-400 col-span-2 py-8">
+                            <i class="fas fa-inbox text-4xl mb-2"></i>
+                            <p>Nenhum produto selecionado ainda</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botões de Ação Rápida -->
+                <div class="flex gap-3 flex-wrap text-sm">
+                    <button onclick="limparTodos()" 
+                            class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-smooth font-bold">
+                        <i class="fas fa-trash mr-1"></i>Limpar Tudo
+                    </button>
+                    <button onclick="mostrarAjuda()" 
+                            class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-smooth font-bold">
+                        <i class="fas fa-question-circle mr-1"></i>Atalhos
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Painel de Configuração -->
+        <div>
+            <form method="post" id="formEntradaManual" class="bg-white rounded-xl shadow-lg p-6 border-t-4 border-green-600">
+                {% csrf_token %}
+                <input type="hidden" id="produtos_json" name="produtos_json">
+
+                <h2 class="text-2xl font-bold mb-6 text-gray-900">
+                    <i class="fas fa-cog text-green-600 mr-2"></i>Configuração
+                </h2>
+
+                <!-- Local de Estoque -->
+                <div class="mb-6">
+                    <label class="block text-gray-700 font-bold mb-3">
+                        <i class="fas fa-map-marker text-green-600 mr-2"></i>Local de Estoque
+                    </label>
+                    <select name="local" id="localSelect" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-green-600 focus:outline-none transition-smooth" required>
+                        <option value="">Selecione um local</option>
+                        {% for local in locais %}
+                            <option value="{{ local.pk }}">{{ local.local }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Motivo -->
+                <div class="mb-6">
+                    <label class="block text-gray-700 font-bold mb-3">
+                        <i class="fas fa-comment text-green-600 mr-2"></i>Motivo
+                    </label>
+                    <textarea 
+                        name="motivo"
+                        id="motivoInput"
+                        class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-green-600 focus:outline-none transition-smooth"
+                        rows="4"
+                        placeholder="Descreva o motivo da entrada..."
+                        required
+                    ></textarea>
+                </div>
+
+                <!-- Resumo -->
+                <div class="bg-blue-50 rounded-lg p-4 mb-6 border-l-4 border-blue-600">
+                    <p class="text-sm text-gray-600 mb-2">
+                        <i class="fas fa-info-circle text-blue-600 mr-2"></i><strong>Resumo</strong>
+                    </p>
+                    <p class="text-2xl font-bold text-blue-600">
+                        <span id="totalItens">0</span> produto(s)
+                    </p>
+                    <p class="text-sm text-gray-600 mt-1">
+                        Total: <span id="totalQuantidade">0</span> unidades
+                    </p>
+                </div>
+
+                <!-- Botões -->
+                <div class="flex flex-col gap-3">
+                    <button 
+                        type="submit"
+                        class="w-full bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-lg hover:from-green-700 hover:to-green-800 transition-smooth font-bold text-lg flex items-center justify-center gap-2"
+                    >
+                        <i class="fas fa-check-circle"></i>Registrar Entrada
+                    </button>
+                    <a href="{% url 'estoque:consulta_estoque' %}" 
+                       class="w-full bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-smooth font-bold text-center">
+                        Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal -->
+{% include 'components/modal_busca_produto.html' %}
+
+<script>
+// Estado global
+let produtosSelecionados = [];
+
+const produtoInput = document.getElementById('produtoInput');
+
+// Abrir modal ao pressionar ENTER
+produtoInput.addEventListener('keydown', async function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const termo = this.value.trim();
+        
+        if (termo.length < 2) {
+            alert('❌ Digite pelo menos 2 caracteres');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`{% url 'estoque:api_buscar_produto' %}?q=${encodeURIComponent(termo)}`);
+            const data = await response.json();
+            
+            if (data.produtos && data.produtos.length > 0) {
+                abrirModalProduto(data.produtos, selecionarProduto);
+            } else {
+                alert('❌ Nenhum produto encontrado');
+            }
+        } catch (error) {
+            alert('❌ Erro ao buscar produtos');
+            console.error(error);
+        }
+    }
+});
+
+function selecionarProduto(produto) {
+    // Verificar se já foi selecionado
+    const existe = produtosSelecionados.find(p => p.pk_chave === produto.pk_chave);
+    
+    if (existe) {
+        alert('⚠️ Este produto já foi selecionado!');
+        return;
+    }
+    
+    // Adicionar ao array
+    produtosSelecionados.push({
+        pk_chave: produto.pk_chave,
+        nome: produto.nome,
+        preco_venda: produto.preco_venda,
+        referencia_fabrica: produto.referencia_fabrica,
+        quantidade: 1
+    });
+    
+    // Limpar input
+    produtoInput.value = '';
+    produtoInput.focus();
+    
+    // Renderizar
+    renderizarGrid();
+    atualizarResumo();
+}
+
+function renderizarGrid() {
+    const grid = document.getElementById('gridProdutos');
+    
+    if (produtosSelecionados.length === 0) {
+        grid.innerHTML = `
+            <div class="text-center text-gray-400 col-span-2 py-8">
+                <i class="fas fa-inbox text-4xl mb-2"></i>
+                <p>Nenhum produto selecionado ainda</p>
+            </div>
+        `;
+        return;
+    }
+    
+    grid.innerHTML = produtosSelecionados.map((produto, index) => `
+        <div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-4 border-2 border-gray-200 hover:border-blue-400 transition-smooth" data-index="${index}">
+            <div class="flex justify-between items-start mb-3">
+                <div class="flex-1">
+                    <p class="font-bold text-gray-900">${produto.nome}</p>
+                    <p class="text-sm text-gray-600">Ref: ${produto.referencia_fabrica || '-'}</p>
+                    <p class="text-sm text-green-600 font-bold mt-1">R$ ${parseFloat(produto.preco_venda).toFixed(2)}</p>
+                </div>
+                <button onclick="removerProduto(${index})" 
+                        class="text-red-600 hover:bg-red-100 p-2 rounded transition-smooth">
+                    <i class="fas fa-trash text-lg"></i>
+                </button>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <button onclick="diminuirQtd(${index})" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition-smooth font-bold">−</button>
+                <input type="number" 
+                       value="${produto.quantidade}" 
+                       onchange="atualizarQuantidade(${index}, this.value)"
+                       class="w-16 text-center px-2 py-1 border-2 border-gray-300 rounded focus:border-blue-600"
+                       min="0.0001" 
+                       step="0.0001">
+                <button onclick="aumentarQtd(${index})" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition-smooth font-bold">+</button>
+                <span class="text-sm text-gray-600 flex-1 text-right">
+                    Subtotal: <strong>R$ ${(produto.quantidade * produto.preco_venda).toFixed(2)}</strong>
+                </span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function atualizarQuantidade(index, valor) {
+    const qtd = parseFloat(valor) || 0;
+    if (qtd > 0) {
+        produtosSelecionados[index].quantidade = qtd;
+        renderizarGrid();
+        atualizarResumo();
+    }
+}
+
+function aumentarQtd(index) {
+    produtosSelecionados[index].quantidade += 1;
+    renderizarGrid();
+    atualizarResumo();
+}
+
+function diminuirQtd(index) {
+    const nova = produtosSelecionados[index].quantidade - 1;
+    if (nova > 0) {
+        produtosSelecionados[index].quantidade = nova;
+    } else {
+        produtosSelecionados.splice(index, 1);
+    }
+    renderizarGrid();
+    atualizarResumo();
+}
+
+function removerProduto(index) {
+    if (confirm('❌ Tem certeza que deseja remover este produto?')) {
+        produtosSelecionados.splice(index, 1);
+        renderizarGrid();
+        atualizarResumo();
+    }
+}
+
+function limparTodos() {
+    if (confirm('⚠️ Tem certeza que deseja limpar TODOS os produtos?')) {
+        produtosSelecionados = [];
+        renderizarGrid();
+        atualizarResumo();
+    }
+}
+
+function atualizarResumo() {
+    const totalItens = produtosSelecionados.length;
+    const totalQtd = produtosSelecionados.reduce((sum, p) => sum + p.quantidade, 0);
+    
+    document.getElementById('contador').textContent = totalItens;
+    document.getElementById('totalItens').textContent = totalItens;
+    document.getElementById('totalQuantidade').textContent = totalQtd.toFixed(4);
+}
+
+function mostrarAjuda() {
+    alert(`⌨️ ATALHOS DO TECLADO:
+    
+ENTER - Buscar produto
++ - Aumentar quantidade
+- - Diminuir quantidade
+DEL - Remover produto selecionado
+Ctrl+A - Selecionar tudo
+Ctrl+D - Limpar tudo
+
+Para adicionar múltiplos produtos:
+1. Digite o nome do produto
+2. Pressione ENTER para abrir a busca
+3. Selecione o produto desejado
+4. Repita quantas vezes precisar
+5. Ajuste as quantidades
+6. Clique em "Registrar Entrada"`);
+}
+
+// Submeter formulário
+document.getElementById('formEntradaManual').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    if (produtosSelecionados.length === 0) {
+        alert('❌ Adicione pelo menos um produto!');
+        return;
+    }
+    
+    if (!document.getElementById('localSelect').value) {
+        alert('❌ Selecione um local!');
+        return;
+    }
+    
+    if (!document.getElementById('motivoInput').value) {
+        alert('❌ Descreva o motivo!');
+        return;
+    }
+    
+    // Preencher JSON e submeter
+    document.getElementById('produtos_json').value = JSON.stringify(produtosSelecionados);
+    this.submit();
+});
+</script>
+{% endblock %}

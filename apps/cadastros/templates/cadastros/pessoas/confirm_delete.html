@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block title %}Excluir Pessoa - ERP Web{% endblock %}
+
+{% block page_title %}Excluir Pessoa{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-lg shadow-sm">
+        <div class="p-6 border-b border-gray-200">
+            <div class="flex items-center">
+                <a href="{% url 'cadastros:pessoa_list' %}" 
+                   class="mr-4 text-gray-600 hover:text-gray-800">
+                    <i class="fas fa-arrow-left text-xl"></i>
+                </a>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800">Excluir Pessoa</h3>
+                </div>
+            </div>
+        </div>
+        
+        <div class="p-6">
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <div class="flex">
+                    <i class="fas fa-exclamation-triangle text-red-600 text-2xl mr-4"></i>
+                    <div>
+                        <h4 class="text-red-900 font-medium mb-2">Atenção!</h4>
+                        <p class="text-red-700 text-sm mb-2">
+                            Tem certeza que deseja excluir <strong>"{{ object.nome }}"</strong>?
+                        </p>
+                        <div class="text-red-600 text-sm space-y-1">
+                            <p><strong>CPF/CNPJ:</strong> {{ object.cpf_cnpj }}</p>
+                            {% if object.email %}
+                            <p><strong>E-mail:</strong> {{ object.email }}</p>
+                            {% endif %}
+                            <p class="mt-3 font-medium">Esta ação não pode ser desfeita e pode afetar:</p>
+                            <ul class="list-disc list-inside ml-4">
+                                <li>Vendas e compras existentes</li>
+                                <li>Títulos a pagar e receber</li>
+                                <li>Histórico de transações</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <form method="post">
+                {% csrf_token %}
+                <div class="flex items-center justify-between">
+                    <a href="{% url 'cadastros:pessoa_list' %}" 
+                       class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        Cancelar
+                    </a>
+                    
+                    <button type="submit" 
+                            class="inline-flex items-center px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
+                        <i class="fas fa-trash mr-2"></i>
+                        Sim, Excluir
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

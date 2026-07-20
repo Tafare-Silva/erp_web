@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Condicional #{{ condicional.pk_chave }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.4; }
+        .cupom { width: 58mm; margin: 0 auto; padding: 5mm; }
+        .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 3mm; margin-bottom: 3mm; }
+        .logo { font-size: 16px; font-weight: bold; margin-bottom: 2mm; }
+        .info { font-size: 10px; }
+        .section { margin-bottom: 3mm; border-bottom: 1px dashed #000; padding-bottom: 3mm; }
+        .section-title { font-weight: bold; font-size: 11px; margin-bottom: 1mm; background: #ffeb3b; padding: 2mm; text-align: center; }
+        .item { margin-bottom: 2mm; }
+        .item-nome { font-weight: bold; }
+        .item-detalhes { display: flex; justify-content: space-between; font-size: 11px; }
+        .totais { margin-top: 3mm; }
+        .total-linha { display: flex; justify-content: space-between; margin-bottom: 1mm; }
+        .total-final { font-size: 14px; font-weight: bold; border-top: 1px solid #000; padding-top: 2mm; margin-top: 2mm; }
+        .footer { text-align: center; margin-top: 5mm; font-size: 10px; }
+        .btn-imprimir { position: fixed; top: 10px; right: 10px; padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        @media print {
+            .no-print { display: none; }
+            @page { size: 58mm auto; margin: 0; }
+        }
+        .condicional-badge { background: #ffeb3b; color: #000; padding: 2mm; text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 3mm; }
+    </style>
+</head>
+<body>
+    <button onclick="window.print()" class="btn-imprimir no-print">
+        <i class="fas fa-print"></i> Imprimir
+    </button>
+    
+    <div class="cupom">
+        <div class="header">
+            <div class="logo">SUA EMPRESA</div>
+            <div class="info">CNPJ: 00.000.000/0000-00</div>
+            <div class="info">Endereço Completo</div>
+            <div class="info">Tel: (00) 0000-0000</div>
+        </div>
+        
+        <div class="condicional-badge">
+            ⚠️ CONDICIONAL / PRÉ-VENDA ⚠️
+        </div>
+        
+        <div class="section">
+            <div>Número: #{{ condicional.pk_chave }}</div>
+            <div>Data: {{ condicional.data|date:"d/m/Y" }}</div>
+            <div>Cliente: {{ condicional.pessoa.nome }}</div>
+            <div>Status: 
+                {% if condicional.pre_venda.efetivada %}
+                    FECHADO
+                {% else %}
+                    ABERTO
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">ITENS ENTREGUES</div>
+            {% for item in itens %}
+            <div class="item">
+                <div class="item-nome">{{ item.produto.nome }}</div>
+                <div class="item-detalhes">
+                    <span>{{ item.quantidade|floatformat:0 }} x R$ {{ item.vr_unitario_bruto|floatformat:2 }}</span>
+                    <span>R$ {{ item.calcular_total|floatformat:2 }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="totais">
+            <div class="total-linha total-final">
+                <span>TOTAL:</span>
+                <span>R$ {{ total|floatformat:2 }}</span>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <div style="margin-top: 5mm; border-top: 1px dashed #000; padding-top: 2mm;">
+                <strong>IMPORTANTE:</strong><br>
+                Este é um CONDICIONAL.<br>
+                Cliente deve retornar para acerto.
+            </div>
+            <div style="margin-top: 3mm;">================================</div>
+            <div>{{ condicional.data|date:"d/m/Y" }}</div>
+        </div>
+    </div>
+</body>
+</html>

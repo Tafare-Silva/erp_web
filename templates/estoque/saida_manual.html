@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+
+{% block title %}Saída Manual - Estoque{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6" x-data="saidaManualApp()">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">
+            ➖ Saída Manual de Estoque
+        </h1>
+        <a href="{% url 'estoque:consulta_estoque' %}" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">
+            <i class="fas fa-arrow-left mr-2"></i>Voltar
+        </a>
+    </div>
+
+    {% if messages %}
+    <div class="mb-4">
+        {% for message in messages %}
+        <div class="p-4 rounded-lg {% if message.tags == 'success' %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="bg-white rounded-lg shadow p-6">
+        <form method="POST" class="space-y-6">
+            {% csrf_token %}
+            
+            <!-- Buscar Produto -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Produto <span class="text-red-500">*</span>
+                </label>
+                <div class="relative">
+                    <input type="text" 
+                           x-model="buscaProduto"
+                           @input="buscarProdutos()"
+                           placeholder="Digite o nome ou código do produto"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
+                    
+                    <div x-show="produtos.length > 0" 
+                         class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        <template x-for="prod in produtos" :key="prod.id">
+                            <div @click="selecionarProduto(prod)" 
+                                 class="px-4 py-2 hover:bg-gray-100 cursor-pointer">
+                                <div class="font-medium" x-text="prod.nome"></div>
+                                <div class="text-sm text-gray-500" ></div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                
+                <input type="hidden" name="produto_id" x-model="produtoSelecionado.id">
+                
+                <div x-show="produtoSelecionado.id" class="mt-2 p-3 bg-red-50 rounded-lg border border-red-200">
+                    <div class="font-medium text-red-800" x-text="produtoSelecionado.nome"></div>
+                    
+                    <div class="text-sm text-red-600 mt-1">
+                        Saldo disponível: <span x-text="saldoDisponivel" class="font-bold"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Local -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Local <span class="text-red-500">*</span>
+                </label>
+                <select name="local" 
+                        @change="buscarSaldo()"
+                        x-model="localSelecionado"
+                        required 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
+                    <option value="">Selecione...</option>
+                    {% for local in locais %}
+                    <option value="{{ local }}">{{ local }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Quantidade -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Quantidade <span class="text-red-500">*</span>
+                </label>
+                <input type="number" 
+                       name="quantidade" 
+                       min="0.01" 
+                       step="0.01"
+                       required
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
+                <p class="mt-1 text-sm text-gray-500">
+                    <i class="fas fa-info-circle mr-1"></i>Será validado o saldo disponível
+                </p>
+            </div>
+
+            <!-- Motivo -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Motivo <span class="text-red-500">*</span>
+                </label>
+                <textarea name="motivo" 
+                          rows="3" 
+                          required
+                          placeholder="Ex: Perda, quebra, vencimento, etc"
+                          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"></textarea>
+            </div>
+
+            <!-- Botões -->
+            <div class="flex gap-3">
+                <button type="submit" class="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">
+                    <i class="fas fa-check mr-2"></i>Registrar Saída
+                </button>
+                <a href="{% url 'estoque:consulta_estoque' %}" class="px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">
+                    Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function saidaManualApp() {
+    return {
+        buscaProduto: '',
+        produtos: [],
+        produtoSelecionado: {},
+        localSelecionado: '',
+        saldoDisponivel: 0,
+        
+        buscarProdutos() {
+            if (this.buscaProduto.length < 2) {
+                this.produtos = [];
+                return;
+            }
+            
+            fetch(`/estoque/api/buscar-produto/?q=${encodeURIComponent(this.buscaProduto)}`)
+                .then(r => r.json())
+                .then(data => {
+                    this.produtos = data.produtos || [];
+                });
+        },
+        
+        selecionarProduto(prod) {
+            this.produtoSelecionado = prod;
+            this.buscaProduto = prod.nome;
+            this.produtos = [];
+            this.buscarSaldo();
+        },
+        
+        buscarSaldo() {
+            if (!this.produtoSelecionado.id || !this.localSelecionado) return;
+            
+            fetch(`/estoque/api/saldo-produto/?produto_id=${this.produtoSelecionado.id}&local=${this.localSelecionado}`)
+                .then(r => r.json())
+                .then(data => {
+                    this.saldoDisponivel = data.saldo || 0;
+                });
+        }
+    }
+}
+</script>
+{% endblock %}

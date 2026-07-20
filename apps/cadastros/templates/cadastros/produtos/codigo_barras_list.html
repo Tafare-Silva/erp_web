@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-4xl mx-auto bg-white rounded shadow p-6">
+    <div class="flex justify-between items-center mb-4">
+        <div>
+            <h2 class="text-2xl font-bold">Códigos de Barras</h2>
+            <p class="text-gray-600">Produto: <strong>{{ produto.nome }}</strong></p>
+        </div>
+        <div class="flex gap-2">
+            <a href="{% url 'cadastros:produto_list' %}" class="px-4 py-2 border rounded"><i class="fas fa-arrow-left mr-2"></i>Voltar</a>
+            <a href="{% url 'cadastros:codigo_barras_create' produto.pk_chave %}" class="px-4 py-2 bg-blue-600 text-white rounded"><i class="fas fa-plus mr-2"></i>Adicionar</a>
+        </div>
+    </div>
+    <table class="w-full">
+        <thead class="bg-gray-50"><tr><th class="text-left px-4 py-2">Código de Barras</th><th class="px-4 py-2">Ações</th></tr></thead>
+        <tbody>
+        {% for cod in codigos %}
+        <tr class="border-t"><td class="px-4 py-2 font-mono">{{ cod.codigo_barras }}</td>
+        <td class="px-4 py-2 text-center"><a href="{% url 'cadastros:codigo_barras_delete' produto.pk_chave cod.codigo_barras %}" class="text-red-600">Excluir</a></td></tr>
+        {% empty %}
+        <tr><td colspan="2" class="px-4 py-8 text-center text-gray-500">Nenhum código cadastrado</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

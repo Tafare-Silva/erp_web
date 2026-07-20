@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Certificado {{ certificado.cnpj }}{% endblock %}
+{% block page_title %}🔐 Certificado {{ certificado.cnpj }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-6">
+    <div class="bg-white rounded-lg shadow p-6">
+        <dl class="space-y-3 text-sm">
+            <div class="flex justify-between"><dt class="text-gray-500">Tipo:</dt><dd class="font-medium">{{ certificado.get_tipo_display }}</dd></div>
+            <div class="flex justify-between"><dt class="text-gray-500">CNPJ:</dt><dd class="font-medium">{{ certificado.cnpj }}</dd></div>
+            <div class="flex justify-between"><dt class="text-gray-500">Emissor:</dt><dd class="font-medium">{{ certificado.emissor|default:'-' }}</dd></div>
+            <div class="flex justify-between"><dt class="text-gray-500">Validade:</dt><dd class="font-medium">{{ certificado.validade_inicio|date:"d/m/Y" }} até {{ certificado.validade_fim|date:"d/m/Y" }}</dd></div>
+            <div class="flex justify-between"><dt class="text-gray-500">Ativo:</dt><dd>{% if certificado.ativo %}<span class="text-green-600 font-bold">Sim</span>{% else %}<span class="text-red-600 font-bold">Não</span>{% endif %}</dd></div>
+        </dl>
+        <div class="mt-6">
+            <a href="{% url 'fiscal:certificado_list' %}" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

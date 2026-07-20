@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-5xl mx-auto bg-white rounded-lg shadow-sm p-6" x-data="{ aba: 'geral' }">
+    <h2 class="text-2xl font-bold mb-4">{{ titulo }}</h2>
+    <form method="post">{% csrf_token %}
+        {% if form.errors %}
+        <div class="alert alert-danger">
+            <h4>❌ Erros no formulário:</h4>
+            <ul>
+                {% for field in form %}
+                    {% if field.errors %}
+                        <li><strong>{{ field.label }}:</strong> {{ field.errors|striptags }}</li>
+                    {% endif %}
+                {% endfor %}
+                {% if form.non_field_errors %}
+                    <li><strong>Erros gerais:</strong> {{ form.non_field_errors|striptags }}</li>
+                {% endif %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <!-- Debug adicional -->
+        <div class="alert alert-info">
+            <strong>DEBUG:</strong> Form errors: {{ form.errors }}
+        </div>
+        <div class="border-b mb-4">
+            <button type="button" @click="aba='geral'" :class="aba=='geral'?'border-blue-500 text-blue-600':''" class="px-4 py-2 border-b-2">Geral</button>
+            <button type="button" @click="aba='cfop'" :class="aba=='cfop'?'border-blue-500 text-blue-600':''" class="px-4 py-2 border-b-2">CFOPs</button>
+            <button type="button" @click="aba='impostos'" :class="aba=='impostos'?'border-blue-500 text-blue-600':''" class="px-4 py-2 border-b-2">Impostos</button>
+        </div>
+        
+        <div x-show="aba=='geral'" class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div><label class="block mb-2">Nome *</label>{{ form.nome }}</div>
+                <div><label class="block mb-2">UF *</label>{{ form.uf }}<small class="text-gray-500">Ex: SP, RJ, MG</small></div>
+            </div>
+        </div>
+        
+        <div x-show="aba=='cfop'" class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div><label class="block mb-2">CFOP Dentro Estado</label>{{ form.cfop_dentro_estado }}</div>
+                <div><label class="block mb-2">CFOP Fora Est. Contrib.</label>{{ form.cfop_fora_estado_contribuinte }}</div>
+                <div><label class="block mb-2">CFOP Fora Est. Não Contrib.</label>{{ form.cfop_fora_estado_nao_contribuinte }}</div>
+            </div>
+        </div>
+        
+        <div x-show="aba=='impostos'" class="space-y-6">
+            <div class="border p-4 rounded">
+                <h4 class="font-bold mb-3">ICMS</h4>
+                <div class="grid grid-cols-3 gap-4">
+                    <div><label class="block mb-2">CST ICMS</label>{{ form.cst_icms }}</div>
+                    <div><label class="block mb-2">Alíquota %</label>{{ form.aliquota_icms }}</div>
+                    <div><label class="block mb-2">Redução BC %</label>{{ form.percentual_reducao_base_calculo_icms }}</div>
+                </div>
+            </div>
+            <div class="border p-4 rounded">
+                <h4 class="font-bold mb-3">PIS / COFINS</h4>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block mb-2">CST PIS</label>{{ form.cst_pis }}</div>
+                    <div><label class="block mb-2">Alíquota PIS %</label>{{ form.aliquota_pis }}</div>
+                    <div><label class="block mb-2">CST COFINS</label>{{ form.cst_cofins }}</div>
+                    <div><label class="block mb-2">Alíquota COFINS %</label>{{ form.aliquota_cofins }}</div>
+                </div>
+            </div>
+            <div class="border p-4 rounded">
+                <h4 class="font-bold mb-3">IPI</h4>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block mb-2">CST IPI</label>{{ form.cst_ipi }}</div>
+                    <div><label class="block mb-2">Alíquota IPI %</label>{{ form.aliquota_ipi }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="flex justify-between mt-6 pt-4 border-t">
+            <a href="{% url 'cadastros:divisao_impostos_list' %}" class="px-4 py-2 border rounded">Cancelar</a>
+            <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded">{{ botao_texto }}</button>
+        </div>
+    </form>
+</div>
+<style>input,select{width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:0.5rem}</style>
+{% endblock %}

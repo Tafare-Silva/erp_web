@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% block title %}Venda #{{ venda.pk_chave }}{% endblock %}
+{% block page_title %}<i class="fas fa-shopping-cart text-blue-600"></i> Venda #{{ venda.pk_chave }}{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-6">
+    <div class="flex gap-2 mb-6">
+        <a href="{% url 'cadastros:venda_list' %}" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+            <i class="fas fa-arrow-left"></i> Voltar
+        </a>
+        <a href="{% url 'cadastros:venda_cupom' venda.pk_chave %}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" target="_blank">
+            <i class="fas fa-receipt"></i> Cupom
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="font-bold text-gray-900 mb-3">Identificação</h3>
+            <dl class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                    <dt class="text-gray-500">Número:</dt>
+                    <dd class="font-medium">#{{ venda.pk_chave }}</dd>
+                </div>
+                <div class="flex justify-between">
+                    <dt class="text-gray-500">Data:</dt>
+                    <dd class="font-medium">{{ venda.data|date:"d/m/Y H:i" }}</dd>
+                </div>
+                <div class="flex justify-between">
+                    <dt class="text-gray-500">Cliente:</dt>
+                    <dd class="font-medium">{{ venda.pessoa.nome }}</dd>
+                </div>
+                {% if venda.vendedor %}
+                <div class="flex justify-between">
+                    <dt class="text-gray-500">Vendedor:</dt>
+                    <dd class="font-medium">{{ venda.vendedor.nome }}</dd>
+                </div>
+                {% endif %}
+                <div class="flex justify-between">
+                    <dt class="text-gray-500">CPF/CNPJ:</dt>
+                    <dd class="font-medium">{{ venda.pessoa.cpf_cnpj|default:"---" }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="font-bold text-gray-900 mb-3">Valores</h3>
+            <dl class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                    <dt class="text-gray-500">Total Bruto:</dt>
+                    <dd class="font-medium">R$ {{ venda.vr_total_bruto|floatformat:2 }}</dd>
+                </div>
+                <div class="flex justify-between">
+                    <dt class="text-gray-500">Desconto:</dt>
+                    <dd class="font-medium text-red-600">R$ {{ venda.vr_desconto|floatformat:2 }}</dd>
+                </div>
+                <div class="flex justify-between">
+                    <dt class="text-gray-500">Acréscimo:</dt>
+                    <dd class="font-medium text-green-600">R$ {{ venda.vr_acrescimo|floatformat:2 }}</dd>
+                </div>
+                <div class="flex justify-between border-t pt-2">
+                    <dt class="font-bold">Total Líquido:</dt>
+                    <dd class="font-bold text-lg">R$ {{ total|floatformat:2 }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="font-bold text-gray-900 mb-3">Documento Fiscal</h3>
+            <dl class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                    <dt class="text-gray-500">Emitir NF-e:</dt>
+                    <dd class="font-medium">{% if venda.emitir_nfe %}Sim{% else %}Não{% endif %}</dd>
+                </div>
+                {% if venda.tipo_documento_fiscal %}
+                <div class="flex justify-between">
+                    <dt class="text-gray-500">Modelo:</dt>
+                    <dd class="font-medium">{{ venda.tipo_documento_fiscal }}</dd>
+                </div>
+                {% endif %}
+                {% if venda.chave_nfe %}
+                <div class="flex justify-between">
+                    <dt class="text-gray-500">Chave NFe:</dt>
+                    <dd class="font-medium text-xs break-all">{{ venda.chave_nfe }}</dd>
+                </div>
+                {% endif %}
+            </dl>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="font-bold text-gray-900 mb-4">Itens</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-100 border-b">
+                    <tr>
+                        <th class="px-3 py-2 text-left">Produto</th>
+                        <th class="px-3 py-2 text-right">Qtd</th>
+                        <th class="px-3 py-2 text-right">Valor Unit.</th>
+                        <th class="px-3 py-2 text-right">Desconto</th>
+                        <th class="px-3 py-2 text-right">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in itens %}
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="px-3 py-2">{{ item.produto.nome }}</td>
+                        <td class="px-3 py-2 text-right">{{ item.quantidade|floatformat:3 }}</td>
+                        <td class="px-3 py-2 text-right">R$ {{ item.vr_unitario_bruto|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-right">R$ {{ item.vr_desconto_total|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-right font-medium">R$ {{ item.vr_total_bruto|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="bg-gray-50 font-bold">
+                    <tr>
+                        <td colspan="4" class="px-3 py-2 text-right">Total:</td>
+                        <td class="px-3 py-2 text-right">R$ {{ total|floatformat:2 }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

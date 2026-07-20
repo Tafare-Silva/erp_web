@@ -1,0 +1,314 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ titulo }} - ERP Web{% endblock %}
+
+{% block page_title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <div class="bg-white rounded-lg shadow-sm">
+        <!-- Header -->
+        <div class="p-6 border-b border-gray-200">
+            <div class="flex items-center">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800">{{ titulo }}</h3>
+                    <p class="text-sm text-gray-600 mt-1">Configure os parâmetros da empresa emissora de NF-e/NFC-e</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form -->
+        <form method="post" enctype="multipart/form-data" class="p-6">
+            {% csrf_token %}
+
+            <!-- Grid 2 colunas -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-6">
+
+                <!-- ==================== IDENTIFICAÇÃO ==================== -->
+                <div class="lg:col-span-2">
+                    <h4 class="text-base font-semibold text-blue-800 border-b border-blue-200 pb-2 mb-4">
+                        <i class="fas fa-building mr-2"></i>Identificação
+                    </h4>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Pessoa / CNPJ</label>
+                    <p class="text-sm text-gray-900 py-2 px-3 bg-gray-50 rounded border">
+                        {{ empresa.pessoa.nome }} — {{ empresa.pessoa.cpf_cnpj|default:'---' }}
+                        <a href="{% url 'cadastros:pessoa_update' empresa.pessoa.pk %}" class="text-blue-600 hover:text-blue-800 ml-2">
+                            <i class="fas fa-edit"></i> Editar
+                        </a>
+                    </p>
+                </div>
+                <div>
+                    <label for="{{ form.nome_fantasia.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Nome Fantasia</label>
+                    {{ form.nome_fantasia }}
+                </div>
+                <div>
+                    <label for="{{ form.telefone_principal.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Telefone Principal</label>
+                    {{ form.telefone_principal }}
+                </div>
+                <div>
+                    <label for="{{ form.logo_fundo.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Logo</label>
+                    {% if empresa.logo_fundo %}
+                        <div class="mb-2">
+                            <img src="{{ empresa.logo_fundo.url }}" class="h-12 object-contain">
+                        </div>
+                    {% endif %}
+                    {{ form.logo_fundo }}
+                </div>
+
+                <!-- ==================== FISCAL NF-e ==================== -->
+                <div class="lg:col-span-2 mt-4">
+                    <h4 class="text-base font-semibold text-blue-800 border-b border-blue-200 pb-2 mb-4">
+                        <i class="fas fa-file-invoice mr-2"></i>Fiscal NF-e / NFC-e
+                    </h4>
+                </div>
+
+                <div>
+                    <label for="{{ form.crt_nfe.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">CRT (Regime Tributário)</label>
+                    {{ form.crt_nfe }}
+                </div>
+                <div>
+                    <label for="{{ form.regime_tributacao_federal.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Regime Tributário Federal</label>
+                    {{ form.regime_tributacao_federal }}
+                </div>
+                <div>
+                    <label for="{{ form.cnae_fiscal.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">CNAE Fiscal</label>
+                    {{ form.cnae_fiscal }}
+                    <p class="mt-1 text-xs text-gray-500">Código de 7 dígitos da atividade principal</p>
+                </div>
+                <div>
+                    <label for="{{ form.uf_web_service_nfe.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">UF do Web Service</label>
+                    {{ form.uf_web_service_nfe }}
+                </div>
+                <div>
+                    <label for="{{ form.ambiente_destino.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Ambiente de Destino</label>
+                    {{ form.ambiente_destino }}
+                </div>
+                <div>
+                    <label for="{{ form.ncm_padrao.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">NCM Padrão</label>
+                    {{ form.ncm_padrao }}
+                </div>
+                <div>
+                    <label for="{{ form.serie_nfe.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Série NF-e</label>
+                    {{ form.serie_nfe }}
+                </div>
+                <div>
+                    <label for="{{ form.serie_nfce.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Série NFC-e</label>
+                    {{ form.serie_nfce }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Último Nº NF-e</label>
+                    <p class="text-sm text-gray-900 py-2 px-3 bg-gray-50 rounded border">{{ empresa.ultimo_numero_nfe }}</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Último Nº NFC-e</label>
+                    <p class="text-sm text-gray-900 py-2 px-3 bg-gray-50 rounded border">{{ empresa.ultimo_numero_nfce }}</p>
+                </div>
+                <div class="lg:col-span-2">
+                    <label for="{{ form.caminho_arquivos_xml.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Caminho para Arquivos XML</label>
+                    {{ form.caminho_arquivos_xml }}
+                    <p class="mt-1 text-xs text-gray-500">Diretório onde os XMLs de NF-e serão salvos</p>
+                </div>
+
+                <!-- ==================== CERTIFICADO DIGITAL & CSC ==================== -->
+                <div class="lg:col-span-2 mt-4">
+                    <h4 class="text-base font-semibold text-blue-800 border-b border-blue-200 pb-2 mb-4">
+                        <i class="fas fa-shield mr-2"></i>Certificado Digital & NFC-e (CSC)
+                    </h4>
+                </div>
+
+                <div>
+                    <label for="{{ form.certificado_digital.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Certificado Digital Ativo</label>
+                    {{ form.certificado_digital }}
+                    <p class="mt-1 text-xs text-gray-500">
+                        <a href="{% url 'fiscal:certificado_list' %}" class="text-blue-600 hover:underline">Gerenciar certificados</a>
+                    </p>
+                </div>
+                <div></div>
+                <div>
+                    <label for="{{ form.csc.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">CSC</label>
+                    {{ form.csc }}
+                    <p class="mt-1 text-xs text-gray-500">Código de Segurança do Contribuinte (fornecido pela SEFAZ para NFC-e)</p>
+                </div>
+                <div>
+                    <label for="{{ form.csc_id.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">ID do CSC</label>
+                    {{ form.csc_id }}
+                    <p class="mt-1 text-xs text-gray-500">Identificador numérico do CSC</p>
+                </div>
+
+                <!-- ==================== SEDE ==================== -->
+                <div class="lg:col-span-2 mt-4">
+                    <h4 class="text-base font-semibold text-blue-800 border-b border-blue-200 pb-2 mb-4">
+                        <i class="fas fa-map-marker-alt mr-2"></i>Sede da Empresa
+                    </h4>
+                </div>
+
+                <div class="lg:col-span-2">
+                    <label for="{{ form.cidade_sede.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Município da Sede</label>
+                    {{ form.cidade_sede }}
+                    <p class="mt-1 text-xs text-gray-500">Utilizado na identificação do emitente na NF-e</p>
+                </div>
+
+                <!-- ==================== FINANCEIRO ==================== -->
+                <div class="lg:col-span-2 mt-4">
+                    <h4 class="text-base font-semibold text-blue-800 border-b border-blue-200 pb-2 mb-4">
+                        <i class="fas fa-dollar-sign mr-2"></i>Padrões Financeiros
+                    </h4>
+                </div>
+
+                <div>
+                    <label for="{{ form.plano_contas_receita_venda.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Plano Contas (Receita Venda)</label>
+                    {{ form.plano_contas_receita_venda }}
+                </div>
+                <div>
+                    <label for="{{ form.centro_custo_venda.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Centro Custo Venda</label>
+                    {{ form.centro_custo_venda }}
+                </div>
+                <div>
+                    <label for="{{ form.plano_contas_receita_compra.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Plano Contas (Receita Compra)</label>
+                    {{ form.plano_contas_receita_compra }}
+                </div>
+                <div>
+                    <label for="{{ form.centro_custo_compra.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Centro Custo Compra</label>
+                    {{ form.centro_custo_compra }}
+                </div>
+                <div>
+                    <label for="{{ form.juros_mes.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Juros ao Mês (%)</label>
+                    {{ form.juros_mes }}
+                </div>
+                <div>
+                    <label for="{{ form.multa_por_atraso.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Multa por Atraso (%)</label>
+                    {{ form.multa_por_atraso }}
+                </div>
+
+                <!-- ==================== VENDAS ==================== -->
+                <div class="lg:col-span-2 mt-4">
+                    <h4 class="text-base font-semibold text-blue-800 border-b border-blue-200 pb-2 mb-4">
+                        <i class="fas fa-receipt mr-2"></i>Padrões de Vendas
+                    </h4>
+                </div>
+
+                <div>
+                    <label for="{{ form.dias_vencimento_padrao_orcamento.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Dias Vencimento Padrão</label>
+                    {{ form.dias_vencimento_padrao_orcamento }}
+                </div>
+                <div>
+                    <label for="{{ form.valor_frete_padrao.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Valor Frete Padrão</label>
+                    {{ form.valor_frete_padrao }}
+                </div>
+                <div class="flex items-center">
+                    {{ form.nao_alterar_valor_frete_padrao }}
+                    <label for="{{ form.nao_alterar_valor_frete_padrao.id_for_label }}" class="ml-2 text-sm text-gray-700">Não alterar valor de frete padrão</label>
+                </div>
+
+                <!-- ==================== PDV ==================== -->
+                <div class="lg:col-span-2 mt-4">
+                    <h4 class="text-base font-semibold text-blue-800 border-b border-blue-200 pb-2 mb-4">
+                        <i class="fas fa-cash-register mr-2"></i>Padrões PDV
+                    </h4>
+                </div>
+
+                <div>
+                    <label for="{{ form.cliente_padrao.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Cliente Padrão</label>
+                    {{ form.cliente_padrao }}
+                </div>
+                <div>
+                    <label for="{{ form.vendedor_padrao.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Vendedor Padrão</label>
+                    {{ form.vendedor_padrao }}
+                </div>
+                <div>
+                    <label for="{{ form.consumidor_final.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Consumidor Final</label>
+                    {{ form.consumidor_final }}
+                </div>
+
+                <!-- ==================== ESTOQUE ==================== -->
+                <div class="lg:col-span-2 mt-4">
+                    <h4 class="text-base font-semibold text-blue-800 border-b border-blue-200 pb-2 mb-4">
+                        <i class="fas fa-boxes mr-2"></i>Padrões de Estoque
+                    </h4>
+                </div>
+
+                <div>
+                    <label for="{{ form.configuracao_estoque_negativo.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Estoque Negativo</label>
+                    {{ form.configuracao_estoque_negativo }}
+                </div>
+                <div>
+                    <label for="{{ form.local_padrao.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Local Padrão</label>
+                    {{ form.local_padrao }}
+                </div>
+
+                <!-- ==================== IMPORT XML ==================== -->
+                <div class="lg:col-span-2 mt-4">
+                    <h4 class="text-base font-semibold text-blue-800 border-b border-blue-200 pb-2 mb-4">
+                        <i class="fas fa-file-import mr-2"></i>Importação XML
+                    </h4>
+                </div>
+
+                <div>
+                    <label for="{{ form.marca_padrao_xml.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Marca Padrão</label>
+                    {{ form.marca_padrao_xml }}
+                </div>
+                <div>
+                    <label for="{{ form.divisao_padrao_xml.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Divisão Padrão</label>
+                    {{ form.divisao_padrao_xml }}
+                </div>
+                <div>
+                    <label for="{{ form.unidade_venda_padrao_xml.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Unidade Padrão</label>
+                    {{ form.unidade_venda_padrao_xml }}
+                </div>
+                <div>
+                    <label for="{{ form.local_padrao_xml.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Local Padrão (XML)</label>
+                    {{ form.local_padrao_xml }}
+                </div>
+
+            </div>
+
+            <!-- Buttons -->
+            <div class="mt-10 flex items-center justify-between pt-6 border-t border-gray-200">
+                <a href="{% url 'core:home' %}"
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">
+                    <i class="fas fa-times mr-2"></i>Cancelar
+                </a>
+                <button type="submit"
+                        class="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium">
+                    <i class="fas fa-check mr-2"></i>{{ botao_texto }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    input[type="text"], input[type="number"], input[type="email"], input[type="url"], select, textarea {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1.5px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        transition: border-color 0.15s ease;
+    }
+    input:focus, select:focus, textarea:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+    input[type="file"] {
+        padding: 0.5rem 0;
+    }
+    input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: #2563eb;
+    }
+    .form-checkbox {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: #2563eb;
+    }
+</style>
+{% endblock %}

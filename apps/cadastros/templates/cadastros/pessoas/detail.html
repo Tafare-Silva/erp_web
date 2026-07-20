@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+{% block title %}{{ pessoa.nome }}{% endblock %}
+{% block page_title %}{{ pessoa.nome }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 pb-12">
+    <!-- TOP BAR -->
+    <div class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-30 shadow-sm">
+        <div class="flex items-center gap-4">
+            <a href="{% url 'cadastros:pessoa_list' %}"
+               class="p-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors">
+                <i class="fas fa-arrow-left text-lg"></i>
+            </a>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-xl font-bold text-gray-900">{{ pessoa.nome }}</h1>
+                    <span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-md">#{{ pessoa.chave }}</span>
+                </div>
+                <p class="text-xs text-gray-500 mt-0.5">Ficha Cadastral</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'cadastros:pessoa_update' pessoa.pk %}"
+               class="px-6 py-2 text-sm font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-md">
+                <i class="fas fa-edit mr-2"></i>Editar
+            </a>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 md:px-6 mt-8 space-y-8">
+        <!-- Status + Classificações -->
+        <div class="flex flex-wrap gap-2 items-center">
+            {% if pessoa.inativo %}
+                <span class="px-3 py-1 text-xs font-bold rounded-full bg-red-100 text-red-700">Inativo</span>
+            {% else %}
+                <span class="px-3 py-1 text-xs font-bold rounded-full bg-green-100 text-green-700">Ativo</span>
+            {% endif %}
+            {% if pessoa.cliente %}<span class="px-3 py-1 text-xs font-bold rounded-full bg-blue-100 text-blue-700">Cliente</span>{% endif %}
+            {% if pessoa.fornecedor %}<span class="px-3 py-1 text-xs font-bold rounded-full bg-orange-100 text-orange-700">Fornecedor</span>{% endif %}
+            {% if pessoa.funcionario %}<span class="px-3 py-1 text-xs font-bold rounded-full bg-green-100 text-green-700">Funcionário</span>{% endif %}
+            {% if pessoa.vendedor %}<span class="px-3 py-1 text-xs font-bold rounded-full bg-yellow-100 text-yellow-700">Vendedor</span>{% endif %}
+            {% if pessoa.transportador %}<span class="px-3 py-1 text-xs font-bold rounded-full bg-purple-100 text-purple-700">Transportador</span>{% endif %}
+            {% if pessoa.motorista %}<span class="px-3 py-1 text-xs font-bold rounded-full bg-indigo-100 text-indigo-700">Motorista</span>{% endif %}
+        </div>
+
+        <!-- GRID PRINCIPAL -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+            <!-- COL 1: Dados Básicos -->
+            <div class="space-y-6">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-2">
+                        <i class="fas fa-id-card text-gray-400"></i>
+                        <h2 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Dados Básicos</h2>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <div>
+                            <dt class="text-[10px] font-bold text-gray-400 uppercase">CPF / CNPJ</dt>
+                            <dd class="text-sm font-semibold text-gray-900 mt-1 font-mono">{{ pessoa.cpf_cnpj|default:"-" }}</dd>
+                        </div>
+                        {% if pessoa.rg_ie %}
+                        <div class="pt-3 border-t border-gray-50">
+                            <dt class="text-[10px] font-bold text-gray-400 uppercase">RG / IE</dt>
+                            <dd class="text-sm font-semibold text-gray-900 mt-1 font-mono">{{ pessoa.rg_ie }}</dd>
+                        </div>
+                        {% endif %}
+                        {% if pessoa.nome_fantasia %}
+                        <div class="pt-3 border-t border-gray-50">
+                            <dt class="text-[10px] font-bold text-gray-400 uppercase">Nome Fantasia</dt>
+                            <dd class="text-sm font-semibold text-gray-900 mt-1">{{ pessoa.nome_fantasia }}</dd>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Contato -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-2">
+                        <i class="fas fa-address-book text-gray-400"></i>
+                        <h2 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Contato</h2>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        {% if pessoa.email %}
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-envelope text-gray-300 w-4"></i>
+                            <span class="text-sm text-gray-700">{{ pessoa.email }}</span>
+                        </div>
+                        {% endif %}
+                        {% if pessoa.telefone_fixo %}
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-phone text-gray-300 w-4"></i>
+                            <span class="text-sm text-gray-700">{{ pessoa.telefone_fixo }}</span>
+                        </div>
+                        {% endif %}
+                        {% if pessoa.celular_principal %}
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-mobile-alt text-gray-300 w-4"></i>
+                            <span class="text-sm text-gray-700">{{ pessoa.celular_principal }}</span>
+                        </div>
+                        {% endif %}
+                        {% if not pessoa.email and not pessoa.telefone_fixo and not pessoa.celular_principal %}
+                        <p class="text-sm text-gray-400">Nenhum contato cadastrado</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- COL 2: Dados Fiscais -->
+            <div class="space-y-6">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-2">
+                        <i class="fas fa-file-invoice text-red-400"></i>
+                        <h2 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Dados Fiscais</h2>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <div>
+                            <dt class="text-[10px] font-bold text-gray-400 uppercase">Inscrição Municipal</dt>
+                            <dd class="text-sm font-semibold text-gray-900 mt-1">{{ pessoa.ins_municipal|default:"-" }}</dd>
+                        </div>
+                        <div class="pt-3 border-t border-gray-50">
+                            <dt class="text-[10px] font-bold text-gray-400 uppercase">Situação Cadastro</dt>
+                            <dd class="text-sm font-semibold text-gray-900 mt-1">{{ pessoa.get_situacao_cadastro_display|default:pessoa.situacao_cadastro }}</dd>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ICMS ST Config -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-2">
+                        <i class="fas fa-cubes text-blue-400"></i>
+                        <h2 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">ICMS ST</h2>
+                    </div>
+                    <div class="p-6 space-y-3">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full {% if pessoa.somar_frete_bc_icms_st %}bg-green-500{% else %}bg-gray-300{% endif %}"></span>
+                            <span class="text-sm text-gray-700">Somar Frete na BC</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full {% if pessoa.somar_ipi_bc_icms_st %}bg-green-500{% else %}bg-gray-300{% endif %}"></span>
+                            <span class="text-sm text-gray-700">Somar IPI na BC</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full {% if pessoa.somar_oda_bc_icms_st %}bg-green-500{% else %}bg-gray-300{% endif %}"></span>
+                            <span class="text-sm text-gray-700">Somar Outras Desp. na BC</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full {% if pessoa.nao_destacar_impostos_nfse %}bg-red-500{% else %}bg-gray-300{% endif %}"></span>
+                            <span class="text-sm text-gray-700">Não Destacar Impostos NFSe</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COL 3: Últimas Vendas -->
+            <div class="space-y-6">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-2">
+                        <i class="fas fa-shopping-cart text-blue-400"></i>
+                        <h2 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Últimas Vendas</h2>
+                    </div>
+                    <div class="p-6">
+                        {% if ultimas_vendas %}
+                            <div class="space-y-2">
+                                {% for v in ultimas_vendas %}
+                                <a href="{% url 'cadastros:venda_detail' v.pk_chave %}"
+                                   class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-blue-50 transition">
+                                    <div>
+                                        <span class="text-sm font-bold text-gray-800">#{{ v.pk_chave }}</span>
+                                        <span class="text-xs text-gray-500 ml-2">{{ v.data|date:"d/m/Y" }}</span>
+                                    </div>
+                                    <span class="text-sm font-bold text-green-700">R$ {{ v.calcular_total|floatformat:2 }}</span>
+                                </a>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-sm text-gray-400">Nenhuma venda encontrada</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if dados_pf %}
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-2">
+                        <i class="fas fa-user text-purple-400"></i>
+                        <h2 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pessoa Física</h2>
+                    </div>
+                    <div class="p-6 space-y-3">
+                        <div>
+                            <dt class="text-[10px] font-bold text-gray-400 uppercase">Nascimento</dt>
+                            <dd class="text-sm font-semibold text-gray-900 mt-1">{{ dados_pf.data_nascimento|date:"d/m/Y"|default:"-" }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-[10px] font-bold text-gray-400 uppercase">Profissão</dt>
+                            <dd class="text-sm font-semibold text-gray-900 mt-1">{{ dados_pf.profissao|default:"-" }}</dd>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

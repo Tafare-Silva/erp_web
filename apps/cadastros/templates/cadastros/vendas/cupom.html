@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Cupom - Venda #{{ venda.pk_chave }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.4; color: #000; background: #fff; }
+        .cupom { width: 58mm; margin: 0 auto; padding: 3mm; }
+        .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 2mm; margin-bottom: 2mm; }
+        .nome-empresa { font-size: 14px; font-weight: bold; }
+        .info { font-size: 10px; }
+        .section { margin-bottom: 2mm; border-bottom: 1px dashed #000; padding-bottom: 2mm; }
+        .section-title { font-weight: bold; font-size: 11px; margin-bottom: 1mm; text-align: center; }
+        .item { margin-bottom: 2mm; }
+        .item-nome { font-weight: bold; font-size: 11px; }
+        .item-detalhes { display: flex; justify-content: space-between; font-size: 10px; }
+        .totais { margin-top: 2mm; }
+        .total-linha { display: flex; justify-content: space-between; margin-bottom: 0.5mm; font-size: 11px; }
+        .total-final { font-size: 14px; font-weight: bold; border-top: 1px solid #000; padding-top: 1.5mm; margin-top: 1.5mm; }
+        .footer { text-align: center; margin-top: 3mm; font-size: 10px; }
+        hr.dashed { border: none; border-top: 1px dashed #000; margin: 1.5mm 0; }
+        @media print {
+            body { margin: 0; padding: 0; }
+            .no-print { display: none; }
+            @page { size: 58mm auto; margin: 0; }
+        }
+        .btn-imprimir { position: fixed; top: 10px; right: 10px; padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .btn-imprimir:hover { background: #059669; }
+        .pagamento { font-size: 10px; margin-top: 1mm; }
+    </style>
+</head>
+<body>
+    <button onclick="window.print()" class="btn-imprimir no-print">Imprimir</button>
+    <div class="cupom">
+
+        <div class="header">
+            <div class="nome-empresa">{{ empresa.nome_fantasia|default:emit.nome|default:"SUA EMPRESA" }}</div>
+            {% if emit %}
+            <div class="info">CNPJ: {{ emit.cpf_cnpj|default:"00.000.000/0000-00" }}</div>
+            {% endif %}
+        </div>
+
+        {% if venda.tipo_movimento == 'PV' %}
+        <div class="section" style="background: #fffde7; border: 1px dashed #f59e0b; padding: 2mm;">
+            <div class="section-title" style="color: #d97706;">CONDICIONAL</div>
+            <div style="font-size: 10px; text-align: center;">Este documento não é uma venda definitiva</div>
+        </div>
+        {% endif %}
+
+        <div class="section">
+            <div class="section-title">CUPOM NÃO FISCAL</div>
+            <hr class="dashed">
+            <div style="font-size: 10px;">Nº: <span class="info" style="font-weight: bold;">{{ venda.pk_chave }}</span></div>
+            <div style="font-size: 10px;">Data: {{ venda.data|date:"d/m/Y" }}</div>
+            {% if venda.vendedor %}
+            <div style="font-size: 10px;">Vendedor: {{ venda.vendedor.nome }}</div>
+            {% endif %}
+            {% if venda.pessoa %}
+            <div style="font-size: 10px;">Cliente: {{ venda.pessoa.nome }}</div>
+            {% if venda.pessoa.cpf_cnpj %}
+            <div style="font-size: 10px;">CPF/CNPJ: {{ venda.pessoa.cpf_cnpj }}</div>
+            {% endif %}
+            {% endif %}
+        </div>
+
+        <div class="section">
+            <div class="section-title">ITENS</div>
+            <hr class="dashed">
+            {% for item in itens %}
+            <div class="item">
+                <div class="item-nome">{{ item.produto.nome }}</div>
+                <div class="item-detalhes">
+                    <span>{{ item.quantidade|floatformat:3 }} x R$ {{ item.vr_unitario_bruto|floatformat:2 }}</span>
+                    <span>R$ {{ item.calcular_total|floatformat:2 }}</span>
+                </div>
+                {% if item.vr_desconto_total > 0 %}
+                <div style="font-size: 9px; color: #666; text-align: right;">
+                    Desc.: -R$ {{ item.vr_desconto_total|floatformat:2 }}
+                </div>
+                {% endif %}
+                {% if item.vr_acrescimo_total > 0 %}
+                <div style="font-size: 9px; color: #666; text-align: right;">
+                    Acrés.: +R$ {{ item.vr_acrescimo_total|floatformat:2 }}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="totais">
+            <div class="total-linha"><span>Subtotal:</span><span>R$ {{ subtotal|floatformat:2 }}</span></div>
+            {% if venda.vr_desconto_total > 0 %}
+            <div class="total-linha" style="color: #dc2626;"><span>Desconto:</span><span>-R$ {{ venda.vr_desconto_total|floatformat:2 }}</span></div>
+            {% endif %}
+            {% if venda.vr_acrescimo_total > 0 %}
+            <div class="total-linha" style="color: #16a34a;"><span>Acréscimo:</span><span>R$ {{ venda.vr_acrescimo_total|floatformat:2 }}</span></div>
+            {% endif %}
+            <div class="total-linha total-final"><span>TOTAL:</span><span>R$ {{ total|floatformat:2 }}</span></div>
+        </div>
+
+        {% if pagamentos %}
+        <div class="section" style="border-top: 1px solid #000; margin-top: 2mm;">
+            <div class="section-title">PAGAMENTOS</div>
+            <hr class="dashed">
+            {% for p in pagamentos %}
+            <div class="pagamento total-linha">
+                <span>{{ p.tipo }}</span>
+                <span>R$ {{ p.valor|floatformat:2 }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="footer">
+            <hr class="dashed">
+            <div style="font-weight: bold; margin-top: 1mm;">Obrigado pela preferência!</div>
+            <div style="font-size: 9px; margin-top: 1mm;">{{ venda.data|date:"d/m/Y" }}</div>
+        </div>
+
+    </div>
+
+    <script>window.onload = () => { setTimeout(() => window.print(), 300); };</script>
+</body>
+</html>

@@ -1,0 +1,393 @@
+{% extends 'pdv_base.html' %}
+{% block title %}Devolução{% endblock %}
+{% block content %}
+<style>
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+    animation: fadeIn 0.25s ease-out;
+}
+.animate-slide-in {
+    animation: slideIn 0.2s ease-out;
+}
+.grid-scroll {
+    max-height: 320px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e0 transparent;
+}
+.grid-scroll::-webkit-scrollbar { width: 6px; }
+.grid-scroll::-webkit-scrollbar-track { background: transparent; }
+.grid-scroll::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 3px; }
+.grid-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.grid-scroll thead { position: sticky; top: 0; z-index: 5; }
+</style>
+
+<div x-data="devolucaoApp()" class="min-h-screen bg-gradient-to-br from-gray-900/90 via-gray-800/90 to-gray-900/90 flex items-start justify-center p-4 md:p-8">
+    <div class="w-full max-w-7xl bg-white rounded-2xl shadow-2xl border border-gray-200 animate-fade-in overflow-hidden">
+        
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-undo-alt text-white text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-white font-bold text-lg">Devolução</h1>
+                    <p class="text-blue-100 text-xs">
+                        {% if is_multipla %}
+                            Condicionais: #{{ condicional_id }} — {{ cliente_nomes|default:condicional.pessoa.nome }}
+                        {% else %}
+                            Condicional #{{ condicional.pk_chave }} — {{ condicional.pessoa.nome }}
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4 text-white">
+                <div class="text-right text-xs text-blue-100">
+                    <div class="font-medium text-white">R$ {{ total_original|floatformat:2 }}</div>
+                    <div>Total original</div>
+                </div>
+                <a href="{% if is_multipla %}{% url 'cadastros:condicional_list' %}{% else %}{% url 'cadastros:condicional_list' %}{% endif %}"
+                   class="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition">
+                    <i class="fas fa-times"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div class="p-6 space-y-5">
+
+            <!-- Scanner -->
+            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-barcode text-blue-600 text-lg"></i>
+                    </div>
+                    <div class="flex-1 relative">
+                        <input type="text" x-model="codigoDevolucao" x-ref="inputBipar"
+                               @keydown.enter="biparDevolucao"
+                               placeholder="BIPAR CÓDIGO ou código de barras e pressione Enter"
+                               class="w-full pl-4 pr-10 py-3 bg-white border-2 border-blue-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                               autofocus>
+                        <button @click="biparDevolucao" class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center text-xs transition">
+                            <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Two Grids -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+                <!-- LEFT: Itens para Concluir -->
+                <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                    <div class="bg-gradient-to-r from-emerald-600 to-emerald-500 px-4 py-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h2 class="text-white font-bold text-sm flex items-center gap-2">
+                                    <i class="fas fa-check-circle"></i>
+                                    Itens para Concluir
+                                </h2>
+                                <p class="text-emerald-100 text-[10px] mt-0.5">Marcados vão para o PDV</p>
+                            </div>
+                            <div class="flex gap-1.5">
+                                <button @click="selecionarTodos" class="px-2.5 py-1.5 bg-white/20 hover:bg-white/30 text-white text-[10px] font-medium rounded-lg transition flex items-center gap-1">
+                                    <i class="fas fa-check-double text-[9px]"></i> Todos
+                                </button>
+                                <button @click="desmarcarTodos" class="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 text-white text-[10px] font-medium rounded-lg transition flex items-center gap-1">
+                                    <i class="fas fa-times text-[9px]"></i> Nenhum
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mt-2 flex items-center gap-4 text-white text-xs">
+                            <span><span class="text-white/70">Selecionados:</span> <strong x-text="itensSelecionados.length"></strong></span>
+                            <span><span class="text-white/70">Total:</span> <strong x-text="formatMoney(totalSelecionado)"></strong></span>
+                        </div>
+                    </div>
+                    <div class="grid-scroll">
+                        <table class="w-full text-xs">
+                            <thead>
+                                <tr class="bg-gray-50 text-gray-500 uppercase tracking-wider text-[10px]">
+                                    <th class="px-3 py-2.5 text-center w-10"></th>
+                                    <th class="px-2 py-2.5 text-left">Cód.</th>
+                                    <th class="px-2 py-2.5 text-left">Nome</th>
+                                    <th class="px-2 py-2.5 text-center w-14">Qtd</th>
+                                    <th class="px-2 py-2.5 text-right w-20">Unit.</th>
+                                    <th class="px-2 py-2.5 text-right w-20">Total</th>
+                                    <th class="px-2 py-2.5 text-left w-28">Vendedor</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="(item, idx) in itensFicam" :key="idx">
+                                    <tr class="border-t border-gray-100 hover:bg-emerald-50/50 transition"
+                                        :class="item.selecionado ? 'bg-emerald-50' : ''">
+                                        <td class="px-3 py-2.5 text-center">
+                                            <input type="checkbox" x-model="item.selecionado"
+                                                   @change="calcularTotais"
+                                                   class="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500">
+                                        </td>
+                                        <td class="px-2 py-2.5 font-mono text-gray-500" x-text="item.produto_id"></td>
+                                        <td class="px-2 py-2.5 font-medium text-gray-800 truncate max-w-[180px]" x-text="item.nome"></td>
+                                        <td class="px-2 py-2.5 text-center font-bold" x-text="item.qtd"></td>
+                                        <td class="px-2 py-2.5 text-right text-gray-600" x-text="formatMoney(item.preco)"></td>
+                                        <td class="px-2 py-2.5 text-right font-bold text-emerald-700" x-text="formatMoney(item.qtd * item.preco)"></td>
+                                        <td class="px-2 py-2.5">
+                                            <select x-model="item.vendedor_id" class="w-full text-[10px] border border-gray-200 rounded-lg px-1.5 py-1.5 bg-white focus:ring-1 focus:ring-emerald-500 outline-none">
+                                                <option value="">Sem vendedor</option>
+                                                {% for v in vendedores %}
+                                                <option value="{{ v.chave }}">{{ v.nome|truncatechars:15 }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </td>
+                                    </tr>
+                                </template>
+                                <tr x-show="itensFicam.length === 0">
+                                    <td colspan="7" class="px-4 py-12 text-center">
+                                        <div class="text-gray-300">
+                                            <i class="fas fa-check-circle text-4xl mb-2"></i>
+                                            <p class="text-sm font-medium text-gray-400">Todos os itens foram devolvidos</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- RIGHT: Produtos Devolvidos -->
+                <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                    <div class="bg-gradient-to-r from-rose-600 to-rose-500 px-4 py-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h2 class="text-white font-bold text-sm flex items-center gap-2">
+                                    <i class="fas fa-undo-alt"></i>
+                                    Produtos Devolvidos
+                                </h2>
+                                <p class="text-rose-100 text-[10px] mt-0.5">Itens que o cliente está devolvendo</p>
+                            </div>
+                            <div class="text-right text-white text-xs">
+                                <span class="text-white/70">Devolvido:</span>
+                                <strong x-text="formatMoney(totalDevolvido)"></strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid-scroll">
+                        <table class="w-full text-xs">
+                            <thead>
+                                <tr class="bg-gray-50 text-gray-500 uppercase tracking-wider text-[10px]">
+                                    <th class="px-3 py-2.5 text-left">Cód.</th>
+                                    <th class="px-2 py-2.5 text-left">Nome</th>
+                                    <th class="px-2 py-2.5 text-center w-14">Qtd</th>
+                                    <th class="px-2 py-2.5 text-right w-20">Unit.</th>
+                                    <th class="px-2 py-2.5 text-right w-20">Total</th>
+                                    <th class="px-2 py-2.5 text-left w-28">Vendedor</th>
+                                    <th class="px-2 py-2.5 text-center w-10"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="(item, idx) in itensDevolvidos" :key="idx">
+                                    <tr class="border-t border-gray-100 bg-rose-50/40 hover:bg-rose-50 transition">
+                                        <td class="px-3 py-2.5 font-mono text-gray-500" x-text="item.produto_id"></td>
+                                        <td class="px-2 py-2.5 font-medium text-gray-800 truncate max-w-[180px]" x-text="item.nome"></td>
+                                        <td class="px-2 py-2.5 text-center font-bold" x-text="item.qtd"></td>
+                                        <td class="px-2 py-2.5 text-right text-gray-600" x-text="formatMoney(item.preco)"></td>
+                                        <td class="px-2 py-2.5 text-right font-bold text-rose-700" x-text="formatMoney(item.qtd * item.preco)"></td>
+                                        <td class="px-2 py-2.5">
+                                            <select x-model="item.vendedor_id" class="w-full text-[10px] border border-gray-200 rounded-lg px-1.5 py-1.5 bg-white focus:ring-1 focus:ring-rose-500 outline-none">
+                                                <option value="">Sem vendedor</option>
+                                                {% for v in vendedores %}
+                                                <option value="{{ v.chave }}">{{ v.nome|truncatechars:15 }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </td>
+                                        <td class="px-2 py-2.5 text-center">
+                                            <button @click="voltarItem(idx)"
+                                                    class="w-7 h-7 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-lg flex items-center justify-center transition"
+                                                    title="Voltar para lista">
+                                                <i class="fas fa-arrow-left text-[10px]"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </template>
+                                <tr x-show="itensDevolvidos.length === 0">
+                                    <td colspan="7" class="px-4 py-12 text-center">
+                                        <div class="text-gray-300">
+                                            <i class="fas fa-inbox text-4xl mb-2"></i>
+                                            <p class="text-sm font-medium text-gray-400">Nenhum item devolvido ainda</p>
+                                            <p class="text-xs text-gray-300 mt-1">Bipe os produtos que o cliente vai devolver</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-3 gap-4">
+                <div class="bg-gradient-to-br from-emerald-50 to-emerald-100/50 border border-emerald-200 rounded-xl p-4 text-center">
+                    <div class="text-[10px] font-medium text-emerald-600 uppercase tracking-wider">Vão para Venda (PDV)</div>
+                    <div class="text-2xl font-bold text-emerald-700 mt-1" x-text="itensSelecionados.length"></div>
+                    <div class="text-sm font-medium text-emerald-600 mt-0.5" x-text="formatMoney(totalSelecionado)"></div>
+                </div>
+                <div class="bg-gradient-to-br from-amber-50 to-amber-100/50 border border-amber-200 rounded-xl p-4 text-center">
+                    <div class="text-[10px] font-medium text-amber-600 uppercase tracking-wider">Mantém no Condicional</div>
+                    <div class="text-2xl font-bold text-amber-700 mt-1" x-text="itensNaoSelecionados.length"></div>
+                    <div class="text-sm font-medium text-amber-600 mt-0.5" x-text="formatMoney(totalNaoSelecionado)"></div>
+                </div>
+                <div class="bg-gradient-to-br from-rose-50 to-rose-100/50 border border-rose-200 rounded-xl p-4 text-center">
+                    <div class="text-[10px] font-medium text-rose-600 uppercase tracking-wider">Devolvidos</div>
+                    <div class="text-2xl font-bold text-rose-700 mt-1" x-text="itensDevolvidos.length"></div>
+                    <div class="text-sm font-medium text-rose-600 mt-0.5" x-text="formatMoney(totalDevolvido)"></div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
+                <a href="{% url 'cadastros:condicional_list' %}"
+                   class="px-5 py-2.5 border-2 border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition flex items-center gap-2">
+                    <i class="fas fa-times"></i>
+                    Cancelar
+                </a>
+                <button @click="confirmarDevolucao"
+                        class="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl text-sm font-bold hover:from-blue-700 hover:to-blue-600 shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-all active:scale-[0.98] flex items-center gap-2">
+                    <i class="fas fa-check-circle"></i>
+                    Confirmar Devolução
+                    <span class="px-1.5 py-0.5 bg-white/20 rounded text-[10px]">F2</span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+function devolucaoApp() {
+    return {
+        codigoDevolucao: '',
+        itensOriginais: {{ itens_json|safe }},
+        itensFicam: [],
+        itensDevolvidos: [],
+
+        init() {
+            this.itensFicam = JSON.parse(JSON.stringify(this.itensOriginais));
+            setTimeout(() => { this.$refs.inputBipar?.focus(); }, 100);
+        },
+
+        biparDevolucao() {
+            if (!this.codigoDevolucao) return;
+            const termo = this.codigoDevolucao.trim();
+            const idx = this.itensFicam.findIndex(i =>
+                i.produto_id == termo || i.codigo_barras == termo
+            );
+            if (idx >= 0) {
+                const item = this.itensFicam.splice(idx, 1)[0];
+                item.selecionado = false;
+                this.itensDevolvidos.push(item);
+                this.codigoDevolucao = '';
+                this.$nextTick(() => this.$refs.inputBipar?.focus());
+            } else {
+                alert('Item não encontrado ou já foi movido');
+                this.codigoDevolucao = '';
+            }
+        },
+
+        voltarItem(idx) {
+            const item = this.itensDevolvidos.splice(idx, 1)[0];
+            this.itensFicam.push(item);
+        },
+
+        selecionarTodos() {
+            this.itensFicam.forEach(i => i.selecionado = true);
+            this.calcularTotais();
+        },
+
+        desmarcarTodos() {
+            this.itensFicam.forEach(i => i.selecionado = false);
+            this.calcularTotais();
+        },
+
+        get itensSelecionados() {
+            return this.itensFicam.filter(i => i.selecionado);
+        },
+
+        get itensNaoSelecionados() {
+            return this.itensFicam.filter(i => !i.selecionado);
+        },
+
+        get totalSelecionado() {
+            return this.itensSelecionados.reduce((sum, i) => sum + (i.qtd * i.preco), 0);
+        },
+
+        get totalNaoSelecionado() {
+            return this.itensNaoSelecionados.reduce((sum, i) => sum + (i.qtd * i.preco), 0);
+        },
+
+        get totalDevolvido() {
+            return this.itensDevolvidos.reduce((sum, i) => sum + (i.qtd * i.preco), 0);
+        },
+
+        calcularTotais() {
+            this.$nextTick();
+        },
+
+        confirmarDevolucao() {
+            const resumo = `RESUMO DA DEVOLUÇÃO:\n\n✅ Vão para VENDA (PDV): ${this.itensSelecionados.length} itens - ${this.formatMoney(this.totalSelecionado)}\n⏸️ Mantém no CONDICIONAL: ${this.itensNaoSelecionados.length} itens - ${this.formatMoney(this.totalNaoSelecionado)}\n🔴 DEVOLVIDOS: ${this.itensDevolvidos.length} itens - ${this.formatMoney(this.totalDevolvido)}\n\nConfirmar?`;
+            if (!confirm(resumo)) return;
+
+            const isMultiplo = '{{ condicional_id }}'.indexOf(',') >= 0;
+            const url = isMultiplo
+                ? '/cadastros/condicionais/processar-devolucao/'
+                : '/cadastros/condicionais/{{ condicional_id }}/processar-devolucao/';
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    selecionados: this.itensSelecionados,
+                    nao_selecionados: this.itensNaoSelecionados,
+                    devolvidos: this.itensDevolvidos
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.sucesso) {
+                    if (this.itensSelecionados.length > 0) {
+                        window.location.href = `/cadastros/pdv/?condicional=${data.condicional_id}`;
+                    } else {
+                        window.location.href = '/cadastros/condicionais/';
+                    }
+                } else {
+                    alert('Erro: ' + (data.erro || 'Desconhecido'));
+                }
+            })
+            .catch(err => {
+                alert('Erro ao processar');
+                console.error(err);
+            });
+        },
+
+        formatMoney(val) {
+            return 'R$ ' + parseFloat(val || 0).toFixed(2).replace('.', ',');
+        },
+
+        getCookie(name) {
+            let value = `; ${document.cookie}`;
+            let parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+    }
+}
+</script>
+{% endblock %}

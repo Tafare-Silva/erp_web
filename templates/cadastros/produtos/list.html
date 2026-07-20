@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="p-4 md:p-8 bg-gray-50 min-h-screen">
+    <!-- Header Section -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+            <h1 class="text-3xl font-black text-gray-900 tracking-tight">Catálogo de Produtos</h1>
+            <p class="text-gray-500 text-sm mt-1">Gerencie seu estoque, preços e configurações fiscais.</p>
+        </div>
+        <a href="{% url 'cadastros:produto_create' %}" class="w-full md:w-auto bg-blue-600 text-white px-6 py-3 rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all font-bold flex items-center justify-center gap-2 transform hover:-translate-y-1 active:translate-y-0">
+            <i class="fas fa-plus"></i>
+            Novo Produto
+        </a>
+    </div>
+
+    <!-- Filters Card -->
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
+        <form method="GET" class="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
+            <div class="md:col-span-5">
+                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Pesquisa Geral</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <input type="text" name="q" value="{{ request.GET.q }}" 
+                           class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all outline-none text-sm" 
+                           placeholder="Nome, código interno ou EAN...">
+                </div>
+            </div>
+            
+            <div class="md:col-span-3">
+                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Filtrar por Marca</label>
+                <select name="marca" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all outline-none text-sm font-medium text-gray-700">
+                    <option value="">Todas as Marcas</option>
+                    {% for m in marcas %}
+                    <option value="{{ m.nome }}" {% if request.GET.marca == m.nome %}selected{% endif %}>{{ m.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="md:col-span-3">
+                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Filtrar por Divisão</label>
+                <select name="divisao" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all outline-none text-sm font-medium text-gray-700">
+                    <option value="">Todas as Divisões</option>
+                    {% for d in divisoes %}
+                    <option value="{{ d.nome }}" {% if request.GET.divisao == d.nome %}selected{% endif %}>{{ d.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="md:col-span-1">
+                <button type="submit" class="w-full bg-gray-900 text-white p-3.5 rounded-xl font-bold hover:bg-gray-800 transition-all shadow-md">
+                    <i class="fas fa-filter"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Table Card -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-50/50 border-b border-gray-100">
+                        <th class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Cód.</th>
+                        <th class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Produto</th>
+                        <th class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Marca / Divisão</th>
+                        <th class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Estoque</th>
+                        <th class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Preço de Venda</th>
+                        <th class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for produto in produtos %}
+                    <tr class="hover:bg-blue-50/50 transition-colors group">
+                        <td class="px-6 py-4">
+                            <span class="px-2 py-1 bg-gray-100 text-gray-500 rounded text-[10px] font-bold font-mono">#{{ produto.pk_chave }}</span>
+                        </td>
+                        
+                        <td class="px-6 py-4">
+                            <div class="flex flex-col">
+                                <span class="text-sm font-bold text-gray-900 group-hover:text-blue-700 transition-colors">{{ produto.nome }}</span>
+                                {% if produto.referencia_fabrica %}
+                                <span class="text-[10px] text-gray-400">Ref: {{ produto.referencia_fabrica }}</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-2">
+                                <span class="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold uppercase tracking-tight">{{ produto.marca|default:"Sem Marca" }}</span>
+                                <span class="text-gray-300">/</span>
+                                <span class="text-xs text-gray-500 font-medium">{{ produto.divisao|default:"Geral" }}</span>
+                            </div>
+                        </td>
+                        
+                        <td class="px-6 py-4 text-right">
+                            <div class="flex flex-col items-end">
+                                <span class="text-sm font-black {% if produto.estoque_total > 0 %}text-green-600{% elif produto.estoque_total < 0 %}text-red-600{% else %}text-gray-400{% endif %}">
+                                    {{ produto.estoque_total|default:"0"|floatformat:2 }}
+                                </span>
+                                <span class="text-[10px] text-gray-400 uppercase font-bold">{{ produto.unidade_venda|default:"UN" }}</span>
+                            </div>
+                        </td>
+                        
+                        <td class="px-6 py-4 text-right">
+                            <span class="text-sm font-black text-gray-900">R$ {{ produto.preco_venda|floatformat:2 }}</span>
+                        </td>
+                        
+                        <td class="px-6 py-4">
+                            <div class="flex items-center justify-center gap-2">
+                                <a href="{% url 'cadastros:produto_detail' produto.pk %}" 
+                                   class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" 
+                                   title="Ver Detalhes">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'cadastros:produto_update' produto.pk %}" 
+                                   class="p-2 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-all" 
+                                   title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'cadastros:produto_delete' produto.pk %}" 
+                                   class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" 
+                                   title="Excluir">
+                                    <i class="fas fa-trash-alt"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-20 text-center">
+                            <div class="flex flex-col items-center">
+                                <div class="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                                    <i class="fas fa-box-open text-gray-200 text-3xl"></i>
+                                </div>
+                                <p class="text-gray-900 font-black uppercase tracking-widest text-sm">Nenhum produto em estoque</p>
+                                <p class="text-gray-400 text-xs mt-2">Ajuste seus filtros ou clique em "Novo Produto" para começar.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination Section (if applicable) -->
+        {% if is_paginated %}
+        <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+            <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+            <div class="flex gap-2">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.marca %}&marca={{ request.GET.marca }}{% endif %}{% if request.GET.divisao %}&divisao={{ request.GET.divisao }}{% endif %}" 
+                   class="px-4 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50 transition-all shadow-sm">
+                    Anterior
+                </a>
+                {% endif %}
+                
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.marca %}&marca={{ request.GET.marca }}{% endif %}{% if request.GET.divisao %}&divisao={{ request.GET.divisao }}{% endif %}" 
+                   class="px-4 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50 transition-all shadow-sm">
+                    Próxima
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
