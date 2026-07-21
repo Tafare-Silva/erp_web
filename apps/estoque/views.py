@@ -13,7 +13,7 @@ from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 
 from apps.cadastros.models import Produto
-from .models import LocalEstoque, SaldoEstoque
+from .models import LocalEstoque, SaldoEstoque, ItemMovimentacaoEstoque
 from .services import EstoqueService
 from .forms import LocalEstoqueForm
 
@@ -277,22 +277,39 @@ def movimentacao_estoque_view(request):
 
 def historico_view(request):
     """Histórico de movimentações com filtros."""
-    produto_id = request.GET.get('produto_id')
-    local_id = request.GET.get('local')
-    limite = int(request.GET.get('limite', 100))
-
-    historico = EstoqueService.obter_historico(
-        produto_id=produto_id,
-        local_id=local_id,
-        limite=limite,
+    from django.core.paginator import Paginator
+    
+    filtros = {
+        'produto': request.GET.get('produto', ''),
+        'local': request.GET.get('local', ''),
+        'data_ini': request.GET.get('data_ini', ''),
+        'data_fim': request.GET.get('data_fim', ''),
+    }
+    
+    qs = ItemMovimentacaoEstoque.objects.select_related(
+        'movimentacao', 'produto', 'local'
     )
-
+    
+    if filtros['produto']:
+        qs = qs.filter(produto__nome__icontains=filtros['produto'])
+    if filtros['local']:
+        qs = qs.filter(local_id=filtros['local'])
+    if filtros['data_ini']:
+        qs = qs.filter(movimentacao__data__gte=filtros['data_ini'])
+    if filtros['data_fim']:
+        qs = qs.filter(movimentacao__data__lte=filtros['data_fim'])
+    
+    qs = qs.order_by('-movimentacao__data', '-movimentacao__data_criacao')
+    
+    paginator = Paginator(qs, 50)
+    page = request.GET.get('page', 1)
+    historico = paginator.get_page(page)
+    
     return render(request, 'estoque/historico.html', {
         'historico': historico,
         'locais': EstoqueService.obter_locais(),
-        'produto_id': produto_id,
-        'local_id': local_id,
-        'limite': limite,
+        'filtros': filtros,
+        'is_paginated': historico.has_other_pages(),
     })
 
 
