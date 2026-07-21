@@ -439,8 +439,8 @@
                 <!-- Form Adicionar Pagamento -->
                 <div x-show="tipoPagamentoSelecionado" class="border border-gray-200 rounded-xl p-4 mb-4 bg-gray-50/50">
                     <h4 class="font-bold text-sm mb-3 text-gray-700">
-                        <i :class="tipoPagamentoSelecionado.icone" class="mr-1"></i>
-                        <span x-text="tipoPagamentoSelecionado.nome"></span>
+                        <i :class="tipoPagamentoSelecionado?.icone || 'fas fa-money-check-alt'" class="mr-1"></i>
+                        <span x-text="tipoPagamentoSelecionado?.nome || ''"></span>
                     </h4>
                     <div class="grid grid-cols-2 gap-3 mb-3">
                         <div>

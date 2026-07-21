@@ -51,10 +51,12 @@ class TituloFinanceiro(models.Model):
     )
     plano_contas = models.ForeignKey(
         PlanoContas, on_delete=models.PROTECT,
+        null=True, blank=True,
         verbose_name='Plano de Contas'
     )
     centro_custo = models.ForeignKey(
         CentroCusto, on_delete=models.PROTECT,
+        null=True, blank=True,
         verbose_name='Centro de Custo'
     )
     conta_bancaria = models.ForeignKey(
