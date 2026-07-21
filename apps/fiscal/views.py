@@ -105,7 +105,7 @@ def nfe_create_manual(request):
             if not destinatario_id:
                 messages.error(request, 'Selecione o destinatário')
                 return render(request, 'fiscal/nfe_create_manual.html', {
-                    'pessoas': Pessoa.objects.filter(cliente=True)[:100],
+                    'tipos_pagamento': TipoPagamento.objects.filter(ativo=True),
                 })
 
             modelo = request.POST.get('modelo', '55')
@@ -150,6 +150,8 @@ def nfe_create_manual(request):
             cfops = request.POST.getlist('cfop')
             ncms = request.POST.getlist('ncm')
             csts = request.POST.getlist('cst_icms')
+            csosns = request.POST.getlist('csosn')
+            origens = request.POST.getlist('origem')
             aliq_icms_list = request.POST.getlist('aliquota_icms')
 
             for i in range(len(produtos)):
@@ -160,7 +162,13 @@ def nfe_create_manual(request):
                 cfop_val = cfops[i] if i < len(cfops) else (prod.cfop_venda_estadual or '5102')
                 ncm_val = ncms[i] if i < len(ncms) else (prod.ncm.ncm if prod.ncm else '00000000')
                 cst_val = csts[i] if i < len(csts) else (prod.cst_icms or '')
+                csosn_val = csosns[i] if i < len(csosns) else ''
+                origem_val = origens[i] if i < len(origens) else (prod.origem or '0')
                 aliq_val = Decimal(str(aliq_icms_list[i] if i < len(aliq_icms_list) else 0))
+
+                cst_final = cst_val or csosn_val or ''
+                base_calc = v_total if cst_final not in ('40', '41', '60', '103', '300', '400', '500') else 0
+                valor_icms = v_total * aliq_val / 100 if cst_final not in ('40', '41', '60', '103', '300', '400', '500') else 0
 
                 NFeItem.objects.create(
                     nfe=nfe,
@@ -175,12 +183,12 @@ def nfe_create_manual(request):
                     quantidade=qtd,
                     valor_unitario=v_unit,
                     valor_total=v_total,
-                    cst_icms=cst_val,
+                    cst_icms=cst_final,
                     aliquota_icms=aliq_val,
-                    base_calculo_icms=v_total if cst_val not in ('40', '41', '60') else 0,
-                    valor_icms=v_total * aliq_val / 100 if cst_val not in ('40', '41', '60') else 0,
-                    origem=prod.origem or '0',
-                    csosn='102',
+                    base_calculo_icms=base_calc,
+                    valor_icms=valor_icms,
+                    origem=origem_val,
+                    csosn=csosn_val,
                 )
 
             v_prod = sum(i.valor_total for i in nfe.itens.all())
@@ -219,27 +227,8 @@ def nfe_create_manual(request):
             traceback.print_exc()
             messages.error(request, f'Erro: {str(e)}')
 
-    from django.core.serializers.json import DjangoJSONEncoder
-    from decimal import Decimal
-
-    prods = Produto.objects.filter(inativo=False).select_related('ncm').order_by('nome')[:200]
-    produtos_json = json.dumps([{
-        'id': p.pk_chave,
-        'nome': p.nome,
-        'ncm': p.ncm.ncm if p.ncm else '00000000',
-        'cfop': p.cfop_venda_estadual or '5102',
-        'cst': p.cst_icms or '',
-        'aliq': float(p.aliquota_icms or 0),
-        'preco': float(p.preco_venda or 0),
-    } for p in prods])
-
-    transportadoras = Pessoa.objects.filter(transportador=True, inativo=False).order_by('nome')[:100]
     return render(request, 'fiscal/nfe_create_manual.html', {
-        'pessoas': Pessoa.objects.filter(cliente=True).order_by('nome')[:100],
-        'produtos': prods,
-        'produtos_json': produtos_json,
         'tipos_pagamento': TipoPagamento.objects.filter(ativo=True),
-        'transportadoras': transportadoras,
     })
 
 
@@ -253,6 +242,63 @@ def api_buscar_clientes(request):
         )
     pessoas = pessoas.order_by('nome')[:30]
     results = [{'id': p.pk, 'text': f'{p.nome} — {p.cpf_cnpj or "---"}'} for p in pessoas]
+    return JsonResponse({'results': results})
+
+
+@login_required
+def api_buscar_transportadoras(request):
+    term = request.GET.get('q', '').strip()
+    pessoas = Pessoa.objects.filter(transportador=True, inativo=False)
+    if term:
+        pessoas = pessoas.filter(
+            Q(nome__icontains=term) | Q(cpf_cnpj__icontains=term)
+        )
+    pessoas = pessoas.order_by('nome')[:30]
+    results = [{'id': p.pk, 'text': f'{p.nome} — {p.cpf_cnpj or "---"}'} for p in pessoas]
+    return JsonResponse({'results': results})
+
+
+@login_required
+def api_buscar_produtos_fiscal(request):
+    term = request.GET.get('q', '').strip()
+    if not term or len(term) < 2:
+        return JsonResponse({'results': []})
+    
+    from apps.cadastros.models import CodigoBarras
+    
+    produtos = Produto.objects.filter(inativo=False).select_related('ncm')
+    
+    if term.isdigit():
+        produtos = produtos.filter(
+            Q(pk_chave=int(term)) | Q(codigos_barras__codigo_barras=term)
+        )
+    else:
+        produtos = produtos.filter(
+            Q(nome__icontains=term) | Q(referencia_fabrica__icontains=term)
+        )
+    
+    produtos = produtos.distinct().order_by('nome')[:20]
+    
+    results = []
+    for p in produtos:
+        cod_barras = ''
+        cb = p.codigos_barras.first()
+        if cb:
+            cod_barras = cb.codigo_barras
+        
+        results.append({
+            'id': p.pk_chave,
+            'nome': p.nome,
+            'ncm': p.ncm.ncm if p.ncm else '00000000',
+            'cfop': p.cfop_venda_estadual or '5102',
+            'cst': p.cst_icms or '',
+            'aliq': float(p.aliquota_icms or 0),
+            'preco': float(p.preco_venda or 0),
+            'codigo_barras': cod_barras,
+            'unidade': p.unidade_venda.simbolo if p.unidade_venda else 'UN',
+            'origem': p.origem or '0',
+        })
+    
     return JsonResponse({'results': results})
 
 

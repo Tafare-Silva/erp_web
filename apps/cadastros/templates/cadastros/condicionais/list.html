@@ -1,7 +1,14 @@
 {% extends 'base.html' %}
+{% load core_tags %}
 {% block title %}Condicionais{% endblock %}
-{% block page_title %}📋 Condicionais{% endblock %}
+{% block page_title %}Condicionais{% endblock %}
 {% block content %}
+<div class="mb-4 flex justify-between items-center">
+    <p class="text-gray-600">Listagem de condicionais</p>
+    <a href="{% url 'cadastros:pdv_index' %}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+        <i class="fas fa-plus mr-2"></i>Novo Condicional
+    </a>
+</div>
 <div class="bg-white rounded-lg shadow">
     <!-- Filtros -->
     <div class="p-4 border-b bg-gray-50">
@@ -29,6 +36,15 @@
                        class="w-full px-2 py-1 text-sm border rounded">
             </div>
             <div>
+                <label class="block text-xs font-medium mb-1">Vendedor</label>
+                <select name="vendedor" class="w-full px-2 py-1 text-sm border rounded">
+                    <option value="">Todos</option>
+                    {% for v in vendedores %}
+                    <option value="{{ v.chave }}" {% if filtros.vendedor|stringformat:'s' == v.chave|stringformat:'s' %}selected{% endif %}>{{ v.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
                 <label class="block text-xs font-medium mb-1">Situação</label>
                 <select name="situacao" class="w-full px-2 py-1 text-sm border rounded">
                     <option value="ABERTO" {% if filtros.situacao == 'ABERTO' %}selected{% endif %}>Abertos</option>
@@ -48,18 +64,28 @@
         </form>
     </div>
     
-    <div class="p-4 border-b">
-        <a href="{% url 'cadastros:pdv_index' %}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            <i class="fas fa-plus mr-2"></i>Novo Condicional
-        </a>
+    <!-- Totalizadores -->
+    <div class="p-4 bg-blue-50 border-b grid grid-cols-3 gap-4">
+        <div>
+            <div class="text-xs text-gray-600">Total em Condicionais</div>
+            <div class="text-2xl font-bold text-blue-600">
+                R$ {{ total_condicionais|floatformat:2 }}
+            </div>
+        </div>
+        <div>
+            <div class="text-xs text-gray-600">Quantidade</div>
+            <div class="text-2xl font-bold text-gray-800">{{ quantidade_condicionais }}</div>
+        </div>
     </div>
     
+    <!-- Tabela -->
     <table class="w-full">
         <thead class="bg-gray-50">
             <tr>
                 <th class="px-4 py-3 text-left text-xs font-medium">Código</th>
                 <th class="px-4 py-3 text-left text-xs font-medium">Data</th>
                 <th class="px-4 py-3 text-left text-xs font-medium">Cliente</th>
+                <th class="px-4 py-3 text-left text-xs font-medium">Vendedor</th>
                 <th class="px-4 py-3 text-center text-xs font-medium">Situação</th>
                 <th class="px-4 py-3 text-right text-xs font-medium">Total</th>
                 <th class="px-4 py-3 text-center text-xs font-medium">Ações</th>
@@ -71,6 +97,13 @@
                 <td class="px-4 py-3 text-sm font-medium">#{{ cond.pk_chave }}</td>
                 <td class="px-4 py-3 text-sm">{{ cond.data|date:"d/m/Y" }}</td>
                 <td class="px-4 py-3 text-sm">{{ cond.pessoa.nome }}</td>
+                <td class="px-4 py-3 text-sm">
+                    {% if cond.vendedor %}
+                        {{ cond.vendedor.nome }}
+                    {% else %}
+                        <span class="text-gray-400">-</span>
+                    {% endif %}
+                </td>
                 <td class="px-4 py-3 text-center">
                     {% if cond.pre_venda.efetivada %}
                         <span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">Fechado</span>
@@ -79,30 +112,69 @@
                     {% endif %}
                 </td>
                 <td class="px-4 py-3 text-sm text-right font-bold">
-                    R$ {{ cond.calcular_total|floatformat:2 }}
+                    R$ {{ cond.vr_total_liquido|abs_value|floatformat:2 }}
                 </td>
                 <td class="px-4 py-3 text-center">
-                    <a href="{% url 'cadastros:condicional_cupom' cond.pk_chave %}" 
-                       target="_blank"
-                       class="text-green-600 hover:text-green-800 mr-2" 
-                       title="Imprimir">
-                        <i class="fas fa-print"></i>
-                    </a>
-                    {% if not cond.pre_venda.efetivada %}
-                    <a href="{% url 'cadastros:condicional_devolucao' cond.pk_chave %}" class="text-blue-600 hover:text-blue-800" title="Processar Devolução">
-                        <i class="fas fa-exchange-alt"></i>
-                    </a>
-                    {% endif %}
+                    <div class="relative inline-block" x-data="{ open: false }">
+                        <button @click="open = !open" @click.outside="open = false"
+                                class="p-1 hover:bg-gray-100 rounded-lg">
+                            <i class="fas fa-ellipsis-h text-gray-500"></i>
+                        </button>
+                        <div x-show="open" x-transition
+                             class="absolute right-0 mt-1 w-44 bg-white rounded-lg shadow-lg border z-50 py-1 text-left">
+                            <a href="{% url 'cadastros:condicional_cupom' cond.pk_chave %}" target="_blank"
+                               class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                                <i class="fas fa-print text-green-500"></i> Imprimir
+                            </a>
+                            {% if not cond.pre_venda.efetivada %}
+                            <hr class="my-1">
+                            <a href="{% url 'cadastros:condicional_devolucao' cond.pk_chave %}"
+                               class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                                <i class="fas fa-exchange-alt text-blue-500"></i> Devolução
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
                 </td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="6" class="px-4 py-12 text-center text-gray-400">
-                    Nenhum condicional encontrado
+                <td colspan="7" class="px-4 py-12 text-center text-gray-400">
+                    <i class="fas fa-inbox text-4xl mb-2"></i>
+                    <p>Nenhum condicional encontrado</p>
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+    
+    <!-- Paginação -->
+    {% if is_paginated %}
+    <div class="p-4 border-t flex flex-col items-center gap-2">
+        <div class="text-sm text-gray-500">
+            Mostrando página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+            ({{ page_obj.paginator.count }} condicionais)
+        </div>
+        <div class="flex gap-2">
+            {% if page_obj.has_previous %}
+            <a href="?page=1{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="px-3 py-1 border rounded hover:bg-gray-50 text-sm">Primeira</a>
+            <a href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="px-3 py-1 border rounded hover:bg-gray-50 text-sm">Anterior</a>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+                {% if num == page_obj.number %}
+                <span class="px-3 py-1 bg-blue-600 text-white rounded text-sm">{{ num }}</span>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <a href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="px-3 py-1 border rounded hover:bg-gray-50 text-sm">{{ num }}</a>
+                {% endif %}
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="px-3 py-1 border rounded hover:bg-gray-50 text-sm">Próxima</a>
+            <a href="?page={{ page_obj.paginator.num_pages }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="px-3 py-1 border rounded hover:bg-gray-50 text-sm">Última</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

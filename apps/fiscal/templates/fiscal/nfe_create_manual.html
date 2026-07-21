@@ -1,43 +1,44 @@
 {% extends 'base.html' %}
 {% block title %}Nova NF-e Manual{% endblock %}
-{% block page_title %}<i class="fas fa-file-invoice text-blue-600"></i> NF-e Manual{% endblock %}
+{% block page_title %}Nova NF-e Manual{% endblock %}
 
 {% block content %}
 <div class="max-w-6xl mx-auto px-4 py-6">
     <form method="post" id="formNfe" class="space-y-6">
         {% csrf_token %}
 
+        <!-- Cabeçalho -->
         <div class="bg-white rounded-lg shadow p-6">
             <h3 class="font-bold text-gray-900 mb-4">Cabeçalho</h3>
-            <div class="grid grid-cols-4 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Destinatário</label>
-                    <div x-data="clienteSearch()">
-                        <input type="hidden" name="destinatario" x-ref="hiddenInput">
-                        <input type="text" x-model="query" @input.debounce="buscar"
-                               placeholder="Digite nome ou CPF/CNPJ..."
-                               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                               x-ref="searchInput">
-                        <div x-show="resultados.length > 0 && !selecionado"
-                             class="absolute z-50 mt-1 w-full bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                            <template x-for="r in resultados" :key="r.id">
-                                <div @click="selecionar(r)"
-                                     class="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm border-b">
-                                    <span x-text="r.text"></span>
-                                </div>
-                            </template>
-                        </div>
-                        <div x-show="selecionado" class="mt-1 flex items-center gap-2">
-                            <span class="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-                                <i class="fas fa-check-circle"></i>
-                                <span x-text="selecionado.text"></span>
-                            </span>
-                            <button type="button" @click="limpar()" class="text-red-500 hover:text-red-700 text-xs">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+
+                <div x-data="pessoaSearch('{% url "fiscal:api_buscar_clientes" %}')" class="relative">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Destinatário *</label>
+                    <input type="hidden" name="destinatario" x-ref="hiddenInput">
+                    <input type="text" x-model="query" @input.debounce.300ms="buscar"
+                           placeholder="Nome ou CPF/CNPJ..."
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                           x-ref="searchInput" required>
+                    <div x-show="resultados.length > 0 && !selecionado"
+                         class="absolute z-50 mt-1 w-full bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        <template x-for="r in resultados" :key="r.id">
+                            <div @click="selecionar(r)"
+                                 class="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm border-b">
+                                <span x-text="r.text"></span>
+                            </div>
+                        </template>
+                    </div>
+                    <div x-show="selecionado" class="mt-1 flex items-center gap-2">
+                        <span class="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                            <i class="fas fa-check-circle"></i>
+                            <span x-text="selecionado.text"></span>
+                        </span>
+                        <button type="button" @click="limpar()" class="text-red-500 hover:text-red-700 text-xs">
+                            <i class="fas fa-times"></i>
+                        </button>
                     </div>
                 </div>
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Modelo</label>
                     <select name="modelo" class="w-full border rounded px-3 py-2">
@@ -88,12 +89,15 @@
                     <input type="number" name="valor_pagamento" step="0.01" class="w-full border rounded px-3 py-2">
                 </div>
             </div>
-            <div class="mt-3 flex items-center gap-2">
-                <input type="checkbox" name="consumo_final" id="consumo_final" checked class="rounded">
-                <label for="consumo_final" class="text-sm text-gray-700">Consumo Final</label>
+            <div class="mt-3 flex items-center gap-4">
+                <label class="flex items-center gap-2">
+                    <input type="checkbox" name="consumo_final" checked class="rounded">
+                    <span class="text-sm text-gray-700">Consumo Final</span>
+                </label>
             </div>
         </div>
 
+        <!-- Itens -->
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="font-bold text-gray-900">Itens</h3>
@@ -106,11 +110,13 @@
                 <table class="w-full text-sm" id="tabelaItens">
                     <thead>
                         <tr class="bg-gray-50 text-left">
-                            <th class="p-2">Produto</th>
+                            <th class="p-2 min-w-[200px]">Produto</th>
                             <th class="p-2">NCM</th>
                             <th class="p-2">CFOP</th>
-                            <th class="p-2">CST ICMS</th>
-                            <th class="p-2">Aliq ICMS %</th>
+                            <th class="p-2">CST</th>
+                            <th class="p-2">CSOSN</th>
+                            <th class="p-2">Origem</th>
+                            <th class="p-2">Aliq ICMS</th>
                             <th class="p-2">Qtd</th>
                             <th class="p-2">Valor Unit.</th>
                             <th class="p-2">Total</th>
@@ -126,28 +132,46 @@
             </div>
         </div>
 
+        <!-- Transporte -->
         <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="font-bold text-gray-900 mb-4"><i class="fas fa-truck text-purple-600"></i> Transporte</h3>
+            <h3 class="font-bold text-gray-900 mb-4">Transporte</h3>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Modalidade do Frete</label>
                     <select name="modalidade_frete" class="w-full border rounded px-3 py-2 text-sm">
                         <option value="9">Sem Frete</option>
-                        <option value="0">Contratação Frete por conta Emitente</option>
-                        <option value="1">Contratação Frete por conta Destinatário</option>
-                        <option value="2">Contratação Frete por conta Terceiros</option>
-                        <option value="3">Transporte Próprio por conta Remetente</option>
-                        <option value="4">Transporte Próprio por conta Destinatário</option>
+                        <option value="0">Por conta Emitente</option>
+                        <option value="1">Por conta Destinatário</option>
+                        <option value="2">Por conta Terceiros</option>
+                        <option value="3">Próprio - Remetente</option>
+                        <option value="4">Próprio - Destinatário</option>
                     </select>
                 </div>
-                <div>
+                <div x-data="pessoaSearch('{% url "fiscal:api_buscar_transportadoras" %}')" class="relative">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Transportadora</label>
-                    <select name="transportadora" class="w-full border rounded px-3 py-2 text-sm">
-                        <option value="">Selecione...</option>
-                        {% for t in transportadoras %}
-                        <option value="{{ t.chave }}">{{ t.nome }} — {{ t.cpf_cnpj }}</option>
-                        {% endfor %}
-                    </select>
+                    <input type="hidden" name="transportadora" x-ref="hiddenInput">
+                    <input type="text" x-model="query" @input.debounce.300ms="buscar"
+                           placeholder="Nome ou CPF/CNPJ..."
+                           class="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                           x-ref="searchInput">
+                    <div x-show="resultados.length > 0 && !selecionado"
+                         class="absolute z-50 mt-1 w-full bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        <template x-for="r in resultados" :key="r.id">
+                            <div @click="selecionar(r)"
+                                 class="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm border-b">
+                                <span x-text="r.text"></span>
+                            </div>
+                        </template>
+                    </div>
+                    <div x-show="selecionado" class="mt-1 flex items-center gap-2">
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-800 rounded text-xs">
+                            <i class="fas fa-check-circle"></i>
+                            <span x-text="selecionado.text"></span>
+                        </span>
+                        <button type="button" @click="limpar()" class="text-red-500 hover:text-red-700 text-xs">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Volumes</label>
@@ -180,17 +204,15 @@
 </div>
 
 <script>
-const produtos = {{ produtos_json|safe }};
-let itemCount = 0;
-
-function clienteSearch() {
+function pessoaSearch(url) {
     return {
         query: '',
         resultados: [],
         selecionado: null,
+        url: url,
         async buscar() {
             if (this.query.length < 2) { this.resultados = []; return; }
-            const r = await fetch(`/fiscal/api/buscar-clientes/?q=${encodeURIComponent(this.query)}`);
+            const r = await fetch(`${this.url}?q=${encodeURIComponent(this.query)}`);
             const d = await r.json();
             this.resultados = d.results;
         },
@@ -205,10 +227,12 @@ function clienteSearch() {
             this.query = '';
             this.resultados = [];
             this.$refs.hiddenInput.value = '';
-            this.$refs.searchInput.focus();
+            if (this.$refs.searchInput) this.$refs.searchInput.focus();
         }
     };
 }
+
+let itemCount = 0;
 
 function adicionarItem(produto) {
     itemCount++;
@@ -219,25 +243,81 @@ function adicionarItem(produto) {
     tr.id = `item_${idx}`;
     tr.innerHTML = `
         <td class="p-2">
-            <select name="produto_id" onchange="carregarProduto(${idx}, this)" class="w-48 border rounded px-2 py-1 text-sm">
-                <option value="">Selecione...</option>
-                {% for p in produtos %}
-                <option value="{{ p.pk_chave }}" data-ncm="{{ p.ncm.ncm|default:'00000000' }}"
-                        data-cfop="{{ p.cfop_venda_estadual|default:'5102' }}"
-                        data-cst="{{ p.cst_icms|default:'' }}"
-                        data-aliq="{{ p.aliquota_icms|default:'0' }}"
-                        data-preco="{{ p.preco_venda|default:'0' }}">
-                    {{ p.nome }}
-                </option>
-                {% endfor %}
+            <div x-data="produtoSearch(${idx})" class="relative">
+                <input type="hidden" name="produto_id" x-ref="hiddenInput">
+                <input type="text" x-model="query" @input.debounce.300ms="buscar"
+                       placeholder="Buscar por código, barras ou nome..."
+                       class="w-56 border border-gray-300 rounded px-2 py-1 text-sm"
+                       x-ref="searchInput">
+                <div x-show="resultados.length > 0 && !selecionado"
+                     class="absolute z-50 mt-1 w-72 bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    <template x-for="r in resultados" :key="r.id">
+                        <div @click="selecionar(r)"
+                             class="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b text-xs">
+                            <div class="font-medium" x-text="r.nome"></div>
+                            <div class="text-gray-400">
+                                <span x-text="'Cód: ' + r.id"></span>
+                                <span x-show="r.codigo_barras" x-text="' | Barras: ' + r.codigo_barras"></span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                <div x-show="selecionado" class="flex items-center gap-1">
+                    <span class="text-xs font-medium text-blue-700 truncate max-w-[180px]" x-text="selecionado.nome"></span>
+                    <button type="button" @click="limpar()" class="text-red-500 hover:text-red-700 text-xs flex-shrink-0">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </td>
+        <td class="p-2"><input type="text" name="ncm" class="w-20 border rounded px-2 py-1 text-sm bg-gray-50" readonly></td>
+        <td class="p-2"><input type="text" name="cfop" class="w-16 border rounded px-2 py-1 text-sm"></td>
+        <td class="p-2">
+            <select name="cst_icms" class="w-16 border rounded px-1 py-1 text-sm">
+                <option value="">---</option>
+                <option value="00">00</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="30">30</option>
+                <option value="40">40</option>
+                <option value="41">41</option>
+                <option value="50">50</option>
+                <option value="60">60</option>
+                <option value="70">70</option>
+                <option value="90">90</option>
             </select>
         </td>
-        <td class="p-2"><input type="text" name="ncm" class="w-24 border rounded px-2 py-1 text-sm"></td>
-        <td class="p-2"><input type="text" name="cfop" class="w-16 border rounded px-2 py-1 text-sm"></td>
-        <td class="p-2"><input type="text" name="cst_icms" class="w-16 border rounded px-2 py-1 text-sm"></td>
-        <td class="p-2"><input type="number" name="aliquota_icms" step="0.01" value="0" class="w-20 border rounded px-2 py-1 text-sm"></td>
-        <td class="p-2"><input type="number" name="quantidade" step="0.001" value="1" onchange="calcularLinha(${idx})" class="w-20 border rounded px-2 py-1 text-sm"></td>
-        <td class="p-2"><input type="number" name="valor_unitario" step="0.001" onchange="calcularLinha(${idx})" class="w-24 border rounded px-2 py-1 text-sm"></td>
+        <td class="p-2">
+            <select name="csosn" class="w-16 border rounded px-1 py-1 text-sm">
+                <option value="">---</option>
+                <option value="101">101</option>
+                <option value="102">102</option>
+                <option value="103">103</option>
+                <option value="201">201</option>
+                <option value="202">202</option>
+                <option value="203">203</option>
+                <option value="300">300</option>
+                <option value="400">400</option>
+                <option value="500">500</option>
+                <option value="900">900</option>
+            </select>
+        </td>
+        <td class="p-2">
+            <select name="origem" class="w-16 border rounded px-1 py-1 text-sm">
+                <option value="0">0-Nac</option>
+                <option value="1">1-Estr</option>
+                <option value="2">2-EstrM</option>
+                <option value="3">3-Nac>40</option>
+                <option value="4">4-NacPPB</option>
+                <option value="5">5-Nac≤40</option>
+                <option value="6">6-EstrDS</option>
+                <option value="7">7-EstrMS</option>
+                <option value="8">8-Nac>70</option>
+            </select>
+        </td>
+        <td class="p-2"><input type="number" name="aliquota_icms" step="0.01" value="0" class="w-16 border rounded px-1 py-1 text-sm"></td>
+        <td class="p-2"><input type="number" name="quantidade" step="0.001" value="1" onchange="calcularLinha(${idx})" class="w-16 border rounded px-1 py-1 text-sm"></td>
+        <td class="p-2"><input type="number" name="valor_unitario" step="0.001" onchange="calcularLinha(${idx})" class="w-20 border rounded px-1 py-1 text-sm"></td>
         <td class="p-2 font-medium"><span class="total-item">0,00</span></td>
         <td class="p-2">
             <button type="button" onclick="this.closest('tr').remove(); recalcularTotal();"
@@ -247,33 +327,71 @@ function adicionarItem(produto) {
     tbody.appendChild(tr);
 
     if (produto) {
-        const selects = tr.querySelectorAll('select[name="produto_id"] option');
-        for (let opt of selects) {
-            if (opt.value == produto.id) {
-                opt.selected = true;
-                carregarProduto(idx, tr.querySelector('select[name="produto_id"]'));
-                break;
-            }
-        }
-        if (produto.preco) {
-            tr.querySelector('input[name="valor_unitario"]').value = produto.preco;
-        }
+        carregarProdutoNoItem(idx, produto);
     }
 }
 
-function carregarProduto(idx, select) {
-    const opt = select.options[select.selectedIndex];
-    const tr = select.closest('tr');
-    if (opt.value) {
-        tr.querySelector('input[name="ncm"]').value = opt.dataset.ncm || '00000000';
-        tr.querySelector('input[name="cfop"]').value = opt.dataset.cfop || '5102';
-        tr.querySelector('input[name="cst_icms"]').value = opt.dataset.cst || '';
-        tr.querySelector('input[name="aliquota_icms"]').value = opt.dataset.aliq || '0';
-        if (!tr.querySelector('input[name="valor_unitario"]').value || tr.querySelector('input[name="valor_unitario"]').value == '0') {
-            tr.querySelector('input[name="valor_unitario"]').value = opt.dataset.preco || '0';
+function produtoSearch(idx) {
+    return {
+        query: '',
+        resultados: [],
+        selecionado: null,
+        async buscar() {
+            if (this.query.length < 2) { this.resultados = []; return; }
+            const r = await fetch(`/fiscal/api/buscar-produtos-fiscal/?q=${encodeURIComponent(this.query)}`);
+            const d = await r.json();
+            this.resultados = d.results;
+        },
+        selecionar(r) {
+            this.selecionado = r;
+            this.query = '';
+            this.resultados = [];
+            this.$refs.hiddenInput.value = r.id;
+            carregarProdutoNoItem(idx, r);
+        },
+        limpar() {
+            this.selecionado = null;
+            this.query = '';
+            this.resultados = [];
+            this.$refs.hiddenInput.value = '';
+            if (this.$refs.searchInput) this.$refs.searchInput.focus();
         }
-        calcularLinha(idx);
+    };
+}
+
+function carregarProdutoNoItem(idx, prod) {
+    const tr = document.getElementById(`item_${idx}`);
+    if (!tr) return;
+
+    const inputs = tr.querySelectorAll('input, select');
+
+    inputs.forEach(inp => {
+        if (inp.name === 'ncm') inp.value = prod.ncm || '00000000';
+        if (inp.name === 'cfop') inp.value = prod.cfop || '5102';
+        if (inp.name === 'origem') inp.value = prod.origem || '0';
+        if (inp.name === 'aliquota_icms') inp.value = prod.aliq || 0;
+
+        if (inp.name === 'cst_icms') {
+            const cst = prod.cst || '';
+            for (let opt of inp.options) {
+                if (opt.value === cst) { opt.selected = true; break; }
+            }
+        }
+
+        if (inp.name === 'csosn') {
+            const cst = prod.cst || '';
+            for (let opt of inp.options) {
+                if (opt.value === cst) { opt.selected = true; break; }
+            }
+        }
+    });
+
+    const vUnit = tr.querySelector('input[name="valor_unitario"]');
+    if (vUnit && (!vUnit.value || vUnit.value === '0')) {
+        vUnit.value = prod.preco || 0;
     }
+
+    calcularLinha(idx);
 }
 
 function calcularLinha(idx) {

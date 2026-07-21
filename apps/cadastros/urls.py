@@ -141,6 +141,7 @@ urlpatterns = [
     path('vendas/', venda_views.VendaListView.as_view(), name='venda_list'),
     path('vendas/<int:pk>/', venda_views.VendaDetailView.as_view(), name='venda_detail'),
     path('vendas/<int:pk>/cupom/', venda_views.cupom_venda, name='venda_cupom'),
+    path('vendas/<int:pk>/excluir/', venda_views.excluir_venda, name='venda_excluir'),
     
     # Condicionais
     path('condicionais/', condicional_views.listar_condicionais, name='condicional_list'),

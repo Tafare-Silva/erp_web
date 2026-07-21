@@ -95,14 +95,18 @@ def criar_condicional(request):
 
 def listar_condicionais(request):
     """Lista condicionais com filtros."""
+    from django.core.paginator import Paginator
+    from django.db.models import Sum, Q
+    
     qs = MovimentacaoEstoque.objects.filter(
         tipo_movimento='PV'
-    ).select_related('pessoa', 'pre_venda')
+    ).select_related('pessoa', 'pre_venda', 'vendedor')
     
     data_ini = request.GET.get('data_ini')
     data_fim = request.GET.get('data_fim')
     numero = request.GET.get('numero')
     cliente = request.GET.get('cliente')
+    vendedor = request.GET.get('vendedor')
     situacao = request.GET.get('situacao', 'ABERTO')
     
     if data_ini:
@@ -113,21 +117,39 @@ def listar_condicionais(request):
         qs = qs.filter(pk_chave=numero)
     if cliente:
         qs = qs.filter(pessoa__nome__icontains=cliente)
+    if vendedor:
+        qs = qs.filter(vendedor_id=vendedor)
     
     if situacao == 'ABERTO':
         qs = qs.filter(pre_venda__efetivada=False)
     elif situacao == 'FECHADO':
         qs = qs.filter(pre_venda__efetivada=True)
     
-    condicionais = qs.order_by('-pk_chave')[:100]
+    qs = qs.order_by('-pk_chave')
+    
+    paginator = Paginator(qs, 50)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+    
+    total_valor = qs.aggregate(total=Sum('vr_total_liquido'))['total'] or 0
+    
+    vendedores = Pessoa.objects.filter(
+        Q(vendedor=True) | Q(funcionario=True)
+    ).distinct().order_by('nome')[:100]
     
     return render(request, 'cadastros/condicionais/list.html', {
-        'condicionais': condicionais,
+        'condicionais': page_obj.object_list,
+        'is_paginated': page_obj.has_other_pages(),
+        'page_obj': page_obj,
+        'total_condicionais': abs(total_valor),
+        'quantidade_condicionais': qs.count(),
+        'vendedores': vendedores,
         'filtros': {
             'data_ini': data_ini or '',
             'data_fim': data_fim or '',
             'numero': numero or '',
             'cliente': cliente or '',
+            'vendedor': vendedor or '',
             'situacao': situacao
         }
     })

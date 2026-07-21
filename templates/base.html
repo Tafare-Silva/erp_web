@@ -59,7 +59,7 @@
             <!-- Menu Principal -->
             <nav class="mt-4 px-2 flex-1 space-y-2">
                 
-                <!-- Dashboard -->
+                <!-- 1. Dashboard -->
                 <a href="{% url 'core:home' %}" 
                    class="flex items-center px-3 py-2 rounded-lg hover:bg-blue-700 transition-smooth group"
                    :title="!sidebarOpen ? 'Dashboard' : ''">
@@ -67,7 +67,88 @@
                     <span x-show="sidebarOpen" x-transition class="text-sm font-medium group-hover:translate-x-1 transition-smooth whitespace-nowrap">Dashboard</span>
                 </a>
                 
-                <!-- Movimentações -->
+                <!-- 2. Cadastros -->
+                <div x-data="{ open: false }">
+                    <button @click="open = !open" 
+                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-blue-700 transition-smooth"
+                            :title="!sidebarOpen ? 'Cadastros' : ''">
+                        <span class="flex items-center min-w-0">
+                            <i class="fas fa-folder text-lg sidebar-icon flex-shrink-0" :class="sidebarOpen ? 'mr-3' : ''"></i>
+                            <span x-show="sidebarOpen" x-transition class="text-sm font-medium whitespace-nowrap">Cadastros</span>
+                        </span>
+                        <i x-show="sidebarOpen" class="fas fa-chevron-down text-xs transition-transform flex-shrink-0" 
+                           :class="{ 'rotate-180': open }"></i>
+                    </button>
+                    <div x-show="open && sidebarOpen" x-transition class="ml-4 mt-1 space-y-1 border-l-2 border-purple-500 pl-2 max-h-60 overflow-y-auto">
+                        <a href="{% url 'cadastros:produto_list' %}" class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
+                            <i class="fas fa-box mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Produtos</span>
+                        </a>
+                        <a href="{% url 'cadastros:pessoa_list' %}" class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
+                            <i class="fas fa-users mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Pessoas</span>
+                        </a>
+                        <a href="{% url 'cadastros:marca_list' %}" class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
+                            <i class="fas fa-tag mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Marcas</span>
+                        </a>
+                        <a href="{% url 'cadastros:unidade_list' %}" class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
+                            <i class="fas fa-ruler mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Unidades</span>
+                        </a>
+                        <a href="{% url 'cadastros:divisao_list' %}" class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
+                            <i class="fas fa-sitemap mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Divisões</span>
+                        </a>
+                        <a href="{% url 'cadastros:banco_list' %}" class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
+                            <i class="fas fa-university mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Bancos</span>
+                        </a>
+                        <a href="{% url 'cadastros:agencia_list' %}" class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
+                            <i class="fas fa-building mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Agências</span>
+                        </a>
+                        <a href="{% url 'cadastros:conta_list' %}" class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
+                            <i class="fas fa-wallet mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Contas</span>
+                        </a>
+                        <a href="{% url 'cadastros:centro_custo_list' %}" class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
+                            <i class="fas fa-dollar-sign mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Centros Custo</span>
+                        </a>
+                        <a href="{% url 'cadastros:plano_contas_list' %}" class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
+                            <i class="fas fa-chart-line mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Plano Contas</span>
+                        </a>
+                        <a href="{% url 'cadastros:tipo_pagamento_list' %}" class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
+                            <i class="fas fa-credit-card mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Tipos Pagamento</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 3. Estoque -->
+                <div x-data="{ open: false }">
+                    <button @click="open = !open" 
+                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-blue-700 transition-smooth"
+                            :title="!sidebarOpen ? 'Estoque' : ''">
+                        <span class="flex items-center min-w-0">
+                            <i class="fas fa-cubes text-lg sidebar-icon flex-shrink-0" :class="sidebarOpen ? 'mr-3' : ''"></i>
+                            <span x-show="sidebarOpen" x-transition class="text-sm font-medium whitespace-nowrap">Estoque</span>
+                        </span>
+                        <i x-show="sidebarOpen" class="fas fa-chevron-down text-xs transition-transform flex-shrink-0" 
+                           :class="{ 'rotate-180': open }"></i>
+                    </button>
+                    <div x-show="open && sidebarOpen" x-transition class="ml-4 mt-1 space-y-1 border-l-2 border-green-500 pl-2">
+                        <a href="{% url 'estoque:consulta_estoque' %}" 
+                           class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
+                            <i class="fas fa-search mr-2 text-green-400 flex-shrink-0"></i><span class="whitespace-nowrap">Consultar</span>
+                        </a>
+                        <a href="{% url 'estoque:movimentacao_estoque' %}" 
+                           class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs font-bold text-green-300">
+                            <i class="fas fa-exchange-alt mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Movimentação Unif.</span>
+                        </a>
+                        <a href="{% url 'estoque:historico' %}" 
+                           class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
+                            <i class="fas fa-history mr-2 text-green-400 flex-shrink-0"></i><span class="whitespace-nowrap">Histórico</span>
+                        </a>
+                        <a href="{% url 'estoque:local_estoque_list' %}" 
+                           class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
+                            <i class="fas fa-map-marker-alt mr-2 text-green-400 flex-shrink-0"></i><span class="whitespace-nowrap">Locais</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- 4. Movimentações -->
                 <div x-data="{ open: false }">
                     <button @click="open = !open" 
                             class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-blue-700 transition-smooth"
@@ -95,31 +176,7 @@
                     </div>
                 </div>
                 
-                <!-- Entradas -->
-                <div x-data="{ open: false }">
-                    <button @click="open = !open" 
-                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-blue-700 transition-smooth"
-                            :title="!sidebarOpen ? 'Entradas' : ''">
-                        <span class="flex items-center min-w-0">
-                            <i class="fas fa-truck-loading text-lg sidebar-icon flex-shrink-0" :class="sidebarOpen ? 'mr-3' : ''"></i>
-                            <span x-show="sidebarOpen" x-transition class="text-sm font-medium whitespace-nowrap">Entradas</span>
-                        </span>
-                        <i x-show="sidebarOpen" class="fas fa-chevron-down text-xs transition-transform flex-shrink-0" 
-                           :class="{ 'rotate-180': open }"></i>
-                    </button>
-                    <div x-show="open && sidebarOpen" x-transition class="ml-4 mt-1 space-y-1 border-l-2 border-blue-600 pl-2">
-                        <a href="{% url 'cadastros:entrada_nf' %}"
-                           class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
-                            <i class="fas fa-plus-circle mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Nova Entrada</span>
-                        </a>
-                        <a href="{% url 'cadastros:listar_entradas' %}" 
-                           class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
-                            <i class="fas fa-list mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Listar Entradas</span>
-                        </a>
-                    </div>
-                </div>
-
-                <!-- Financeiro -->
+                <!-- 5. Financeiro -->
                 <div x-data="{ open: false }">
                     <button @click="open = !open" 
                             class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-blue-700 transition-smooth"
@@ -147,7 +204,31 @@
                     </div>
                 </div>
 
-                <!-- Fiscal (NF-e / NFC-e) -->
+                <!-- 6. Compras -->
+                <div x-data="{ open: false }">
+                    <button @click="open = !open" 
+                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-blue-700 transition-smooth"
+                            :title="!sidebarOpen ? 'Compras' : ''">
+                        <span class="flex items-center min-w-0">
+                            <i class="fas fa-truck-loading text-lg sidebar-icon flex-shrink-0" :class="sidebarOpen ? 'mr-3' : ''"></i>
+                            <span x-show="sidebarOpen" x-transition class="text-sm font-medium whitespace-nowrap">Compras</span>
+                        </span>
+                        <i x-show="sidebarOpen" class="fas fa-chevron-down text-xs transition-transform flex-shrink-0" 
+                           :class="{ 'rotate-180': open }"></i>
+                    </button>
+                    <div x-show="open && sidebarOpen" x-transition class="ml-4 mt-1 space-y-1 border-l-2 border-blue-600 pl-2">
+                        <a href="{% url 'cadastros:entrada_nf' %}"
+                           class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
+                            <i class="fas fa-plus-circle mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Nova Entrada</span>
+                        </a>
+                        <a href="{% url 'cadastros:listar_entradas' %}" 
+                           class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
+                            <i class="fas fa-list mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Listar Entradas</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 7. Fiscal (NF-e / NFC-e) -->
                 <div x-data="{ open: false }">
                     <button @click="open = !open"
                             class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-blue-700 transition-smooth"
@@ -178,92 +259,8 @@
                         </a>
                     </div>
                 </div>
-                
-                <!-- Estoque (Novo e Melhorado) -->
-                <div x-data="{ open: false }">
-                    <button @click="open = !open" 
-                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-blue-700 transition-smooth"
-                            :title="!sidebarOpen ? 'Estoque' : ''">
-                        <span class="flex items-center min-w-0">
-                            <i class="fas fa-boxes text-lg sidebar-icon flex-shrink-0" :class="sidebarOpen ? 'mr-3' : ''"></i>
-                            <span x-show="sidebarOpen" x-transition class="text-sm font-medium whitespace-nowrap">📦 Estoque</span>
-                        </span>
-                        <i x-show="sidebarOpen" class="fas fa-chevron-down text-xs transition-transform flex-shrink-0" 
-                           :class="{ 'rotate-180': open }"></i>
-                    </button>
-                    <div x-show="open && sidebarOpen" x-transition class="ml-4 mt-1 space-y-1 border-l-2 border-green-500 pl-2">
-                        <a href="{% url 'estoque:consulta_estoque' %}" 
-                           class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
-                            <i class="fas fa-search mr-2 text-green-400 flex-shrink-0"></i><span class="whitespace-nowrap">Consultar</span>
-                        </a>
-                        <a href="{% url 'estoque:movimentacao_estoque' %}" 
-                           class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs font-bold text-green-300">
-                            <i class="fas fa-exchange-alt mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Movimentação Unif.</span>
-                        </a>
-                        <a href="{% url 'estoque:historico' %}" 
-                           class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
-                            <i class="fas fa-history mr-2 text-green-400 flex-shrink-0"></i><span class="whitespace-nowrap">Histórico</span>
-                        </a>
-                        <a href="{% url 'estoque:local_estoque_list' %}" 
-                           class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
-                            <i class="fas fa-map-marker-alt mr-2 text-green-400 flex-shrink-0"></i><span class="whitespace-nowrap">Locais</span>
-                        </a>
-                    </div>
-                </div>
-                
-                <!-- Cadastros -->
-                <div x-data="{ open: false }">
-                    <button @click="open = !open" 
-                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-blue-700 transition-smooth"
-                            :title="!sidebarOpen ? 'Cadastros' : ''">
-                        <span class="flex items-center min-w-0">
-                            <i class="fas fa-folder text-lg sidebar-icon flex-shrink-0" :class="sidebarOpen ? 'mr-3' : ''"></i>
-                            <span x-show="sidebarOpen" x-transition class="text-sm font-medium whitespace-nowrap">Cadastros</span>
-                        </span>
-                        <i x-show="sidebarOpen" class="fas fa-chevron-down text-xs transition-transform flex-shrink-0" 
-                           :class="{ 'rotate-180': open }"></i>
-                    </button>
-                    <div x-show="open && sidebarOpen" x-transition class="ml-4 mt-1 space-y-1 border-l-2 border-purple-500 pl-2 max-h-60 overflow-y-auto">
-                        <a href="{% url 'cadastros:empresa_config' %}" class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
-                             <i class="fas fa-building mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Empresa</span>
-                         </a>
-                         <a href="{% url 'cadastros:produto_list' %}" class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
-                             <i class="fas fa-box mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Produtos</span>
-                         </a>
-                         <a href="{% url 'cadastros:pessoa_list' %}" class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
-                             <i class="fas fa-users mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Pessoas</span>
-                         </a>
-                        <a href="{% url 'cadastros:marca_list' %}" class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
-                            <i class="fas fa-tag mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Marcas</span>
-                        </a>
-                        <a href="{% url 'cadastros:unidade_list' %}" class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
-                            <i class="fas fa-ruler mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Unidades</span>
-                        </a>
-                        <a href="{% url 'cadastros:divisao_list' %}" class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
-                            <i class="fas fa-sitemap mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Divisões</span>
-                        </a>
-                        <a href="{% url 'cadastros:banco_list' %}" class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
-                            <i class="fas fa-university mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Bancos</span>
-                        </a>
-                        <a href="{% url 'cadastros:agencia_list' %}" class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
-                            <i class="fas fa-building mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Agências</span>
-                        </a>
-                        <a href="{% url 'cadastros:conta_list' %}" class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
-                            <i class="fas fa-wallet mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Contas</span>
-                        </a>
-                        <a href="{% url 'cadastros:centro_custo_list' %}" class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
-                            <i class="fas fa-dollar-sign mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Centros Custo</span>
-                        </a>
-                        <a href="{% url 'cadastros:plano_contas_list' %}" class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
-                            <i class="fas fa-chart-line mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Plano Contas</span>
-                        </a>
-                        <a href="{% url 'cadastros:tipo_pagamento_list' %}" class="flex items-center px-3 py-1.5 rounded hover:bg-blue-700 transition-smooth text-xs">
-                            <i class="fas fa-credit-card mr-2 flex-shrink-0"></i><span class="whitespace-nowrap">Tipos Pagamento</span>
-                        </a>
-                    </div>
-                </div>
-                
-                <!-- Cadastros Reservados -->
+
+                <!-- 8. Cadastros Reservados -->
                 <div x-data="{ open: false }">
                     <button @click="open = !open" 
                             class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-blue-700 transition-smooth"
@@ -291,7 +288,10 @@
             
             <!-- Footer Sidebar -->
             <div x-show="sidebarOpen" x-transition class="p-4 border-t border-blue-700 text-xs text-blue-200 space-y-1">
-                <p class="font-bold">{{ empresa.nome_fantasia|default:empresa.pessoa.nome|default:"SUA EMPRESA" }}</p>
+                <a href="{% url 'cadastros:empresa_config' %}" class="flex items-center gap-1 hover:text-white transition-smooth">
+                    <i class="fas fa-building"></i>
+                    <span>Empresa</span>
+                </a>
                 <p>CNPJ: {{ empresa.pessoa.cpf_cnpj|default:"00.000.000/0000-00" }}</p>
                 <p>Versão 1.0.0</p>
             </div>
@@ -303,13 +303,41 @@
             <header class="hidden lg:block bg-white shadow-sm border-b border-gray-200">
                 <div class="px-6 py-4 flex items-center justify-between">
                     <h2 class="text-2xl font-bold text-gray-900">{% block page_title %}Dashboard{% endblock %}</h2>
-                    <div class="flex items-center space-x-6">
+                    <div class="flex items-center space-x-4">
+                        <a href="{% url 'cadastros:empresa_config' %}" 
+                           class="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-smooth"
+                           title="Configurações">
+                            <i class="fas fa-cog"></i>
+                            <span class="hidden lg:inline">Configurações</span>
+                        </a>
                         <div class="text-right">
-                            <p class="text-sm font-medium text-gray-900">Admin</p>
+                            <p class="text-sm font-medium text-gray-900">{{ user.get_username|default:"Admin" }}</p>
                             <p class="text-xs text-gray-500">{{ current_date }}</p>
                         </div>
-                        <img src="https://ui-avatars.com/api/?name=Admin&background=random&size=40" 
-                             class="w-10 h-10 rounded-full border-2 border-blue-500">
+                        <div class="relative" x-data="{ userMenu: false }">
+                            <button @click="userMenu = !userMenu" @click.outside="userMenu = false"
+                                    class="flex items-center gap-2 hover:opacity-80">
+                                <img src="https://ui-avatars.com/api/?name={{ user.get_username|default:'Admin' }}&background=random&size=40" 
+                                     class="w-9 h-9 rounded-full border-2 border-blue-500">
+                                <i class="fas fa-chevron-down text-xs text-gray-400"></i>
+                            </button>
+                            <div x-show="userMenu" x-transition
+                                 class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border py-1 z-50">
+                                <a href="{% url 'cadastros:empresa_config' %}"
+                                   class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                                    <i class="fas fa-building text-blue-600"></i> Empresa
+                                </a>
+                                <a href="/admin"
+                                   class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                                    <i class="fas fa-shield-alt text-purple-600"></i> Admin
+                                </a>
+                                <hr class="my-1">
+                                <a href="{% url 'logout' %}"
+                                   class="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+                                    <i class="fas fa-sign-out-alt"></i> Sair
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -326,8 +354,10 @@
             <!-- Mobile Menu -->
             <div x-show="mobileMenuOpen" x-transition class="lg:hidden bg-blue-900 text-white p-4 space-y-2">
                 <a href="/" class="block px-3 py-2 rounded hover:bg-blue-800">Dashboard</a>
-                <a href="{% url 'estoque:consulta_estoque' %}" class="block px-3 py-2 rounded hover:bg-blue-800">📦 Estoque</a>
+                <a href="{% url 'estoque:consulta_estoque' %}" class="block px-3 py-2 rounded hover:bg-blue-800">Estoque</a>
                 <a href="{% url 'cadastros:produto_list' %}" class="block px-3 py-2 rounded hover:bg-blue-800">Produtos</a>
+                <a href="{% url 'fiscal:nfe_list' %}" class="block px-3 py-2 rounded hover:bg-blue-800">Fiscal</a>
+                <a href="{% url 'cadastros:empresa_config' %}" class="block px-3 py-2 rounded hover:bg-blue-800">Empresa</a>
                 <a href="/admin" class="block px-3 py-2 rounded hover:bg-blue-800">Admin</a>
             </div>
             
