@@ -811,6 +811,7 @@ function pdvApp() {
         parcelasDetalhes: [],
         pagamentos: [],
         tiposPagamento: {{ tipos_pagamento_json|safe }},
+        localPadrao: {{ local_padrao_json|safe }},
         emitirNFe: false,
         tipoDocumentoFiscal: '65',
         cpfConsumidor: '',
@@ -1156,7 +1157,7 @@ function pdvApp() {
                         acrescimo: i.acrescimo,
                         tipoAcrescimo: i.tipoAcrescimo
                     })),
-                    local: 'LOJA',
+                    local: this.localPadrao || 'LOJA',
                     pagamentos: this.pagamentos,
                     emitir_nfe: this.emitirNFe,
                     tipo_documento_fiscal: this.tipoDocumentoFiscal,

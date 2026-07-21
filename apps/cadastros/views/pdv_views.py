@@ -88,6 +88,7 @@ def pdv_index(request):
     
     return render(request, 'cadastros/pdv/index.html', {
         'local_padrao': local_padrao,
+        'local_padrao_json': json.dumps(local_padrao.local) if local_padrao else 'null',
         'vendedores_json': json.dumps(vendedores),
         'tipos_pagamento_json': json.dumps(tipos_pagamento_com_icone),
         'cliente_padrao_json': json.dumps(cliente_padrao_json) if cliente_padrao_json else 'null',
@@ -167,7 +168,16 @@ def pdv_finalizar(request):
         cliente_id = dados.get('cliente_id')
         vendedor_id = dados.get('vendedor_id')
         itens = dados.get('itens', [])
-        local = dados.get('local', 'LOJA')
+        local = dados.get('local', None)
+        # Validar/fallback do LocalEstoque
+        if local:
+            from apps.cadastros.models import LocalEstoque
+            if not LocalEstoque.objects.filter(local=local).exists():
+                primeiro = LocalEstoque.objects.first()
+                local = primeiro.local if primeiro else None
+        else:
+            primeiro = LocalEstoque.objects.first()
+            local = primeiro.local if primeiro else None
         
         # Mapear tipo_movimento para o código de 2 letras do model
         tipo_mov_raw = dados.get('tipo_movimento', 'VENDA').upper()

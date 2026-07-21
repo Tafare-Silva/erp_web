@@ -190,7 +190,9 @@ class ItemMovimentacaoEstoque(models.Model):
         LocalEstoque,
         on_delete=models.PROTECT,
         related_name='itens_movimentacao',
-        verbose_name='Local Estoque'
+        verbose_name='Local Estoque',
+        null=True,
+        blank=True
     )
     
     quantidade = models.DecimalField(
