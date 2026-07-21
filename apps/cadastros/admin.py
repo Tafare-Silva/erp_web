@@ -9,7 +9,8 @@ from .models import (
     Pessoa, PessoaFisica, Cliente, Fornecedor, Funcionario,
     EnderecoPessoa, EnderecoPrincipalPessoa,
     Produto, CodigoBarras, ImagemProduto, LocalEstoque,
-    Empresa, TituloFinanceiro, Caixa, MovimentacaoCaixa
+    Empresa, TituloFinanceiro, Caixa, MovimentacaoCaixa,
+    CentroCusto, PlanoContas,
 )
 
 
@@ -90,6 +91,21 @@ class MovimentacaoCaixaAdmin(admin.ModelAdmin):
     list_display = ['data_movimento', 'caixa', 'tipo_operacao', 'valor', 'tipo_pagamento', 'historico']
     list_filter = ['tipo_operacao', 'tipo_pagamento']
     search_fields = ['historico']
+
+
+@admin.register(CentroCusto)
+class CentroCustoAdmin(admin.ModelAdmin):
+    list_display = ['codigo', 'nome', 'pai']
+    search_fields = ['codigo', 'nome']
+    ordering = ['codigo']
+
+
+@admin.register(PlanoContas)
+class PlanoContasAdmin(admin.ModelAdmin):
+    list_display = ['codigo', 'nome', 'tipo', 'pai']
+    list_filter = ['tipo']
+    search_fields = ['codigo', 'nome']
+    ordering = ['codigo']
 
 
 # Auxiliares
