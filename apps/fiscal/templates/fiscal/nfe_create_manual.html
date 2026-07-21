@@ -31,7 +31,7 @@
                     <div x-show="selecionado" class="mt-1 flex items-center gap-2">
                         <span class="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
                             <i class="fas fa-check-circle"></i>
-                            <span x-text="selecionado.text"></span>
+                            <span x-text="selecionado ? selecionado.text : ''"></span>
                         </span>
                         <button type="button" @click="limpar()" class="text-red-500 hover:text-red-700 text-xs">
                             <i class="fas fa-times"></i>
@@ -166,7 +166,7 @@
                     <div x-show="selecionado" class="mt-1 flex items-center gap-2">
                         <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-800 rounded text-xs">
                             <i class="fas fa-check-circle"></i>
-                            <span x-text="selecionado.text"></span>
+                            <span x-text="selecionado ? selecionado.text : ''"></span>
                         </span>
                         <button type="button" @click="limpar()" class="text-red-500 hover:text-red-700 text-xs">
                             <i class="fas fa-times"></i>
@@ -263,7 +263,7 @@ function adicionarItem(produto) {
                     </template>
                 </div>
                 <div x-show="selecionado" class="flex items-center gap-1">
-                    <span class="text-xs font-medium text-blue-700 truncate max-w-[180px]" x-text="selecionado.nome"></span>
+                    <span class="text-xs font-medium text-blue-700 truncate max-w-[180px]" x-text="selecionado ? selecionado.nome : ''"></span>
                     <button type="button" @click="limpar()" class="text-red-500 hover:text-red-700 text-xs flex-shrink-0">
                         <i class="fas fa-times"></i>
                     </button>
