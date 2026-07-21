@@ -102,8 +102,8 @@ class CentroCustoAdmin(admin.ModelAdmin):
 
 @admin.register(PlanoContas)
 class PlanoContasAdmin(admin.ModelAdmin):
-    list_display = ['codigo', 'nome', 'tipo', 'pai']
-    list_filter = ['tipo']
+    list_display = ['codigo', 'nome', 'tipo_conta', 'pai']
+    list_filter = ['tipo_conta']
     search_fields = ['codigo', 'nome']
     ordering = ['codigo']
 
