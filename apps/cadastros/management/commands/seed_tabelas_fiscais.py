@@ -227,25 +227,28 @@ class Command(BaseCommand):
         self.stdout.write(f'  OK {len(ESTADOS)} estados criados')
 
     def _seed_cidades(self):
-        if not os.path.exists(MUNICIPIOS_FILE):
-            self.stdout.write(self.style.WARNING(
-                f'Arquivo {MUNICIPIOS_FILE} não encontrado. Pulando cidades.'
-            ))
-            return
-        with open(MUNICIPIOS_FILE, 'r', encoding='utf-8') as f:
-            municipios = json.load(f)
-        criadas = 0
-        for mun in municipios:
-            estado = Estado.objects.filter(uf=mun['uf']).first()
-            if not estado:
-                continue
-            _, created = Cidade.objects.get_or_create(
-                codigo_ibge=mun['codigo_ibge'],
-                defaults={'nome': mun['nome'], 'estado': estado}
-            )
-            if created:
-                criadas += 1
-        self.stdout.write(f'  OK {criadas}/{len(municipios)} cidades criadas')
+        try:
+            if not os.path.exists(MUNICIPIOS_FILE):
+                self.stdout.write(self.style.WARNING(
+                    f'Arquivo {MUNICIPIOS_FILE} não encontrado. Pulando cidades.'
+                ))
+                return
+            with open(MUNICIPIOS_FILE, 'r', encoding='utf-8') as f:
+                municipios = json.load(f)
+            criadas = 0
+            for mun in municipios:
+                estado = Estado.objects.filter(uf=mun['uf']).first()
+                if not estado:
+                    continue
+                _, created = Cidade.objects.get_or_create(
+                    codigo_ibge=mun['codigo_ibge'],
+                    defaults={'nome': mun['nome'], 'estado': estado}
+                )
+                if created:
+                    criadas += 1
+            self.stdout.write(f'  OK {criadas}/{len(municipios)} cidades criadas')
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f'  Erro ao importar cidades: {e}'))
 
     def _seed_cfop(self):
         for cfop, nome, desc in CFOPS:
