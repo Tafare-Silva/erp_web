@@ -360,13 +360,14 @@ class TipoPagamentoForm(forms.ModelForm):
     class Meta:
         model = TipoPagamento
         fields = [
-            'nome', 'prazo_padrao', 'qtd_parcelas_padrao',
+            'tipo_pagamento', 'nome', 'prazo_padrao', 'qtd_parcelas_padrao',
             'situacoes_permitidas', 'tipos_titulos_permitidos', 'tipos_parcelamentos_permitidos',
             'chamar_tef', 'exigir_conta_bancaria', 'entrar_caixa_usuario',
             'controle_cheque', 'modalidade', 'taxa_administracao',
             'centavos_por_ultimo_nas_parcelas',
         ]
         widgets = {
+            'tipo_pagamento': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
             'nome': forms.TextInput(attrs={'class': 'form-control'}),
             'prazo_padrao': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
             'qtd_parcelas_padrao': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
