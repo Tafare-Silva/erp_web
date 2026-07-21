@@ -115,13 +115,14 @@
                     R$ {{ cond.vr_total_liquido|abs_value|floatformat:2 }}
                 </td>
                 <td class="px-4 py-3 text-center">
-                    <div class="relative inline-block" x-data="{ open: false }">
+                    <div class="relative" x-data="{ open: false }">
                         <button @click="open = !open" @click.outside="open = false"
                                 class="p-1 hover:bg-gray-100 rounded-lg">
                             <i class="fas fa-ellipsis-h text-gray-500"></i>
                         </button>
-                        <div x-show="open" x-transition
-                             class="absolute right-0 mt-1 w-44 bg-white rounded-lg shadow-lg border z-50 py-1 text-left">
+                        <div x-show="open"
+                             class="absolute right-0 mt-1 w-44 bg-white rounded-lg shadow-lg border z-50 py-1 text-left"
+                             style="display: none;">
                             <a href="{% url 'cadastros:condicional_cupom' cond.pk_chave %}" target="_blank"
                                class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
                                 <i class="fas fa-print text-green-500"></i> Imprimir

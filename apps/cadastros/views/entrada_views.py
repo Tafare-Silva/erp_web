@@ -497,12 +497,20 @@ def finalizar_entrada_nf(request):
 
 def listar_entradas(request):
     """Lista as entradas lançadas."""
-   
-    entradas = MovimentacaoEstoque.objects.filter(
+    from django.core.paginator import Paginator
+    
+    entradas_qs = MovimentacaoEstoque.objects.filter(
         tipo_movimento='E'
     ).select_related('pessoa').order_by('-data', '-pk_chave')
     
-    return render(request, 'cadastros/entradas/list_entrada.html', {'entradas': entradas})
+    paginator = Paginator(entradas_qs, 20)
+    page = request.GET.get('page', 1)
+    entradas = paginator.get_page(page)
+    
+    return render(request, 'cadastros/entradas/list_entrada.html', {
+        'entradas': entradas,
+        'is_paginated': entradas.has_other_pages(),
+    })
 
 
 def detalhe_entrada(request, pk):
