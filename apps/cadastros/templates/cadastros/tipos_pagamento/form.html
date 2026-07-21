@@ -37,7 +37,14 @@
             <div x-show="abaAtiva === 'principais'" x-transition>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="md:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Nome <span class="text-red-500">*</span></label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Tipo <span class="text-red-500">*</span></label>
+                        {{ form.tipo_pagamento }}
+                        {% if form.tipo_pagamento.errors %}
+                        <p class="text-red-500 text-xs mt-1">{{ form.tipo_pagamento.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Nome Alternativo</label>
                         {{ form.nome }}
                     </div>
                     <div><label class="block text-sm font-medium text-gray-700 mb-2">Prazo Padrão (dias)</label>{{ form.prazo_padrao }}</div>
