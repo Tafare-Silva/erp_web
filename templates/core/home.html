@@ -13,8 +13,13 @@
                 <h1 class="text-3xl font-bold mb-2">Bem-vindo ao ERP Blanjos! 🎯</h1>
                 <p class="text-blue-100 mb-4">Gestão Inteligente de Estoque e Movimentações</p>
                 <div class="space-y-2 text-sm">
-                    <p><strong>Empresa:</strong> {{ empresa.nome_fantasia|default:empresa.pessoa.nome|default:"SUA EMPRESA" }}</p>
-                    <p><strong>CNPJ:</strong> {{ empresa.pessoa.cpf_cnpj|default:"00.000.000/0000-00" }}</p>
+                    {% if empresa %}
+                    <p><strong>Empresa:</strong> {{ empresa.nome_fantasia|default:empresa.pessoa.nome }}</p>
+                    <p><strong>CNPJ:</strong> {{ empresa.pessoa.cpf_cnpj }}</p>
+                    {% else %}
+                    <p><strong>Empresa:</strong> SUA EMPRESA</p>
+                    <p><strong>CNPJ:</strong> 00.000.000/0000-00</p>
+                    {% endif %}
                     <p><strong>Data Atual:</strong> <span id="dataAtual"></span></p>
                 </div>
             </div>
