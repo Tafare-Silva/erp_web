@@ -70,6 +70,39 @@ class NFeDetailView(LoginRequiredMixin, DetailView):
 
 
 @login_required
+def emitir_nfe_da_venda(request, pk):
+    """Emite NF-e ou NFC-e diretamente de uma venda."""
+    venda = get_object_or_404(MovimentacaoEstoque.objects.select_related('pessoa'), pk_chave=pk)
+    modelo = request.POST.get('modelo', '55')
+
+    if request.method != 'POST':
+        return JsonResponse({'erro': 'Método inválido'}, status=400)
+
+    try:
+        nfe = NFeService.criar_nfe_da_venda(venda.pk_chave, usuario=request.user, modelo=modelo)
+
+        if nfe.status == 'VALIDADO':
+            from django.conf import settings
+            if settings.DEBUG:
+                nfe.status = 'AUTORIZADO'
+                nfe.protocolo = '999999999999999'
+                nfe.data_autorizacao = datetime.now()
+                nfe.save(update_fields=['status', 'protocolo', 'data_autorizacao'])
+                messages.success(request, f'NF-e #{nfe.numero} emitida com sucesso (simulação)!')
+            else:
+                nfe = NFeService.autorizar_nfe(nfe.pk)
+                if nfe.status == 'AUTORIZADO':
+                    messages.success(request, f'NF-e #{nfe.numero} autorizada!')
+                else:
+                    messages.warning(request, f'NF-e #{nfe.numero}: {nfe.status} - {nfe.mensagem_retorno}')
+
+        return redirect('fiscal:nfe_detail', pk=nfe.pk)
+    except Exception as e:
+        messages.error(request, f'Erro ao emitir NF-e: {str(e)}')
+        return redirect('cadastros:venda_list')
+
+
+@login_required
 def nfe_create(request):
     """Tela de criação de NF-e a partir de uma venda."""
     vendas = MovimentacaoEstoque.objects.filter(

@@ -116,10 +116,22 @@
                                     <i class="fas fa-print text-green-500"></i> Reimprimir
                                 </a>
                                 <hr class="my-1">
-                                <a href="{% url 'fiscal:nfe_create_manual' %}?venda={{ venda.pk_chave }}"
-                                   class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                                    <i class="fas fa-file-invoice text-red-500"></i> Gerar NF-e
-                                </a>
+                                <form method="post" action="{% url 'fiscal:emitir_nfe_da_venda' venda.pk_chave %}" style="display:inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="modelo" value="55">
+                                    <button type="submit" class="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left"
+                                            onclick="return confirm('Emitir NF-e para venda #{{ venda.pk_chave }}?')">
+                                        <i class="fas fa-file-invoice text-red-500"></i> Emitir NF-e
+                                    </button>
+                                </form>
+                                <form method="post" action="{% url 'fiscal:emitir_nfe_da_venda' venda.pk_chave %}" style="display:inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="modelo" value="65">
+                                    <button type="submit" class="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left"
+                                            onclick="return confirm('Emitir NFC-e para venda #{{ venda.pk_chave }}?')">
+                                        <i class="fas fa-receipt text-purple-500"></i> Emitir NFC-e
+                                    </button>
+                                </form>
                                 <hr class="my-1">
                                 <a href="{% url 'cadastros:venda_detail' venda.pk_chave %}"
                                    class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">

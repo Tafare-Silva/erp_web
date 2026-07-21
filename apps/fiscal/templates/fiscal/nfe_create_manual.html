@@ -15,10 +15,10 @@
                 <div x-data="pessoaSearch('{% url "fiscal:api_buscar_clientes" %}')" class="relative">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Destinatário *</label>
                     <input type="hidden" name="destinatario" x-ref="hiddenInput">
-                    <input type="text" x-model="query" @input.debounce.300ms="buscar"
+                    <input type="text" x-model="query" @input.debounce.300ms="buscar" @keydown.enter.prevent="if (resultados.length) selecionar(resultados[0])"
                            placeholder="Nome ou CPF/CNPJ..."
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                           x-ref="searchInput" required>
+                           x-ref="searchInput">
                     <div x-show="resultados.length > 0 && !selecionado"
                          class="absolute z-50 mt-1 w-full bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
                         <template x-for="r in resultados" :key="r.id">
@@ -150,7 +150,7 @@
                 <div x-data="pessoaSearch('{% url "fiscal:api_buscar_transportadoras" %}')" class="relative">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Transportadora</label>
                     <input type="hidden" name="transportadora" x-ref="hiddenInput">
-                    <input type="text" x-model="query" @input.debounce.300ms="buscar"
+                    <input type="text" x-model="query" @input.debounce.300ms="buscar" @keydown.enter.prevent="if (resultados.length) selecionar(resultados[0])"
                            placeholder="Nome ou CPF/CNPJ..."
                            class="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                            x-ref="searchInput">
@@ -245,7 +245,7 @@ function adicionarItem(produto) {
         <td class="p-2">
             <div x-data="produtoSearch(${idx})" class="relative">
                 <input type="hidden" name="produto_id" x-ref="hiddenInput">
-                <input type="text" x-model="query" @input.debounce.300ms="buscar"
+                <input type="text" x-model="query" @input.debounce.300ms="buscar" @keydown.enter.prevent="if (resultados.length) selecionar(resultados[0])"
                        placeholder="Buscar por código, barras ou nome..."
                        class="w-56 border border-gray-300 rounded px-2 py-1 text-sm"
                        x-ref="searchInput">

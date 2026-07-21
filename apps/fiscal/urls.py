@@ -30,4 +30,5 @@ urlpatterns = [
     path('api/parse-certificado/', views.api_parse_certificado, name='api_parse_certificado'),
 
     path('nfe/novo/manual/', views.nfe_create_manual, name='nfe_create_manual'),
+    path('venda/<int:pk>/emitir-nfe/', views.emitir_nfe_da_venda, name='emitir_nfe_da_venda'),
 ]
