@@ -337,6 +337,11 @@ def pdv_finalizar(request):
             empresa = Empresa.objects.first()
             caixa_aberto = Caixa.objects.filter(usuario=request.user, aberto=True).first() if request.user.is_authenticated else None
             
+            # Calcular troco (total pago - total venda)
+            total_pago = sum(float(p.get('valor', 0)) for p in pagamentos)
+            total_venda = float(mov.vr_total_liquido)
+            troco = max(0, total_pago - total_venda)
+            
             for pag in pagamentos:
                 tipo_id = pag.get('tipo_id')
                 valor_pag = float(pag.get('valor', 0))
@@ -344,6 +349,13 @@ def pdv_finalizar(request):
 
                 tipo_pgto = TipoPagamento.objects.filter(pk_tipo_pagamento=tipo_id).first()
                 if not tipo_pgto: continue
+                
+                # Ajustar valor proporcionalmente descontando o troco
+                if troco > 0 and total_pago > 0:
+                    proporcao = valor_pag / total_pago
+                    valor_liquido = round(valor_pag - (troco * proporcao), 2)
+                else:
+                    valor_liquido = valor_pag
 
                 if tipo_pgto.situacoes_permitidas == 'AP' or tipo_pgto.tipo_pagamento == 'CREDIARIO':
                     num_parcelas = int(pag.get('parcelas', 1))
@@ -354,9 +366,9 @@ def pdv_finalizar(request):
                         if valores_parcela and i <= len(valores_parcela):
                             valor_parcela = float(valores_parcela[i-1])
                         else:
-                            valor_parcela_base = round(valor_pag / num_parcelas, 2)
+                            valor_parcela_base = round(valor_liquido / num_parcelas, 2)
                             if i == num_parcelas:
-                                valor_parcela = round(valor_pag - (valor_parcela_base * (num_parcelas - 1)), 2)
+                                valor_parcela = round(valor_liquido - (valor_parcela_base * (num_parcelas - 1)), 2)
                             else:
                                 valor_parcela = valor_parcela_base
 
@@ -389,7 +401,7 @@ def pdv_finalizar(request):
                         MovimentacaoCaixa.objects.create(
                             caixa=caixa_aberto,
                             tipo_operacao='E',
-                            valor=valor_pag,
+                            valor=valor_liquido,
                             tipo_pagamento=tipo_pgto,
                             historico=f"Recebimento Venda #{mov.pk_chave}"
                         )
@@ -399,8 +411,8 @@ def pdv_finalizar(request):
                         data_vencimento=date.today(),
                         data_pagamento=date.today(),
                         numero_documento=f"VE{mov.pk_chave}",
-                        valor_documento=valor_pag,
-                        valor_pago=valor_pag,
+                        valor_documento=valor_liquido,
+                        valor_pago=valor_liquido,
                         valor_saldo=0,
                         situacao='PAGO',
                         tipo_pagamento=tipo_pgto,
