@@ -341,6 +341,7 @@ def pdv_finalizar(request):
             total_pago = sum(float(p.get('valor', 0)) for p in pagamentos)
             total_venda = sum(float(item.get('preco', 0)) * abs(float(item.get('quantidade', 0))) for item in itens)
             troco = max(0, round(total_pago - total_venda, 2))
+            logger.info(f"PDV FINALIZAR: pagamentos={pagamentos}, total_pago={total_pago}, total_venda={total_venda}, troco={troco}")
             
             for pag in pagamentos:
                 tipo_id = pag.get('tipo_id')
@@ -356,6 +357,7 @@ def pdv_finalizar(request):
                     valor_liquido = round(valor_pag - (troco * proporcao), 2)
                 else:
                     valor_liquido = valor_pag
+                logger.info(f"PDV FINALIZAR pagamento: tipo_id={tipo_id}, valor_pag={valor_pag}, valor_liquido={valor_liquido}")
 
                 if tipo_pgto.situacoes_permitidas == 'AP' or tipo_pgto.tipo_pagamento == 'CREDIARIO':
                     num_parcelas = int(pag.get('parcelas', 1))
