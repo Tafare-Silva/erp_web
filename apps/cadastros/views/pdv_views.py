@@ -339,8 +339,8 @@ def pdv_finalizar(request):
             
             # Calcular troco (total pago - total venda)
             total_pago = sum(float(p.get('valor', 0)) for p in pagamentos)
-            total_venda = abs(float(mov.vr_total_liquido))
-            troco = max(0, total_pago - total_venda)
+            total_venda = sum(float(item.get('preco', 0)) * abs(float(item.get('quantidade', 0))) for item in itens)
+            troco = max(0, round(total_pago - total_venda, 2))
             
             for pag in pagamentos:
                 tipo_id = pag.get('tipo_id')
