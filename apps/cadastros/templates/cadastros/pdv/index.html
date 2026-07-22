@@ -36,6 +36,8 @@
         </div>
     </div>
 
+    {% csrf_token %}
+
     <!-- Main Content -->
     <div class="flex-1 flex gap-3 p-3 min-h-0 transition-all duration-300"
          :class="tipoOperacao === 'CONDICIONAL' ? 'bg-yellow-100' : 'bg-gray-50'">
@@ -461,10 +463,10 @@
                             <div class="flex items-center gap-2">
                                 <span class="text-xs text-gray-400 w-5" x-text="(pIdx+1) + 'ª'"></span>
                                 <span class="text-xs text-gray-500">Venc:</span>
-                                <input type="date" x-model="parcelasDetalhes[pIdx].vencimento"
+                                <input type="date" x-model="parc.vencimento"
                                        class="text-xs border border-gray-200 rounded px-2 py-1 w-32">
                                 <span class="text-xs text-gray-500">R$:</span>
-                                <input type="number" x-model="parcelasDetalhes[pIdx].valor" step="0.01"
+                                <input type="number" x-model="parc.valor" step="0.01"
                                        class="text-xs border border-gray-200 rounded px-2 py-1 w-24">
                             </div>
                         </template>
