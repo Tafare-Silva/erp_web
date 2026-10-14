@@ -99,7 +99,7 @@ def cupom_venda(request, pk):
         'venda': venda,
         'itens': itens,
         'subtotal': subtotal,
-        'total': subtotal,
+        'total': abs(venda.calcular_total()),
         'empresa': empresa,
         'emit': emit,
         'pagamentos': pagamentos_info,

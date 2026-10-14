@@ -1,6 +1,7 @@
 """Views do PDV Rápido (Frente de Caixa)."""
 import json
 import logging
+from decimal import Decimal, ROUND_HALF_UP
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -9,6 +10,63 @@ from django.db import transaction
 from apps.cadastros.models import (Produto, Pessoa, MovimentacaoEstoque, 
                                    LocalEstoque, TipoMovimentacao)
 logger = logging.getLogger(__name__)
+
+CENTAVO = Decimal('0.01')
+
+
+def _dec(value):
+    """Converte valor JSON/numérico para Decimal com segurança."""
+    try:
+        return Decimal(str(value if value is not None else 0))
+    except Exception:
+        return Decimal('0')
+
+
+def _centavos(value):
+    return _dec(value).quantize(CENTAVO, rounding=ROUND_HALF_UP)
+
+
+def _valor_ajuste_item(item):
+    """Retorna (desconto_valor, acrescimo_valor) do item do payload em Decimal."""
+    qtd = abs(_dec(item.get('quantidade', 0)))
+    subtotal = qtd * _dec(item.get('preco', 0))
+    if item.get('tipoDesconto') == 'percent':
+        desconto = subtotal * _dec(item.get('desconto', 0)) / 100
+    else:
+        desconto = _dec(item.get('desconto', 0))
+    if item.get('tipoAcrescimo') == 'percent':
+        acrescimo = subtotal * _dec(item.get('acrescimo', 0)) / 100
+    else:
+        acrescimo = _dec(item.get('acrescimo', 0))
+    return desconto, acrescimo
+
+
+def _calcular_totais_payload(itens, desconto_geral, tipo_desconto_geral):
+    """Espelha o cálculo do frontend (calcularTotais): subtotal, desconto geral e total."""
+    subtotal = Decimal('0')
+    desc_itens = Decimal('0')
+    acr_itens = Decimal('0')
+    for item in itens:
+        qtd = abs(_dec(item.get('quantidade', 0)))
+        subtotal += qtd * _dec(item.get('preco', 0))
+        desconto, acrescimo = _valor_ajuste_item(item)
+        desc_itens += desconto
+        acr_itens += acrescimo
+    desc_geral = _dec(desconto_geral)
+    if tipo_desconto_geral == 'percent':
+        desc_geral = subtotal * desc_geral / 100
+    desc_geral = _centavos(desc_geral)
+    total = _centavos(subtotal - desc_itens + acr_itens - desc_geral)
+    return {'subtotal': subtotal, 'total': total, 'desconto_geral': desc_geral}
+
+
+def _is_pagamento_dinheiro(tipo_pgto):
+    """Identifica se o tipo de pagamento é dinheiro (espécie)."""
+    nome = (tipo_pgto.tipo_pagamento or '').upper()
+    alternativo = (tipo_pgto.nome or '').upper()
+    return ('DINHEIRO' in nome or 'DINHEIRO' in alternativo or
+            'ESPECIE' in nome or 'ESPÉCIE' in nome or
+            tipo_pgto.tipos_titulos_permitidos == 'DI')
 
 
 @login_required
@@ -83,7 +141,8 @@ def pdv_index(request):
             'id': tp.pk_tipo_pagamento,
             'nome': tp.tipo_pagamento,
             'icone': icone,
-            'prazo': tp.situacoes_permitidas == 'AP' or 'CREDI' in nome_upper
+            'prazo': tp.situacoes_permitidas == 'AP' or 'CREDI' in nome_upper,
+            'dinheiro': _is_pagamento_dinheiro(tp),
         })
     
     return render(request, 'cadastros/pdv/index.html', {
@@ -171,7 +230,6 @@ def pdv_finalizar(request):
         local = dados.get('local', None)
         # Validar/fallback do LocalEstoque
         if local:
-            from apps.cadastros.models import LocalEstoque
             if not LocalEstoque.objects.filter(local=local).exists():
                 primeiro = LocalEstoque.objects.first()
                 local = primeiro.local if primeiro else None
@@ -189,6 +247,57 @@ def pdv_finalizar(request):
         
         if not itens:
             return JsonResponse({'erro': 'Nenhum item na venda'}, status=400)
+        
+        # Totais da venda (mesma regra do frontend)
+        totais = _calcular_totais_payload(
+            itens,
+            dados.get('desconto_geral', 0),
+            dados.get('tipo_desconto_geral', 'valor')
+        )
+        total_venda = totais['total']
+
+        # Preparar pagamentos (validação antes de criar qualquer registro)
+        from apps.cadastros.models import TipoPagamento
+        pags = []
+        total_pago = Decimal('0')
+        for pag in dados.get('pagamentos', []):
+            valor_pag = _centavos(pag.get('valor', 0))
+            if valor_pag <= 0:
+                continue
+            tipo_pgto = TipoPagamento.objects.filter(pk_tipo_pagamento=pag.get('tipo_id')).first()
+            if not tipo_pgto:
+                continue
+            pags.append({
+                'pag': pag,
+                'tipo': tipo_pgto,
+                'valor': valor_pag,
+                'liquido': valor_pag,
+                'dinheiro': _is_pagamento_dinheiro(tipo_pgto),
+            })
+            total_pago += valor_pag
+
+        if tipo_movimento == 'VE':
+            if total_pago < total_venda - CENTAVO:
+                return JsonResponse({
+                    'erro': f'Pagamentos insuficientes: total pago R$ {total_pago:.2f} é menor que o total da venda R$ {total_venda:.2f}.'
+                }, status=400)
+
+            troco = _centavos(total_pago - total_venda)
+            if troco > 0:
+                total_dinheiro = sum((p['liquido'] for p in pags if p['dinheiro']), Decimal('0'))
+                if troco > total_dinheiro:
+                    return JsonResponse({
+                        'erro': f'Troco de R$ {troco:.2f} não pode ser dado: o valor pago em dinheiro (R$ {total_dinheiro:.2f}) é insuficiente.'
+                    }, status=400)
+                # Abater o troco somente dos pagamentos em dinheiro (do último para o primeiro)
+                restante = troco
+                for p in reversed(pags):
+                    if restante <= 0:
+                        break
+                    if p['dinheiro']:
+                        deduzir = min(p['liquido'], restante)
+                        p['liquido'] -= deduzir
+                        restante -= deduzir
         
         # CPF Consumidor para NFC-e (CPF na nota sem cadastro completo)
         cpf_consumidor = dados.get('cpf_consumidor', '').strip()
@@ -220,34 +329,20 @@ def pdv_finalizar(request):
             pessoa_id=cliente_id,
             vendedor_id=vendedor_id if vendedor_id else None,
             tipo_movimento=tipo_movimento,
+            vr_desconto=totais['desconto_geral'],
             usuario_criacao=request.user if request.user.is_authenticated else None
         )
         
         # Criar itens usando ORM
         from apps.cadastros.models import ItemMovimentacaoEstoque
         for item in itens:
-            # Calcular desconto em valor
-            desconto_valor = 0
-            if item.get('tipoDesconto') == 'percent':
-                subtotal_item = float(item['quantidade']) * float(item['preco'])
-                desconto_valor = subtotal_item * (float(item.get('desconto', 0)) / 100)
-            else:
-                desconto_valor = float(item.get('desconto', 0))
-            
-            # Calcular acréscimo em valor
-            acrescimo_valor = 0
-            if item.get('tipoAcrescimo') == 'percent':
-                subtotal_item = float(item['quantidade']) * float(item['preco'])
-                acrescimo_valor = subtotal_item * (float(item.get('acrescimo', 0)) / 100)
-            else:
-                acrescimo_valor = float(item.get('acrescimo', 0))
-            
+            desconto_valor, acrescimo_valor = _valor_ajuste_item(item)
             ItemMovimentacaoEstoque.objects.create(
                 movimentacao=mov,
                 produto_id=item['produto_id'],
-                quantidade=-abs(float(item['quantidade'])),  # Negativo para saída
-                vr_unitario_bruto=float(item['preco']),
-                vr_unitario_liquido=float(item['preco']), # Inicialmente igual
+                quantidade=-abs(_dec(item.get('quantidade', 0))),  # Negativo para saída
+                vr_unitario_bruto=_dec(item.get('preco', 0)),
+                vr_unitario_liquido=_dec(item.get('preco', 0)),  # Recalculado no save()
                 vr_desconto_total=desconto_valor,
                 vr_acrescimo_total=acrescimo_valor,
                 local_id=local
@@ -303,16 +398,13 @@ def pdv_finalizar(request):
                     peso_bruto=float(dados.get('peso_bruto', 0) or 0),
                     peso_liquido=float(dados.get('peso_liquido', 0) or 0),
                 )
-                from apps.cadastros.models import TipoPagamento
                 from apps.fiscal.models import NFePagamento
-                for pag in dados.get('pagamentos', []):
-                    tp = TipoPagamento.objects.filter(pk_tipo_pagamento=pag.get('tipo_id')).first()
-                    if not tp:
-                        tp = TipoPagamento.objects.first()
-                    cod_nfe = tp.forma_pagamento_nfe if (tp and tp.forma_pagamento_nfe) else 99
+                for p in pags:
+                    tp = p['tipo']
+                    cod_nfe = tp.forma_pagamento_nfe if tp.forma_pagamento_nfe else 99
                     NFePagamento.objects.create(
                         nfe=nfe, tipo_pagamento=tp, forma_pagamento=cod_nfe,
-                        valor=float(pag.get('valor', 0)),
+                        valor=float(p['liquido']),
                         integracao_pagamento='O',
                     )
                 mov.emitir_nfe = True
@@ -330,34 +422,18 @@ def pdv_finalizar(request):
         
         # Gerar Financeiro (Contas a Receber / Caixa) - apenas para VENDA
         if tipo_movimento == 'VE':
-            pagamentos = dados.get('pagamentos', [])
-            from apps.cadastros.models import Empresa, TituloFinanceiro, TipoPagamento, Caixa, MovimentacaoCaixa
+            from apps.cadastros.models import Empresa, TituloFinanceiro, Caixa, MovimentacaoCaixa
             from datetime import date, timedelta
             
             empresa = Empresa.objects.first()
             caixa_aberto = Caixa.objects.filter(usuario=request.user, aberto=True).first() if request.user.is_authenticated else None
             
-            # Calcular troco (total pago - total venda)
-            total_pago = sum(float(p.get('valor', 0)) for p in pagamentos)
-            total_venda = sum(float(item.get('preco', 0)) * abs(float(item.get('quantidade', 0))) for item in itens)
-            troco = max(0, round(total_pago - total_venda, 2))
-            logger.info(f"PDV FINALIZAR: pagamentos={pagamentos}, total_pago={total_pago}, total_venda={total_venda}, troco={troco}")
-            
-            for pag in pagamentos:
-                tipo_id = pag.get('tipo_id')
-                valor_pag = float(pag.get('valor', 0))
-                if valor_pag <= 0: continue
-
-                tipo_pgto = TipoPagamento.objects.filter(pk_tipo_pagamento=tipo_id).first()
-                if not tipo_pgto: continue
-                
-                # Ajustar valor proporcionalmente descontando o troco
-                if troco > 0 and total_pago > 0:
-                    proporcao = valor_pag / total_pago
-                    valor_liquido = round(valor_pag - (troco * proporcao), 2)
-                else:
-                    valor_liquido = valor_pag
-                logger.info(f"PDV FINALIZAR pagamento: tipo_id={tipo_id}, valor_pag={valor_pag}, valor_liquido={valor_liquido}")
+            for p in pags:
+                pag = p['pag']
+                tipo_pgto = p['tipo']
+                valor_liquido = p['liquido']
+                if valor_liquido <= 0:
+                    continue
 
                 if tipo_pgto.situacoes_permitidas == 'AP' or tipo_pgto.tipo_pagamento == 'CREDIARIO':
                     num_parcelas = int(pag.get('parcelas', 1))
@@ -366,11 +442,11 @@ def pdv_finalizar(request):
 
                     for i in range(1, num_parcelas + 1):
                         if valores_parcela and i <= len(valores_parcela):
-                            valor_parcela = float(valores_parcela[i-1])
+                            valor_parcela = _centavos(valores_parcela[i-1])
                         else:
-                            valor_parcela_base = round(valor_liquido / num_parcelas, 2)
+                            valor_parcela_base = (valor_liquido / num_parcelas).quantize(CENTAVO, rounding=ROUND_HALF_UP)
                             if i == num_parcelas:
-                                valor_parcela = round(valor_liquido - (valor_parcela_base * (num_parcelas - 1)), 2)
+                                valor_parcela = valor_liquido - (valor_parcela_base * (num_parcelas - 1))
                             else:
                                 valor_parcela = valor_parcela_base
 

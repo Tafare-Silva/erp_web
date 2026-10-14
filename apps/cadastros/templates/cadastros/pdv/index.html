@@ -954,6 +954,7 @@ function pdvApp() {
         calcularTotais() {
             let subtotal = 0;
             let totalDesconto = 0;
+            let totalAcrescimo = 0;
             this.itens.forEach(item => {
                 const qtd = parseFloat(item.quantidade) || 0;
                 const preco = parseFloat(item.preco) || 0;
@@ -973,6 +974,7 @@ function pdvApp() {
                 item.total = subtotalItem - descItem + acrItem;
                 subtotal += subtotalItem;
                 totalDesconto += descItem;
+                totalAcrescimo += acrItem;
             });
             this.subtotal = subtotal;
 
@@ -983,7 +985,7 @@ function pdvApp() {
                 descGeral = parseFloat(this.descontoGeral) || 0;
             }
             this.totalDesconto = totalDesconto + descGeral;
-            this.totalGeral = subtotal - descGeral;
+            this.totalGeral = Math.round((subtotal - totalDesconto - descGeral + totalAcrescimo) * 100) / 100;
         },
 
         limpar() {
@@ -1100,6 +1102,7 @@ function pdvApp() {
                 tipo_id: this.tipoPagamentoSelecionado.id,
                 tipo: this.tipoPagamentoSelecionado.nome,
                 icone: this.tipoPagamentoSelecionado.icone,
+                dinheiro: !!this.tipoPagamentoSelecionado.dinheiro,
                 valor: valor,
                 parcelas: parseInt(this.parcelas) || 1,
                 valores_parcela: this.parcelasDetalhes.map(p => p.valor),
@@ -1119,12 +1122,21 @@ function pdvApp() {
             return this.pagamentos.reduce((s, p) => s + p.valor, 0);
         },
 
+        get totalPagoDinheiro() {
+            return this.pagamentos.filter(p => p.dinheiro).reduce((s, p) => s + p.valor, 0);
+        },
+
         get troco() {
-            return Math.max(0, this.totalPago - this.totalGeral);
+            return Math.max(0, Math.round((this.totalPago - this.totalGeral) * 100) / 100);
         },
 
         async confirmarVenda() {
             if (this.totalPago < this.totalGeral) return;
+
+            if (this.troco > 0 && this.troco > this.totalPagoDinheiro) {
+                this.mostrarAlerta('O troco só pode ser dado em dinheiro. Ajuste os pagamentos.', 'erro');
+                return;
+            }
 
             // Se NFC-e sem cliente e sem condicional, pedir CPF
             if (this.tipoOperacao !== 'CONDICIONAL' && this.emitirNFe && this.tipoDocumentoFiscal === '65' && !this.clienteSelecionado) {
@@ -1161,6 +1173,8 @@ function pdvApp() {
                     })),
                     local: this.localPadrao || 'LOJA',
                     pagamentos: this.pagamentos,
+                    desconto_geral: parseFloat(this.descontoGeral) || 0,
+                    tipo_desconto_geral: this.tipoDescontoGeral,
                     emitir_nfe: this.emitirNFe,
                     tipo_documento_fiscal: this.tipoDocumentoFiscal,
                     modalidade_frete: parseInt(this.modalidadeFrete),

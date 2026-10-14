@@ -1,3 +1,4 @@
+{% load core_tags %}
 <!DOCTYPE html>
 <html>
 <head>
@@ -71,8 +72,8 @@
             <div class="item">
                 <div class="item-nome">{{ item.produto.nome }}</div>
                 <div class="item-detalhes">
-                    <span>{{ item.quantidade|floatformat:3 }} x R$ {{ item.vr_unitario_bruto|floatformat:2 }}</span>
-                    <span>R$ {{ item.calcular_total|floatformat:2 }}</span>
+                    <span>{{ item.quantidade|abs_value|floatformat:3 }} x R$ {{ item.vr_unitario_bruto|floatformat:2 }}</span>
+                    <span>R$ {{ item.calcular_total|abs_value|floatformat:2 }}</span>
                 </div>
                 {% if item.vr_desconto_total > 0 %}
                 <div style="font-size: 9px; color: #666; text-align: right;">
@@ -90,11 +91,11 @@
 
         <div class="totais">
             <div class="total-linha"><span>Subtotal:</span><span>R$ {{ subtotal|floatformat:2 }}</span></div>
-            {% if venda.vr_desconto_total > 0 %}
-            <div class="total-linha" style="color: #dc2626;"><span>Desconto:</span><span>-R$ {{ venda.vr_desconto_total|floatformat:2 }}</span></div>
+            {% if venda.vr_desconto > 0 %}
+            <div class="total-linha" style="color: #dc2626;"><span>Desconto:</span><span>-R$ {{ venda.vr_desconto|floatformat:2 }}</span></div>
             {% endif %}
-            {% if venda.vr_acrescimo_total > 0 %}
-            <div class="total-linha" style="color: #16a34a;"><span>Acréscimo:</span><span>R$ {{ venda.vr_acrescimo_total|floatformat:2 }}</span></div>
+            {% if venda.vr_acrescimo > 0 %}
+            <div class="total-linha" style="color: #16a34a;"><span>Acréscimo:</span><span>R$ {{ venda.vr_acrescimo|floatformat:2 }}</span></div>
             {% endif %}
             <div class="total-linha total-final"><span>TOTAL:</span><span>R$ {{ total|floatformat:2 }}</span></div>
         </div>

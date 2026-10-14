@@ -162,9 +162,15 @@ class MovimentacaoEstoque(models.Model):
         return f"{self.get_tipo_movimento_display()} #{self.pk_chave} - {self.pessoa.nome}"
 
     def recalcular_totais(self):
-        itens = self.itens.all()
-        self.vr_total_bruto = sum(item.vr_total_bruto for item in itens)
-        self.vr_total_liquido = self.vr_total_bruto - self.vr_desconto + self.vr_acrescimo
+        itens = list(self.itens.all())
+        self.vr_total_bruto = sum((item.vr_total_bruto for item in itens), Decimal('0'))
+        liquido_itens = sum((item.vr_total_liquido for item in itens), Decimal('0'))
+        ajuste = self.vr_desconto - self.vr_acrescimo
+        if self.vr_total_bruto < 0:
+            # Saída (venda): desconto reduz o valor absoluto
+            self.vr_total_liquido = liquido_itens + ajuste
+        else:
+            self.vr_total_liquido = liquido_itens - ajuste
         self.save(update_fields=['vr_total_bruto', 'vr_total_liquido'])
 
     def calcular_total(self):
@@ -274,7 +280,11 @@ class ItemMovimentacaoEstoque(models.Model):
 
     def save(self, *args, **kwargs):
         self.vr_total_bruto = self.quantidade * self.vr_unitario_bruto
-        self.vr_total_liquido = self.vr_total_bruto - self.vr_desconto_total + self.vr_acrescimo_total
+        if self.quantidade < 0:
+            # Saída (venda): desconto reduz o valor absoluto
+            self.vr_total_liquido = self.vr_total_bruto + self.vr_desconto_total - self.vr_acrescimo_total
+        else:
+            self.vr_total_liquido = self.vr_total_bruto - self.vr_desconto_total + self.vr_acrescimo_total
         self.vr_unitario_liquido = self.vr_total_liquido / self.quantidade if self.quantidade else Decimal('0')
         super().save(*args, **kwargs)
 
