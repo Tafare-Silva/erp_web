@@ -1,227 +1,237 @@
 {% extends 'base.html' %}
 
 {% block title %}Dashboard - ERP Blanjos{% endblock %}
-{% block page_title %}🏠 Dashboard Principal{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto px-4 py-6 lg:p-6">
-    
-    <!-- Header com Info da Empresa -->
-    <div class="mb-6 bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-lg p-6 shadow-lg">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <h1 class="text-3xl font-bold mb-2">Bem-vindo ao ERP Blanjos! 🎯</h1>
-                <p class="text-blue-100 mb-4">Gestão Inteligente de Estoque e Movimentações</p>
-                <div class="space-y-2 text-sm">
-                    {% if empresa %}
-                    <p><strong>Empresa:</strong> {{ empresa.nome_fantasia|default:empresa.pessoa.nome }}</p>
-                    <p><strong>CNPJ:</strong> {{ empresa.pessoa.cpf_cnpj }}</p>
-                    {% else %}
-                    <p><strong>Empresa:</strong> SUA EMPRESA</p>
-                    <p><strong>CNPJ:</strong> 00.000.000/0000-00</p>
-                    {% endif %}
-                    <p><strong>Data Atual:</strong> <span id="dataAtual"></span></p>
-                </div>
-            </div>
-            <div class="bg-white bg-opacity-10 rounded-lg p-4">
-                <p class="text-blue-100 text-sm mb-3">📊 Resumo do Sistema</p>
-                <div class="grid grid-cols-2 gap-3">
-                    <div class="bg-white bg-opacity-20 rounded p-3 text-center">
-                        <p class="text-2xl font-bold">{{ total_produtos }}</p>
-                        <p class="text-xs text-blue-100">Produtos</p>
-                    </div>
-                    <div class="bg-white bg-opacity-20 rounded p-3 text-center">
-                        <p class="text-2xl font-bold">{{ total_estoque_itens }}</p>
-                        <p class="text-xs text-blue-100">Itens em Estoque</p>
-                    </div>
-                </div>
-            </div>
+<div class="p-4 lg:p-6 max-w-[1600px] mx-auto">
+
+    <!-- Saudação + Período -->
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <div>
+            <h1 class="text-2xl font-extrabold text-slate-900">Olá, {{ user.get_username|default:"Admin" }}</h1>
+            <p class="text-sm text-slate-500 mt-0.5">
+                {{ empresa.nome_fantasia|default:empresa.pessoa.nome|default:"Sua Empresa" }} · {{ hoje|date:"d/m/Y" }}
+            </p>
         </div>
-    </div>
-
-    <!-- Cards de Acesso Rápido -->
-    <div class="mb-6">
-        <h2 class="text-xl font-bold text-gray-900 mb-4">🚀 Ações Rápidas</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            
-            <!-- Card Movimentação Unificada -->
-            <a href="{% url 'estoque:movimentacao_estoque' %}" 
-               class="bg-white rounded-lg shadow p-4 hover:shadow-lg hover:scale-105 transition-smooth border-t-4 border-green-500">
-                <div class="flex items-center mb-3">
-                    <div class="bg-green-100 text-green-600 rounded-lg p-3 mr-3">
-                        <i class="fas fa-exchange-alt text-xl"></i>
-                    </div>
-                    <h3 class="font-bold text-gray-900">Movimentação</h3>
-                </div>
-                <p class="text-sm text-gray-600 mb-3">Entrada, saída ou transferência de produtos</p>
-                <button class="text-green-600 font-bold text-sm hover:text-green-700">Acessar →</button>
+        <div class="flex items-center gap-2">
+            <a href="{% url 'cadastros:venda_list' %}" class="px-3.5 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-smooth">
+                <i class="fas fa-receipt mr-1.5 text-slate-400"></i>Vendas
             </a>
-
-            <!-- Card Consultar Estoque -->
-            <a href="{% url 'estoque:consulta_estoque' %}" 
-               class="bg-white rounded-lg shadow p-4 hover:shadow-lg hover:scale-105 transition-smooth border-t-4 border-blue-500">
-                <div class="flex items-center mb-3">
-                    <div class="bg-blue-100 text-blue-600 rounded-lg p-3 mr-3">
-                        <i class="fas fa-search text-xl"></i>
-                    </div>
-                    <h3 class="font-bold text-gray-900">Consultar</h3>
-                </div>
-                <p class="text-sm text-gray-600 mb-3">Visualizar saldos e disponibilidade</p>
-                <button class="text-blue-600 font-bold text-sm hover:text-blue-700">Acessar →</button>
-            </a>
-
-            <!-- Card Histórico -->
-            <a href="{% url 'estoque:historico' %}" 
-               class="bg-white rounded-lg shadow p-4 hover:shadow-lg hover:scale-105 transition-smooth border-t-4 border-purple-500">
-                <div class="flex items-center mb-3">
-                    <div class="bg-purple-100 text-purple-600 rounded-lg p-3 mr-3">
-                        <i class="fas fa-history text-xl"></i>
-                    </div>
-                    <h3 class="font-bold text-gray-900">Histórico</h3>
-                </div>
-                <p class="text-sm text-gray-600 mb-3">Ver todas as movimentações registradas</p>
-                <button class="text-purple-600 font-bold text-sm hover:text-purple-700">Acessar →</button>
-            </a>
-
-            <!-- Card Locais -->
-            <a href="{% url 'estoque:local_estoque_list' %}" 
-               class="bg-white rounded-lg shadow p-4 hover:shadow-lg hover:scale-105 transition-smooth border-t-4 border-orange-500">
-                <div class="flex items-center mb-3">
-                    <div class="bg-orange-100 text-orange-600 rounded-lg p-3 mr-3">
-                        <i class="fas fa-map-marker-alt text-xl"></i>
-                    </div>
-                    <h3 class="font-bold text-gray-900">Locais</h3>
-                </div>
-                <p class="text-sm text-gray-600 mb-3">Gerenciar locais de estoque</p>
-                <button class="text-orange-600 font-bold text-sm hover:text-orange-700">Acessar →</button>
+            <a href="{% url 'cadastros:pdv_index' %}" target="_blank" class="px-3.5 py-2 bg-brand-700 hover:bg-brand-800 text-white rounded-lg text-sm font-semibold transition-smooth shadow-sm">
+                <i class="fas fa-cash-register mr-1.5"></i>PDV Rápido
             </a>
         </div>
     </div>
 
-    <!-- Secção de Cadastros -->
-    <div class="mb-6">
-        <h2 class="text-xl font-bold text-gray-900 mb-4">📋 Cadastros Principais</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            
-            <a href="{% url 'cadastros:produto_list' %}" 
-               class="bg-white rounded-lg shadow p-4 hover:shadow-md transition-smooth group">
-                <div class="flex items-center">
-                    <i class="fas fa-box text-2xl text-blue-600 mr-3 group-hover:scale-110 transition-smooth"></i>
-                    <div>
-                        <h4 class="font-bold text-gray-900">Produtos</h4>
-                        <p class="text-xs text-gray-500">{{ total_produtos }} cadastrados</p>
-                    </div>
-                </div>
-            </a>
+    <!-- KPIs -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 mb-5">
+        <!-- Vendas no mês -->
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition-smooth">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-medium text-slate-500">Vendas no mês</span>
+                <span class="w-7 h-7 rounded-lg bg-blue-50 text-brand-700 flex items-center justify-center"><i class="fas fa-chart-line text-xs"></i></span>
+            </div>
+            <p class="text-2xl font-extrabold text-slate-900">R$ {{ total_vendas_mes|floatformat:2 }}</p>
+            <p class="text-[11px] text-slate-400 mt-1">{{ qtd_vendas_mes }} venda{{ qtd_vendas_mes|pluralize }} · hoje R$ {{ vendas_hoje|floatformat:2 }}</p>
+        </div>
 
-            <a href="{% url 'cadastros:pessoa_list' %}" 
-               class="bg-white rounded-lg shadow p-4 hover:shadow-md transition-smooth group">
-                <div class="flex items-center">
-                    <i class="fas fa-users text-2xl text-green-600 mr-3 group-hover:scale-110 transition-smooth"></i>
-                    <div>
-                        <h4 class="font-bold text-gray-900">Pessoas</h4>
-                        <p class="text-xs text-gray-500">Clientes e fornecedores</p>
-                    </div>
-                </div>
-            </a>
+        <!-- Ticket médio -->
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition-smooth">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-medium text-slate-500">Ticket médio</span>
+                <span class="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center"><i class="fas fa-tag text-xs"></i></span>
+            </div>
+            <p class="text-2xl font-extrabold text-slate-900">R$ {{ ticket_medio|floatformat:2 }}</p>
+            <p class="text-[11px] text-slate-400 mt-1">média por venda no mês</p>
+        </div>
 
-            <a href="{% url 'cadastros:marca_list' %}" 
-               class="bg-white rounded-lg shadow p-4 hover:shadow-md transition-smooth group">
-                <div class="flex items-center">
-                    <i class="fas fa-tag text-2xl text-purple-600 mr-3 group-hover:scale-110 transition-smooth"></i>
-                    <div>
-                        <h4 class="font-bold text-gray-900">Marcas</h4>
-                        <p class="text-xs text-gray-500">Marcas de produtos</p>
-                    </div>
-                </div>
-            </a>
+        <!-- A receber -->
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition-smooth">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-medium text-slate-500">A receber</span>
+                <span class="w-7 h-7 rounded-lg bg-green-50 text-green-600 flex items-center justify-center"><i class="fas fa-arrow-up text-xs"></i></span>
+            </div>
+            <p class="text-2xl font-extrabold text-slate-900">R$ {{ a_receber|floatformat:2 }}</p>
+            <p class="text-[11px] text-slate-400 mt-1">
+                inadimplência R$ <span class="{% if inadimplencia > 0 %}text-red-500 font-semibold{% endif %}">{{ inadimplencia|floatformat:2 }}</span>
+            </p>
+        </div>
 
-            <a href="{% url 'cadastros:unidade_list' %}" 
-               class="bg-white rounded-lg shadow p-4 hover:shadow-md transition-smooth group">
-                <div class="flex items-center">
-                    <i class="fas fa-ruler text-2xl text-orange-600 mr-3 group-hover:scale-110 transition-smooth"></i>
-                    <div>
-                        <h4 class="font-bold text-gray-900">Unidades</h4>
-                        <p class="text-xs text-gray-500">Unidades de medida</p>
-                    </div>
+        <!-- A pagar -->
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition-smooth">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-medium text-slate-500">A pagar</span>
+                <span class="w-7 h-7 rounded-lg bg-red-50 text-red-500 flex items-center justify-center"><i class="fas fa-arrow-down text-xs"></i></span>
+            </div>
+            <p class="text-2xl font-extrabold text-slate-900">R$ {{ a_pagar|floatformat:2 }}</p>
+            <p class="text-[11px] text-slate-400 mt-1">títulos em aberto</p>
+        </div>
+
+        <!-- Estoque -->
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition-smooth">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-medium text-slate-500">Estoque</span>
+                <span class="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center"><i class="fas fa-boxes-stacked text-xs"></i></span>
+            </div>
+            <p class="text-2xl font-extrabold text-slate-900">{{ total_estoque_itens }}</p>
+            <p class="text-[11px] text-slate-400 mt-1">{{ total_produtos }} produtos ativos</p>
+        </div>
+    </div>
+
+    <!-- Gráfico + Ações Rápidas -->
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-3 mb-5">
+        <!-- Vendas nos últimos 14 dias -->
+        <div class="xl:col-span-2 bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+                <div>
+                    <h2 class="font-bold text-slate-800 text-sm">Vendas nos últimos 14 dias</h2>
+                    <p class="text-[11px] text-slate-400">Total do período: R$ {{ total_vendas_mes|floatformat:2 }}</p>
                 </div>
-            </a>
+                <a href="{% url 'cadastros:venda_list' %}" class="text-xs font-medium text-brand-700 hover:underline">Ver vendas →</a>
+            </div>
+            <div class="h-56">
+                <canvas id="graficoVendas"></canvas>
+            </div>
+        </div>
+
+        <!-- Ações rápidas -->
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+            <h2 class="font-bold text-slate-800 text-sm mb-3">Ações rápidas</h2>
+            <div class="space-y-2">
+                <a href="{% url 'estoque:movimentacao_estoque' %}" class="flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:border-brand-200 hover:bg-brand-50/50 transition-smooth group">
+                    <span class="w-9 h-9 rounded-lg bg-green-100 text-green-600 flex items-center justify-center flex-shrink-0"><i class="fas fa-right-left"></i></span>
+                    <div>
+                        <p class="text-sm font-semibold text-slate-800 group-hover:text-brand-700">Movimentação de estoque</p>
+                        <p class="text-[11px] text-slate-400">Entrada, saída ou transferência</p>
+                    </div>
+                </a>
+                <a href="{% url 'cadastros:entrada_nf' %}" class="flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:border-brand-200 hover:bg-brand-50/50 transition-smooth group">
+                    <span class="w-9 h-9 rounded-lg bg-blue-100 text-brand-700 flex items-center justify-center flex-shrink-0"><i class="fas fa-truck-ramp-box"></i></span>
+                    <div>
+                        <p class="text-sm font-semibold text-slate-800 group-hover:text-brand-700">Entrada de nota fiscal</p>
+                        <p class="text-[11px] text-slate-400">Importar XML do fornecedor</p>
+                    </div>
+                </a>
+                <a href="{% url 'cadastros:caixa_controle' %}" class="flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:border-brand-200 hover:bg-brand-50/50 transition-smooth group">
+                    <span class="w-9 h-9 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0"><i class="fas fa-cash-register"></i></span>
+                    <div>
+                        <p class="text-sm font-semibold text-slate-800 group-hover:text-brand-700">Controle de caixa</p>
+                        <p class="text-[11px] text-slate-400">Abertura, fechamento e sangria</p>
+                    </div>
+                </a>
+                <a href="{% url 'cadastros:produto_create' %}" class="flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:border-brand-200 hover:bg-brand-50/50 transition-smooth group">
+                    <span class="w-9 h-9 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center flex-shrink-0"><i class="fas fa-plus"></i></span>
+                    <div>
+                        <p class="text-sm font-semibold text-slate-800 group-hover:text-brand-700">Novo produto</p>
+                        <p class="text-[11px] text-slate-400">Cadastrar no catálogo</p>
+                    </div>
+                </a>
+            </div>
         </div>
     </div>
 
     <!-- Últimas Movimentações -->
-    <div class="mb-6">
-        <h2 class="text-xl font-bold text-gray-900 mb-4">📊 Últimas Movimentações</h2>
-        <div class="bg-white rounded-lg shadow overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="bg-gray-100 border-b">
-                        <tr>
-                            <th class="px-4 py-3 text-left font-bold text-gray-700">Data</th>
-                            <th class="px-4 py-3 text-left font-bold text-gray-700">Produto</th>
-                            <th class="px-4 py-3 text-left font-bold text-gray-700">Tipo</th>
-                            <th class="px-4 py-3 text-center font-bold text-gray-700">Quantidade</th>
-                            <th class="px-4 py-3 text-left font-bold text-gray-700">Local</th>
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+            <h2 class="font-bold text-slate-800 text-sm">Últimas movimentações</h2>
+            <a href="{% url 'estoque:historico' %}" class="text-xs font-medium text-brand-700 hover:underline">Ver histórico completo →</a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                        <th class="px-4 py-2.5 text-left font-semibold">Data</th>
+                        <th class="px-4 py-2.5 text-left font-semibold">Produto</th>
+                        <th class="px-4 py-2.5 text-left font-semibold">Tipo</th>
+                        <th class="px-4 py-2.5 text-center font-semibold">Qtd</th>
+                        <th class="px-4 py-2.5 text-left font-semibold">Local</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for mov in ultimas_movimentacoes %}
+                        <tr class="border-b border-slate-50 hover:bg-slate-50/60 transition-smooth">
+                            <td class="px-4 py-2.5 text-slate-500 text-xs">{{ mov.movimentacao.data_criacao|date:"d/m/Y H:i" }}</td>
+                            <td class="px-4 py-2.5 font-medium text-slate-800">{{ mov.produto.nome }}</td>
+                            <td class="px-4 py-2.5">
+                                {% with tipo=mov.movimentacao.tipo_movimento %}
+                                    {% if tipo == 'E' or tipo == 'CO' %}
+                                        <span class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-md text-[11px] font-semibold">Entrada</span>
+                                    {% elif tipo == 'VE' or tipo == 'DV' %}
+                                        <span class="inline-flex items-center gap-1 bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[11px] font-semibold">Saída</span>
+                                    {% else %}
+                                        <span class="inline-flex items-center gap-1 bg-blue-50 text-brand-700 px-2 py-0.5 rounded-md text-[11px] font-semibold">{{ mov.movimentacao.get_tipo_movimento_display }}</span>
+                                    {% endif %}
+                                {% endwith %}
+                            </td>
+                            <td class="px-4 py-2.5 text-center font-bold {% if mov.quantidade < 0 %}text-red-500{% else %}text-emerald-600{% endif %}">{{ mov.quantidade|floatformat:2 }}</td>
+                            <td class="px-4 py-2.5 text-slate-500 text-xs">{{ mov.local.local|default:"—" }}</td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        {% for mov in ultimas_movimentacoes %}
-                            <tr class="border-b hover:bg-gray-50">
-                                <td class="px-4 py-3 text-gray-600">{{ mov.data_criacao|date:"d/m/Y H:i" }}</td>
-                                <td class="px-4 py-3 font-medium text-gray-900">{{ mov.produto.nome }}</td>
-                                <td class="px-4 py-3">
-                                    {% with tipo=mov.movimentacao.tipo_movimento %}
-                                        {% if tipo == 'E' or tipo == 'CO' %}
-                                            <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">📥 Entrada</span>
-                                        {% elif tipo == 'VE' or tipo == 'DV' %}
-                                            <span class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">📤 Saída</span>
-                                        {% else %}
-                                            <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold">🔄 {{ mov.movimentacao.get_tipo_movimento_display }}</span>
-                                        {% endif %}
-                                    {% endwith %}
-                                </td>
-                                <td class="px-4 py-3 text-center text-gray-900 font-bold">{{ mov.quantidade }}</td>
-                                <td class="px-4 py-3 text-gray-600">{{ mov.local.local }}</td>
-                            </tr>
-                        {% empty %}
-                            <tr>
-                                <td colspan="5" class="px-4 py-8 text-center text-gray-400">
-                                    <i class="fas fa-inbox text-3xl mb-2"></i>
-                                    <p>Nenhuma movimentação registrada ainda</p>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        <div class="mt-3 text-center">
-            <a href="{% url 'estoque:historico' %}" class="text-blue-600 font-bold hover:underline">
-                Ver Histórico Completo →
-            </a>
-        </div>
-    </div>
-
-    <!-- Info de Contato -->
-    <div class="bg-gradient-to-r from-gray-100 to-gray-50 rounded-lg p-6 border border-gray-200">
-        <h3 class="font-bold text-gray-900 mb-4">📞 Informações de Contato</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-                <p class="text-gray-600"><strong>Email:</strong> {{ empresa.pessoa.email|default:"—" }}</p>
-                <p class="text-gray-600"><strong>Telefone:</strong> {{ empresa.telefone_principal|default:empresa.pessoa.celular_principal|default:"—" }}</p>
-            </div>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5" class="px-4 py-10 text-center text-slate-400">
+                                <i class="fas fa-inbox text-3xl mb-2 block"></i>
+                                <p class="text-sm">Nenhuma movimentação registrada ainda</p>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
-// Atualizar data
-document.getElementById('dataAtual').textContent = new Date().toLocaleDateString('pt-BR', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-});
+    const dadosVendas = {{ chart_vendas|safe }};
+    const ctx = document.getElementById('graficoVendas');
+    if (ctx && window.Chart) {
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: dadosVendas.labels,
+                datasets: [{
+                    label: 'Vendas (R$)',
+                    data: dadosVendas.valores,
+                    backgroundColor: '#2563EB',
+                    hoverBackgroundColor: '#1D4ED8',
+                    borderRadius: 4,
+                    maxBarThickness: 28,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#0F1E36',
+                        padding: 10,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: (c) => 'R$ ' + Number(c.raw || 0).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#94A3B8', font: { size: 10 } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#F1F5F9' },
+                        ticks: {
+                            color: '#94A3B8',
+                            font: { size: 10 },
+                            callback: (v) => 'R$ ' + v
+                        }
+                    }
+                }
+            }
+        });
+    }
 </script>
 {% endblock %}
