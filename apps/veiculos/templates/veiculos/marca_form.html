@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}{% if marca %}Editar{% else %}Nova{% endif %} Marca{% endblock %}
+{% block page_title %}{% if marca %}✏️ Editar Marca{% else %}➕ Nova Marca{% endif %}{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto px-4 py-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <form method="post">
+            {% csrf_token %}
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nome da Marca <span class="text-red-500">*</span></label>
+            <input type="text" name="nome" value="{{ marca.nome|default:'' }}" required
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Ex.: Fiat, Volkswagen">
+            <div class="flex items-center gap-3 mt-6 pt-6 border-t">
+                <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold text-sm">
+                    <i class="fas fa-save mr-2"></i>Salvar
+                </button>
+                <a href="{% url 'veiculos:marca_list' %}" class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50 text-sm">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

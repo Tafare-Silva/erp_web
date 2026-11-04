@@ -40,7 +40,7 @@ class LoteNFeAdmin(admin.ModelAdmin):
 class NFeAdmin(admin.ModelAdmin):
     list_display = ['numero', 'serie', 'destinatario', 'modelo', 'status',
                     'valor_total', 'data_emissao', 'protocolo']
-    list_filter = ['status', 'modelo', 'tipo_emissao']
+    list_filter = ['status', 'modelo', 'tipo_emissao', 'tipo_operacao']
     search_fields = ['chave_acesso', 'numero', 'destinatario__nome', 'protocolo']
     date_hierarchy = 'data_emissao'
     inlines = [NFeItemInline, NFePagamentoInline, NFeEventoInline]

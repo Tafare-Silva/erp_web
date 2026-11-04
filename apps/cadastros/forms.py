@@ -3,7 +3,8 @@ Formulários customizados do módulo Cadastros.
 """
 
 from django import forms
-from apps.cadastros.models import Divisao, AgenciaBancaria, ContaBancaria, Banco, CentroCusto, PlanoContas, TipoPagamento, Pessoa, PessoaFisica, Produto
+from django.forms import inlineformset_factory
+from apps.cadastros.models import Divisao, AgenciaBancaria, ContaBancaria, Banco, CentroCusto, PlanoContas, TipoPagamento, Pessoa, PessoaFisica, Produto, ConversaoUnidade, TituloFinanceiro
 
 
 class DivisaoForm(forms.ModelForm):
@@ -410,24 +411,34 @@ class PessoaForm(forms.ModelForm):
     class Meta:
         model = Pessoa
         fields = [
-            'nome', 'cpf_cnpj', 'rg_ie', 'nome_fantasia', 'email',
-            'telefone_fixo', 'celular_principal',
+            'tipo_pessoa', 'nome', 'cpf_cnpj', 'rg_ie', 'isento_ie', 'indicador_ie',
+            'nome_fantasia', 'email', 'email_nfe', 'telefone_fixo', 'celular_principal',
             'cliente', 'fornecedor', 'funcionario', 'vendedor',
             'transportador', 'motorista', 'inativo', 'observacoes',
-            'ins_municipal', 'situacao_cadastro',
+            'ins_municipal', 'situacao_cadastro', 'consumidor_final',
+            'limite_credito', 'suframa', 'vendedor_padrao', 'condicao_pagamento_padrao',
             'somar_frete_bc_icms_st', 'somar_ipi_bc_icms_st',
             'somar_oda_bc_icms_st', 'nao_destacar_impostos_nfse',
         ]
         widgets = {
-            'nome': forms.TextInput(attrs={'style': _S}),
-            'cpf_cnpj': forms.TextInput(attrs={'style': _S_MONO}),
-            'rg_ie': forms.TextInput(attrs={'style': _S_MONO}),
-            'nome_fantasia': forms.TextInput(attrs={'style': _S}),
-            'email': forms.EmailInput(attrs={'style': _S}),
-            'telefone_fixo': forms.TextInput(attrs={'style': _S}),
-            'celular_principal': forms.TextInput(attrs={'style': _S}),
-            'observacoes': forms.Textarea(attrs={'style': _S_TA, 'rows': 3}),
-            'ins_municipal': forms.TextInput(attrs={'style': _S_MONO}),
+            'tipo_pessoa': forms.Select(attrs={'style': _S_SEL}),
+            'nome': forms.TextInput(attrs={'style': _S, 'placeholder': 'Nome completo ou Razão Social'}),
+            'cpf_cnpj': forms.TextInput(attrs={'style': _S_MONO, 'placeholder': '000.000.000-00 ou 00.000.000/0000-00'}),
+            'rg_ie': forms.TextInput(attrs={'style': _S_MONO, 'placeholder': 'RG ou Inscrição Estadual'}),
+            'isento_ie': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
+            'indicador_ie': forms.Select(attrs={'style': _S_SEL}),
+            'nome_fantasia': forms.TextInput(attrs={'style': _S, 'placeholder': 'Nome Fantasia ou Apelido'}),
+            'email': forms.EmailInput(attrs={'style': _S, 'placeholder': 'contato@email.com'}),
+            'email_nfe': forms.EmailInput(attrs={'style': _S, 'placeholder': 'nfe@email.com (para envio de XML/PDF)'}),
+            'telefone_fixo': forms.TextInput(attrs={'style': _S, 'placeholder': '(00) 0000-0000'}),
+            'celular_principal': forms.TextInput(attrs={'style': _S, 'placeholder': '(00) 90000-0000'}),
+            'observacoes': forms.Textarea(attrs={'style': _S_TA, 'rows': 3, 'placeholder': 'Observações internas sobre o cliente...'}),
+            'ins_municipal': forms.TextInput(attrs={'style': _S_MONO, 'placeholder': 'Inscrição Municipal'}),
+            'consumidor_final': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
+            'limite_credito': forms.NumberInput(attrs={'style': _S_NUM, 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+            'suframa': forms.TextInput(attrs={'style': _S_MONO, 'placeholder': 'Inscrição Suframa'}),
+            'vendedor_padrao': forms.Select(attrs={'style': _S_SEL}),
+            'condicao_pagamento_padrao': forms.TextInput(attrs={'style': _S, 'placeholder': 'Ex: À vista, 30 dias, 30/60'}),
             'cliente': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
             'fornecedor': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
             'funcionario': forms.CheckboxInput(attrs={'class': 'form-checkbox', 'x-model': 'isFuncionario'}),
@@ -470,7 +481,7 @@ class PessoaFisicaForm(forms.ModelForm):
 
 
 from django.core.exceptions import ValidationError
-from apps.cadastros.models import Produto, CodigoBarras
+from apps.cadastros.models import Produto, CodigoBarras, ConversaoUnidade, ProdutoVariacao, ProdutoCanal
 
 
 class ProdutoForm(forms.ModelForm):
@@ -486,12 +497,17 @@ class ProdutoForm(forms.ModelForm):
     class Meta:
         model = Produto
         fields = [
-            'nome', 'marca', 'divisao', 'unidade_venda', 'tipo_produto',
-            'referencia_fabrica', 'inativo',
+            'nome', 'descricao_reduzida', 'codigo', 'referencia',
+            'marca', 'divisao', 'grupo', 'fabricante', 'unidade_venda', 'tipo_produto',
+            'tipo_regulatorio', 'referencia_fabrica', 'inativo',
             'preco_venda', 'custo_referencia', 'pode_alterar_preco_venda',
             'fornecedor_principal',
-            'estoque_minimo', 'permitir_estoque_negativo', 'local_padrao',
-            'ncm', 'cest', 'origem',
+            'controla_estoque', 'controla_lote', 'controla_serie',
+            'estoque_minimo', 'ponto_reposicao', 'estoque_maximo',
+            'permitir_estoque_negativo', 'local_padrao',
+            'permite_venda', 'permite_compra',
+            'descricao', 'descricao_comercial',
+            'ncm', 'cest', 'cest_isento', 'origem',
             'cst_icms', 'cfop_venda_estadual', 'cfop_venda_interestadual',
             'aliquota_icms', 'reducao_bc_icms', 'modalidade_bc_icms',
             'aliquota_icms_st', 'aliquota_mva', 'reducao_bc_icms_st',
@@ -500,25 +516,46 @@ class ProdutoForm(forms.ModelForm):
             'cst_ipi', 'aliquota_ipi',
             'divisao_impostos_saida',
             'aplicacao', 'tamanho', 'cor', 'genero', 'colecao', 'categoria',
+            'peso_liquido', 'peso_bruto', 'comprimento', 'largura', 'altura',
+            'cubagem', 'tipo_embalagem', 'multiplo_venda', 'qtd_embalagem',
+            'prazo_separacao_dias',
+            'visibilidade', 'produto_destaque', 'seo_titulo', 'seo_descricao',
+            'palavras_chave', 'url_amigavel',
         ]
         widgets = {
             'nome': forms.TextInput(attrs={'style': _S, 'placeholder': 'Nome do produto', 'autofocus': True}),
+            'descricao_reduzida': forms.TextInput(attrs={'style': _S, 'placeholder': 'Descrição para PDV, cupom e etiquetas'}),
+            'codigo': forms.TextInput(attrs={'style': _S, 'placeholder': 'Código interno / SKU'}),
+            'referencia': forms.TextInput(attrs={'style': _S, 'placeholder': 'Referência do catálogo'}),
             'marca': forms.Select(attrs={'style': _S_SEL}),
             'divisao': forms.Select(attrs={'style': _S_SEL}),
+            'grupo': forms.TextInput(attrs={'style': _S, 'placeholder': 'Grupo'}),
+            'fabricante': forms.TextInput(attrs={'style': _S, 'placeholder': 'Fabricante'}),
             'unidade_venda': forms.Select(attrs={'style': _S_SEL}),
             'tipo_produto': forms.Select(attrs={'style': _S_SEL}),
+            'tipo_regulatorio': forms.Select(attrs={'style': _S_SEL}),
             'referencia_fabrica': forms.TextInput(attrs={'style': _S, 'placeholder': 'Código do fabricante'}),
             'inativo': forms.CheckboxInput(attrs={'style': 'width:16px;height:16px;cursor:pointer;accent-color:#dc2626;'}),
-            'preco_venda': forms.NumberInput(attrs={'style': _S_GREEN, 'step': '0.0001', 'min': '0', 'id': 'id_preco_venda'}),
-            'custo_referencia': forms.NumberInput(attrs={'style': _S_BLUE, 'step': '0.0001', 'min': '0', 'id': 'id_custo_referencia'}),
+            'preco_venda': forms.NumberInput(attrs={'style': _S_GREEN, 'step': '0.0001', 'min': '0', 'id': 'id_preco_venda', 'placeholder': '0,00'}),
+            'custo_referencia': forms.NumberInput(attrs={'style': _S_BLUE, 'step': '0.0001', 'min': '0', 'id': 'id_custo_referencia', 'placeholder': '0,00'}),
             'pode_alterar_preco_venda': forms.CheckboxInput(attrs={'style': 'width:16px;height:16px;cursor:pointer;accent-color:#2563eb;'}),
             'fornecedor_principal': forms.Select(attrs={'style': _S_SEL}),
-            'estoque_minimo': forms.NumberInput(attrs={'style': _S_NUM, 'step': '0.01', 'min': '0'}),
+            'controla_estoque': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
+            'controla_lote': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
+            'controla_serie': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
+            'estoque_minimo': forms.NumberInput(attrs={'style': _S_NUM, 'step': '0.01', 'min': '0', 'placeholder': '0,00'}),
+            'ponto_reposicao': forms.NumberInput(attrs={'style': _S_NUM, 'step': '0.01', 'min': '0', 'placeholder': '0,00'}),
+            'estoque_maximo': forms.NumberInput(attrs={'style': _S_NUM, 'step': '0.01', 'min': '0', 'placeholder': '0,00'}),
             'permitir_estoque_negativo': forms.CheckboxInput(attrs={'style': 'width:16px;height:16px;cursor:pointer;accent-color:#2563eb;'}),
             'local_padrao': forms.Select(attrs={'style': _S_SEL}),
+            'permite_venda': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
+            'permite_compra': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
+            'descricao': forms.Textarea(attrs={'style': _S_TA, 'rows': 3, 'placeholder': 'Descrição interna / técnica do produto...'}),
+            'descricao_comercial': forms.Textarea(attrs={'style': _S_TA, 'rows': 3, 'placeholder': 'Descrição comercial para orçamentos, vendas e catálogo...'}),
             # Fiscal
-            'ncm': forms.TextInput(attrs={'style': _S_MONO, 'maxlength': '8', 'placeholder': '00000000'}),
-            'cest': forms.TextInput(attrs={'style': _S_MONO, 'maxlength': '7', 'placeholder': '0000000'}),
+            'ncm': forms.TextInput(attrs={'style': _S_MONO, 'maxlength': '8', 'placeholder': 'Só números (8 dígitos)'}),
+            'cest': forms.TextInput(attrs={'style': _S_MONO, 'maxlength': '7', 'placeholder': 'Só números (7 dígitos)'}),
+            'cest_isento': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
             'origem': forms.Select(attrs={'style': _S_SEL}),
             'cst_icms': forms.TextInput(attrs={'style': _S_MONO, 'maxlength': '3', 'placeholder': 'Ex: 00, 40, 102'}),
             'cfop_venda_estadual': forms.TextInput(attrs={'style': _S_MONO, 'maxlength': '4', 'placeholder': 'Ex: 5102'}),
@@ -543,6 +580,24 @@ class ProdutoForm(forms.ModelForm):
             'genero': forms.TextInput(attrs={'style': _S, 'placeholder': 'Ex: Masculino, Feminino'}),
             'colecao': forms.TextInput(attrs={'style': _S, 'placeholder': 'Ex: Verão 2025'}),
             'categoria': forms.TextInput(attrs={'style': _S, 'placeholder': 'Ex: Calçados'}),
+            # Logística
+            'peso_liquido': forms.NumberInput(attrs={'style': _S_NUM, 'step': '0.0001', 'min': '0', 'placeholder': '0.0000'}),
+            'peso_bruto': forms.NumberInput(attrs={'style': _S_NUM, 'step': '0.0001', 'min': '0', 'placeholder': '0.0000'}),
+            'comprimento': forms.NumberInput(attrs={'style': _S_NUM, 'step': '0.0001', 'min': '0', 'placeholder': '0.0000', 'id': 'id_comprimento'}),
+            'largura': forms.NumberInput(attrs={'style': _S_NUM, 'step': '0.0001', 'min': '0', 'placeholder': '0.0000', 'id': 'id_largura'}),
+            'altura': forms.NumberInput(attrs={'style': _S_NUM, 'step': '0.0001', 'min': '0', 'placeholder': '0.0000', 'id': 'id_altura'}),
+            'cubagem': forms.NumberInput(attrs={'style': _S_NUM, 'step': '0.000001', 'min': '0', 'placeholder': '0.000000', 'id': 'id_cubagem'}),
+            'tipo_embalagem': forms.TextInput(attrs={'style': _S, 'placeholder': 'Ex: Caixa, Pacote'}),
+            'multiplo_venda': forms.NumberInput(attrs={'style': _S_NUM, 'step': '0.01', 'min': '0.01', 'placeholder': '1.00'}),
+            'qtd_embalagem': forms.NumberInput(attrs={'style': _S_NUM, 'step': '0.01', 'min': '0.01', 'placeholder': '1.00'}),
+            'prazo_separacao_dias': forms.NumberInput(attrs={'style': _S_NUM, 'step': '1', 'min': '0', 'placeholder': '0'}),
+            # Canais e Marketing
+            'visibilidade': forms.Select(attrs={'style': _S_SEL}),
+            'produto_destaque': forms.CheckboxInput(attrs={'style': 'width:16px;height:16px;cursor:pointer;accent-color:#059669;'}),
+            'seo_titulo': forms.TextInput(attrs={'style': _S, 'placeholder': 'Título exibido em lojas online e buscadores'}),
+            'seo_descricao': forms.Textarea(attrs={'style': _S_TA, 'placeholder': 'Descrição curta e atrativa do produto'}),
+            'palavras_chave': forms.TextInput(attrs={'style': _S, 'placeholder': 'Ex: tênis, corrida, esporte'}),
+            'url_amigavel': forms.TextInput(attrs={'style': _S_MONO, 'placeholder': 'tenis-runner-2025'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -570,6 +625,9 @@ class ProdutoForm(forms.ModelForm):
 
     def clean_cest(self):
         cest = self.cleaned_data.get('cest')
+        cest_isento = self.cleaned_data.get('cest_isento')
+        if cest_isento:
+            return '0000000'
         if cest:
             cest = ''.join(filter(str.isdigit, str(cest)))
             if cest and len(cest) != 7:
@@ -604,6 +662,92 @@ class ProdutoForm(forms.ModelForm):
                     if codigo and len(codigo) <= 14 and codigo.isdigit():
                         CodigoBarras.objects.get_or_create(produto=instance, codigo_barras=codigo)
         return instance
+
+
+class ConversaoUnidadeForm(forms.ModelForm):
+    class Meta:
+        model = ConversaoUnidade
+        fields = ['unidade', 'fator_conversao', 'fator_preco', 'sem_gtin', 'codigo_barras', 'sku', 'permite_compra', 'permite_venda']
+        widgets = {
+            'unidade': forms.Select(attrs={'style': _S_SEL}),
+            'fator_conversao': forms.NumberInput(attrs={'style': _S_NUM, 'step': '0.0001', 'min': '0.0001', 'placeholder': '1,0000'}),
+            'fator_preco': forms.NumberInput(attrs={'style': _S_NUM, 'step': '0.0001', 'min': '0.0001', 'placeholder': '1,0000'}),
+            'sem_gtin': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
+            'codigo_barras': forms.TextInput(attrs={'style': _S_MONO, 'maxlength': '20', 'placeholder': 'EAN / DUN'}),
+            'sku': forms.TextInput(attrs={'style': _S, 'placeholder': 'SKU'}),
+            'permite_compra': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
+            'permite_venda': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
+        }
+
+    def clean_codigo_barras(self):
+        codigo = (self.cleaned_data.get('codigo_barras') or '').strip()
+        sem_gtin = self.cleaned_data.get('sem_gtin', False)
+        if sem_gtin:
+            return None
+        if codigo and (not codigo.isdigit() or len(codigo) > 20):
+            raise forms.ValidationError('Código de barras deve conter apenas números.')
+        return codigo or None
+
+
+ConversaoUnidadeFormSet = inlineformset_factory(
+    Produto,
+    ConversaoUnidade,
+    form=ConversaoUnidadeForm,
+    fields=['unidade', 'fator_conversao', 'fator_preco', 'sem_gtin', 'codigo_barras', 'sku', 'permite_compra', 'permite_venda'],
+    extra=1,
+    can_delete=True,
+)
+
+
+class ProdutoVariacaoForm(forms.ModelForm):
+    class Meta:
+        model = ProdutoVariacao
+        fields = ['descricao', 'codigo', 'referencia', 'sku', 'codigo_barras', 'ativo', 'preco_venda', 'estoque_atual']
+        widgets = {
+            'descricao': forms.TextInput(attrs={'style': _S, 'placeholder': 'Ex: Tamanho G - Azul'}),
+            'codigo': forms.TextInput(attrs={'style': _S, 'placeholder': 'Código'}),
+            'referencia': forms.TextInput(attrs={'style': _S, 'placeholder': 'Referência'}),
+            'sku': forms.TextInput(attrs={'style': _S, 'placeholder': 'SKU'}),
+            'codigo_barras': forms.TextInput(attrs={'style': _S_MONO, 'placeholder': 'EAN / GTIN'}),
+            'ativo': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
+            'preco_venda': forms.NumberInput(attrs={'style': _S_NUM, 'step': '0.0001', 'placeholder': 'R$ 0,00'}),
+            'estoque_atual': forms.NumberInput(attrs={'style': _S_NUM, 'step': '0.01', 'placeholder': '0'}),
+        }
+
+
+ProdutoVariacaoFormSet = inlineformset_factory(
+    Produto,
+    ProdutoVariacao,
+    form=ProdutoVariacaoForm,
+    fields=['descricao', 'codigo', 'referencia', 'sku', 'codigo_barras', 'ativo', 'preco_venda', 'estoque_atual'],
+    extra=1,
+    can_delete=True,
+)
+
+
+class ProdutoCanalForm(forms.ModelForm):
+    class Meta:
+        model = ProdutoCanal
+        fields = ['canal', 'titulo', 'status', 'preco', 'unidade', 'sku_canal', 'url']
+        widgets = {
+            'canal': forms.Select(attrs={'style': _S_SEL}),
+            'titulo': forms.TextInput(attrs={'style': _S, 'placeholder': 'Título do anúncio'}),
+            'status': forms.Select(attrs={'style': _S_SEL}),
+            'preco': forms.NumberInput(attrs={'style': _S_NUM, 'step': '0.0001', 'placeholder': 'R$ 0,00'}),
+            'unidade': forms.TextInput(attrs={'style': _S, 'placeholder': 'Padrão'}),
+            'sku_canal': forms.TextInput(attrs={'style': _S, 'placeholder': 'SKU no canal'}),
+            'url': forms.TextInput(attrs={'style': _S, 'placeholder': 'https://...'}),
+        }
+
+
+ProdutoCanalFormSet = inlineformset_factory(
+    Produto,
+    ProdutoCanal,
+    form=ProdutoCanalForm,
+    fields=['canal', 'titulo', 'status', 'preco', 'unidade', 'sku_canal', 'url'],
+    extra=1,
+    can_delete=True,
+)
 
 
 class EmpresaForm(forms.ModelForm):
@@ -700,3 +844,47 @@ class EmpresaForm(forms.ModelForm):
             self.fields['centro_custo_venda'].initial = 1
             self.fields['centro_custo_compra'].initial = 1
             self.fields['plano_contas_receita_compra'].initial = 1
+
+
+class TituloFinanceiroForm(forms.ModelForm):
+    """
+    Formulário para lançamento individual e edição de Títulos a Pagar e a Receber.
+    """
+    class Meta:
+        model = TituloFinanceiro
+        fields = [
+            'tipo', 'pessoa', 'numero_documento', 'data_emissao', 'data_vencimento',
+            'valor_documento', 'tipo_pagamento', 'plano_contas', 'centro_custo',
+            'conta_bancaria', 'historico', 'situacao'
+        ]
+        widgets = {
+            'tipo': forms.Select(attrs={'style': _S_SEL}),
+            'pessoa': forms.Select(attrs={'style': _S_SEL}),
+            'numero_documento': forms.TextInput(attrs={'style': _S, 'placeholder': 'Ex: NF-1234, BOL-987'}),
+            'data_emissao': forms.DateInput(attrs={'style': _S, 'type': 'date'}),
+            'data_vencimento': forms.DateInput(attrs={'style': _S, 'type': 'date'}),
+            'valor_documento': forms.NumberInput(attrs={'style': _S_NUM, 'step': '0.01', 'min': '0.01', 'placeholder': '0.00'}),
+            'tipo_pagamento': forms.Select(attrs={'style': _S_SEL}),
+            'plano_contas': forms.Select(attrs={'style': _S_SEL}),
+            'centro_custo': forms.Select(attrs={'style': _S_SEL}),
+            'conta_bancaria': forms.Select(attrs={'style': _S_SEL}),
+            'situacao': forms.Select(attrs={'style': _S_SEL}),
+            'historico': forms.Textarea(attrs={'style': _S_TA, 'rows': 3, 'placeholder': 'Observações, contrato ou detalhes...'}),
+        }
+
+    def __init__(self, *args, tipo=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        t = tipo or (self.instance.tipo if self.instance.pk else None)
+        if t:
+            self.fields['tipo'].initial = t
+            if t == 'P':
+                self.fields['pessoa'].queryset = Pessoa.objects.filter(fornecedor=True).order_by('nome')
+                self.fields['plano_contas'].queryset = PlanoContas.objects.filter(tipo_conta__in=['D', 'A']).order_by('codigo')
+            elif t == 'R':
+                self.fields['pessoa'].queryset = Pessoa.objects.filter(cliente=True).order_by('nome')
+                self.fields['plano_contas'].queryset = PlanoContas.objects.filter(tipo_conta__in=['R', 'A']).order_by('codigo')
+        self.fields['pessoa'].empty_label = "Selecione o parceiro..."
+        self.fields['tipo_pagamento'].empty_label = "Selecione a forma de pagamento..."
+        self.fields['plano_contas'].empty_label = "Selecione a categoria contábil..."
+        self.fields['centro_custo'].empty_label = "Selecione o centro de custo..."
+        self.fields['conta_bancaria'].empty_label = "Selecione a conta bancária..."

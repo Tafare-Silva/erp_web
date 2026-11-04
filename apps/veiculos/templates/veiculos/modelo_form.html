@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}{% if modelo %}Editar{% else %}Novo{% endif %} Modelo{% endblock %}
+{% block page_title %}{% if modelo %}✏️ Editar Modelo{% else %}➕ Novo Modelo{% endif %}{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto px-4 py-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <form method="post">
+            {% csrf_token %}
+            <label class="block text-sm font-medium text-gray-700 mb-1">Marca <span class="text-red-500">*</span></label>
+            <select name="marca" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4">
+                <option value="">Selecione...</option>
+                {% for m in marcas %}
+                <option value="{{ m.pk }}"
+                    {% if modelo and modelo.marca_id == m.pk %}selected{% endif %}
+                    {% if marca_id == m.pk %}selected{% endif %}>
+                    {{ m.nome }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nome do Modelo <span class="text-red-500">*</span></label>
+            <input type="text" name="nome" value="{{ modelo.nome|default:'' }}" required
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4" placeholder="Ex.: Uno, Gol">
+
+            <label class="block text-sm font-medium text-gray-700 mb-1">Ano do Modelo</label>
+            <input type="number" name="ano_modelo" value="{{ modelo.ano_modelo|default:'' }}"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Ex.: 2020">
+
+            <div class="flex items-center gap-3 mt-6 pt-6 border-t">
+                <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold text-sm">
+                    <i class="fas fa-save mr-2"></i>Salvar
+                </button>
+                <a href="{% url 'veiculos:modelo_list' %}" class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50 text-sm">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

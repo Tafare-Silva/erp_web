@@ -1,0 +1,163 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Recibo de Crediário</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #111; background: #fff; }
+    .container { width: 100%; max-width: 760px; margin: 0 auto; padding: 20px; }
+    .header { text-align: center; border-bottom: 2px dashed #333; padding-bottom: 12px; margin-bottom: 12px; }
+    .header h1 { font-size: 18px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
+    .header p { font-size: 11px; color: #444; line-height: 1.4; }
+    .comprovante-badge { display: inline-block; margin-top: 8px; font-size: 13px; font-weight: bold; letter-spacing: 1px; border: 1px solid #333; padding: 2px 10px; border-radius: 4px; }
+    .section { margin: 12px 0; padding: 8px 0; border-bottom: 1px dashed #ccc; }
+    .section h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #555; margin-bottom: 6px; }
+    .row { display: flex; justify-content: space-between; margin: 3px 0; font-size: 12px; }
+    .row .label { color: #555; }
+    .row .value { font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 11px; }
+    th { text-align: left; border-bottom: 1px solid #333; padding: 6px 4px; font-size: 10px; text-transform: uppercase; }
+    td { padding: 6px 4px; border-bottom: 1px dashed #eee; vertical-align: middle; }
+    .total-box { background: #111; color: #fff; padding: 12px 16px; margin-top: 14px; border-radius: 6px; }
+    .total-box .label { font-size: 11px; text-transform: uppercase; opacity: 0.85; }
+    .total-box .amount { font-size: 22px; font-weight: bold; margin-top: 2px; }
+    .saldo-box { border: 1px solid #cbd5e1; padding: 10px 16px; margin-top: 10px; border-radius: 6px; background: #f8fafc; }
+    .footer { text-align: center; margin-top: 20px; font-size: 10px; color: #777; line-height: 1.5; }
+    @media print {
+      body { font-size: 11px; }
+      .no-print { display: none !important; }
+      @page { margin: 8mm; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Botões de ação (não impressos) -->
+  <div class="no-print" style="margin-bottom:16px; display:flex; gap:8px;">
+    <button onclick="window.print()" style="background:#4f46e5;color:#fff;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:bold;">
+      🖨️ Imprimir Recibo
+    </button>
+    <button onclick="window.close()" style="background:#6b7280;color:#fff;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:13px;">
+      ✕ Fechar
+    </button>
+  </div>
+
+  <!-- Cabeçalho empresa -->
+  <div class="header">
+    {% if empresa %}
+      <h1>{{ empresa.nome_fantasia|default:empresa.razao_social }}</h1>
+      {% if empresa.cnpj %}<p>CNPJ: {{ empresa.cnpj }}</p>{% endif %}
+      {% if empresa.endereco %}<p>{{ empresa.endereco }}{% if empresa.cidade %} — {{ empresa.cidade }}{% endif %}</p>{% endif %}
+      {% if empresa.telefone %}<p>Tel: {{ empresa.telefone }}</p>{% endif %}
+    {% else %}
+      <h1>RECIBO DE CREDIÁRIO</h1>
+    {% endif %}
+    <div><span class="comprovante-badge">COMPROVANTE DE PAGAMENTO</span></div>
+    <p style="font-size:10px;color:#666;margin-top:6px;">
+      Emissão: {{ data_hora|date:"d/m/Y H:i" }} | Operador: {{ operador.get_full_name|default:operador.username }}
+    </p>
+  </div>
+
+  <!-- Dados do cliente -->
+  <div class="section">
+    <h3>Dados do Cliente</h3>
+    <div class="row"><span class="label">Cliente:</span><span class="value">{{ cliente.nome }}</span></div>
+    {% if cliente.cpf_cnpj %}<div class="row"><span class="label">CPF/CNPJ:</span><span class="value">{{ cliente.cpf_cnpj }}</span></div>{% endif %}
+    {% if cliente.celular_principal %}<div class="row"><span class="label">Telefone:</span><span class="value">{{ cliente.celular_principal }}</span></div>{% endif %}
+  </div>
+
+  <!-- Parcelas quitadas / abatidas -->
+  <div class="section">
+    <h3>Títulos / Parcelas Recebidas</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Documento</th>
+          <th>Parcela</th>
+          <th>Vencimento</th>
+          <th style="text-align:right;">Valor Doc.</th>
+          <th style="text-align:right;">Saldo Restante</th>
+          <th style="text-align:center;">Situação</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in titulos %}
+        <tr>
+          <td><strong>{{ t.numero_documento }}</strong></td>
+          <td>{{ t.parcela }}/{{ t.total_parcelas }}</td>
+          <td>{{ t.data_vencimento|date:"d/m/Y" }}</td>
+          <td style="text-align:right;">R$ {{ t.valor_documento|floatformat:2 }}</td>
+          <td style="text-align:right; font-weight:bold;">
+            {% if t.valor_saldo > 0 %}
+              <span style="color:#b91c1c;">R$ {{ t.valor_saldo|floatformat:2 }}</span>
+            {% else %}
+              <span style="color:#15803d;">R$ 0,00</span>
+            {% endif %}
+          </td>
+          <td style="text-align:center;">
+            {% if t.situacao == 'PAGO' %}
+              <span style="color:#15803d;font-weight:bold;">[QUITADO]</span>
+            {% elif t.situacao == 'PARCIAL' %}
+              <span style="color:#b45309;font-weight:bold;">[PARCIAL]</span>
+            {% else %}
+              <span>{{ t.get_situacao_display }}</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Forma de pagamento -->
+  {% if forma_pagamento %}
+  <div class="section">
+    <div class="row"><span class="label">Forma de Pagamento:</span><span class="value">{{ forma_pagamento.tipo_pagamento }}</span></div>
+    <div class="row"><span class="label">Data de Quitação:</span><span class="value">{{ data_hora|date:"d/m/Y" }}</span></div>
+  </div>
+  {% endif %}
+
+  <!-- Total recebido nesta operação -->
+  <div class="total-box">
+    <div class="label">TOTAL RECEBIDO NESTA OPERAÇÃO</div>
+    <div class="amount">R$ {{ total_pago|floatformat:2 }}</div>
+  </div>
+
+  <!-- Saldo devedor restante -->
+  {% if saldo_devedor_restante > 0 %}
+  <div class="saldo-box">
+    <div class="row">
+      <span class="label">Parcelas pendentes no cadastro:</span>
+      <span class="value">{{ parcelas_restantes }}</span>
+    </div>
+    <div class="row" style="margin-top:4px;">
+      <span class="label">Saldo devedor restante no crediário:</span>
+      <span class="value" style="color:#b91c1c; font-size:13px;">R$ {{ saldo_devedor_restante|floatformat:2 }}</span>
+    </div>
+  </div>
+  {% else %}
+  <div class="saldo-box" style="background:#f0fdf4;border-color:#86efac;text-align:center;">
+    <p style="font-weight:bold;color:#15803d;font-size:12px;">✓ PARABÉNS! SEU CREDIÁRIO ESTÁ TOTALMENTE QUITADO</p>
+  </div>
+  {% endif %}
+
+  <!-- Assinaturas -->
+  <div style="display:flex;justify-content:space-between;margin-top:36px;padding-top:14px;border-top:1px dashed #333;">
+    <div style="text-align:center;width:45%;">
+      <div style="border-top:1px solid #111;padding-top:4px;font-size:10px;">Assinatura do Cliente</div>
+    </div>
+    <div style="text-align:center;width:45%;">
+      <div style="border-top:1px solid #111;padding-top:4px;font-size:10px;">Assinatura do Responsável</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>Documento emitido eletronicamente em {{ data_hora|date:"d/m/Y" }} às {{ data_hora|date:"H:i:s" }}</p>
+    <p>Guarde este comprovante para seu controle e conferência.</p>
+  </div>
+</div>
+</body>
+</html>

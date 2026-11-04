@@ -14,6 +14,7 @@ urlpatterns = [
     path('cadastros/', include('apps.cadastros.urls')),
     path('estoque/', include('apps.estoque.urls')),
     path('fiscal/', include('apps.fiscal.urls')),
+    path('veiculos/', include('apps.veiculos.urls')),
     path('', include('apps.core.urls')),  # Home e páginas gerais
 ]
 

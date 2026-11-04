@@ -28,7 +28,8 @@ from django.utils import timezone
 
 from apps.cadastros.models import (
     Empresa, Pessoa, Produto, MovimentacaoEstoque,
-    ItemMovimentacaoEstoque, TipoPagamento, EnderecoPessoa
+    ItemMovimentacaoEstoque, TipoPagamento, EnderecoPessoa,
+    TituloFinanceiro
 )
 from .models import (
     CertificadoDigital, NFe, NFeItem, NFePagamento,
@@ -258,6 +259,41 @@ SEFAZ_POR_UF = {
     },
 }
 
+SEFAZ_NFCE_POR_UF = {
+    'PR': {
+        'H': {
+            'autorizacao': 'https://homologacao.nfce.sefa.pr.gov.br/nfce/NFeAutorizacao4?wsdl',
+            'retorno': 'https://homologacao.nfce.sefa.pr.gov.br/nfce/NFeRetAutorizacao4?wsdl',
+            'consulta': 'https://homologacao.nfce.sefa.pr.gov.br/nfce/NFeConsultaProtocolo4?wsdl',
+            'evento': 'https://homologacao.nfce.sefa.pr.gov.br/nfce/NFeRecepcaoEvento4?wsdl',
+            'status': 'https://homologacao.nfce.sefa.pr.gov.br/nfce/NFeStatusServico4?wsdl',
+        },
+        'P': {
+            'autorizacao': 'https://nfce.sefa.pr.gov.br/nfce/NFeAutorizacao4?wsdl',
+            'retorno': 'https://nfce.sefa.pr.gov.br/nfce/NFeRetAutorizacao4?wsdl',
+            'consulta': 'https://nfce.sefa.pr.gov.br/nfce/NFeConsultaProtocolo4?wsdl',
+            'evento': 'https://nfce.sefa.pr.gov.br/nfce/NFeRecepcaoEvento4?wsdl',
+            'status': 'https://nfce.sefa.pr.gov.br/nfce/NFeStatusServico4?wsdl',
+        },
+    },
+    'SP': {
+        'H': {
+            'autorizacao': 'https://homologacao.nfce.fazenda.sp.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
+            'retorno': 'https://homologacao.nfce.fazenda.sp.gov.br/ws/NFeRetAutorizacao4.asmx?wsdl',
+            'consulta': 'https://homologacao.nfce.fazenda.sp.gov.br/ws/NFeConsultaProtocolo4.asmx?wsdl',
+            'evento': 'https://homologacao.nfce.fazenda.sp.gov.br/ws/NFeRecepcaoEvento4.asmx?wsdl',
+            'status': 'https://homologacao.nfce.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx?wsdl',
+        },
+        'P': {
+            'autorizacao': 'https://nfce.fazenda.sp.gov.br/ws/NFeAutorizacao4.asmx?wsdl',
+            'retorno': 'https://nfce.fazenda.sp.gov.br/ws/NFeRetAutorizacao4.asmx?wsdl',
+            'consulta': 'https://nfce.fazenda.sp.gov.br/ws/NFeConsultaProtocolo4.asmx?wsdl',
+            'evento': 'https://nfce.fazenda.sp.gov.br/ws/NFeRecepcaoEvento4.asmx?wsdl',
+            'status': 'https://nfce.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx?wsdl',
+        },
+    },
+}
+
 
 class _NFeSigner(XMLSigner):
     def check_deprecated_methods(self):
@@ -392,10 +428,10 @@ class NFeService:
         NFeService._add_tag(ide, 'nNF', str(nfe.numero))
         local_dt = timezone.localtime(nfe.data_emissao)
         NFeService._add_tag(ide, 'dhEmi', local_dt.isoformat(timespec='seconds'))
-        NFeService._add_tag(ide, 'tpNF', '1')
+        NFeService._add_tag(ide, 'tpNF', str(nfe.tipo_operacao or 1))
         NFeService._add_tag(ide, 'idDest', '1')
         NFeService._add_tag(ide, 'cMunFG', c_mun_fg)
-        NFeService._add_tag(ide, 'tpImp', '1')
+        NFeService._add_tag(ide, 'tpImp', '4' if str(nfe.modelo) == '65' else '1')
         NFeService._add_tag(ide, 'tpEmis', str(nfe.tipo_emissao))
         NFeService._add_tag(ide, 'cDV', nfe.chave_acesso[-1])
         NFeService._add_tag(ide, 'tpAmb', AMBIENTE_NFE.get(empresa.ambiente_destino, '2'))
@@ -474,11 +510,36 @@ class NFeService:
             det.append(prod)
             NFeService._add_tag(prod, 'cProd', str(item.codigo_produto)[:60])
             NFeService._add_tag(prod, 'cEAN', item.ean if item.ean else 'SEM GTIN')
-            NFeService._add_tag(prod, 'xProd', item.nome[:120])
-            NFeService._add_tag(prod, 'NCM', item.ncm or '00000000')
+            nome_prod = item.nome[:120]
+            if is_homolog and str(nfe.modelo) == '65' and item.numero_item == 1:
+                nome_prod = 'NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL'
+            NFeService._add_tag(prod, 'xProd', nome_prod)
+            ncm_item = item.ncm
+            cfop_item = item.cfop
+            origem_item = item.origem or '0'
+            cst_icms_item = item.cst_icms
+            csosn_item = item.csosn
+            aliq_icms_item = item.aliquota_icms
+            cst_pis_item = item.cst_pis
+            aliq_pis_item = item.aliquota_pis
+            cst_cofins_item = item.cst_cofins
+            aliq_cofins_item = item.aliquota_cofins
+            if item.veiculo_id:
+                veic = item.veiculo
+                ncm_item = veic.ncm or ncm_item
+                cfop_item = veic.cfop or cfop_item
+                origem_item = veic.origem or origem_item
+                cst_icms_item = veic.cst_icms or cst_icms_item
+                csosn_item = veic.csosn or csosn_item
+                aliq_icms_item = veic.aliquota_icms or aliq_icms_item
+                cst_pis_item = veic.cst_pis or cst_pis_item
+                aliq_pis_item = veic.aliquota_pis or aliq_pis_item
+                cst_cofins_item = veic.cst_cofins or cst_cofins_item
+                aliq_cofins_item = veic.aliquota_cofins or aliq_cofins_item
+            NFeService._add_tag(prod, 'NCM', ncm_item or '00000000')
             if item.cest and item.cest != '0000000':
                 NFeService._add_tag(prod, 'CEST', item.cest)
-            NFeService._add_tag(prod, 'CFOP', item.cfop)
+            NFeService._add_tag(prod, 'CFOP', cfop_item)
             NFeService._add_tag(prod, 'uCom', item.unidade or 'UN')
             NFeService._add_tag(prod, 'qCom', str(item.quantidade))
             NFeService._add_tag(prod, 'vUnCom', f'{item.valor_unitario:.6f}')
@@ -489,35 +550,39 @@ class NFeService:
             NFeService._add_tag(prod, 'vUnTrib', f'{item.valor_unitario:.6f}')
             NFeService._add_tag(prod, 'indTot', '1')
 
+            if item.veiculo_id:
+                NFeService._add_veic_prod(prod, item.veiculo, nfe.tipo_operacao)
+
             imposto = NFeService._tag('imposto')
             det.append(imposto)
 
             icms = NFeService._tag('ICMS')
             imposto.append(icms)
             if empresa.crt_nfe in (1, 2):
-                csosn = item.csosn or '102'
+                csosn = csosn_item or '102'
                 icms_tag = NFeService._tag(f'ICMSSN{csosn}')
                 icms.append(icms_tag)
-                NFeService._add_tag(icms_tag, 'orig', item.origem or '0')
+                NFeService._add_tag(icms_tag, 'orig', origem_item)
                 NFeService._add_tag(icms_tag, 'CSOSN', csosn)
                 if csosn in ('101', '201', '202', '203'):
                     NFeService._add_tag(icms_tag, 'pCredSN', '0.00')
                     NFeService._add_tag(icms_tag, 'vCredICMSSN', NFeService._fmt_decimal(item.valor_icms))
             else:
-                cst = item.cst_icms or '00'
+                cst = cst_icms_item or '00'
                 icms_tag = NFeService._tag(f'ICMS{cst}')
                 icms.append(icms_tag)
-                NFeService._add_tag(icms_tag, 'orig', item.origem or '0')
+                NFeService._add_tag(icms_tag, 'orig', origem_item)
                 NFeService._add_tag(icms_tag, 'CST', cst)
                 if cst in ('00', '10', '20', '70', '90'):
                     NFeService._add_tag(icms_tag, 'modBC', '3')
                     NFeService._add_tag(icms_tag, 'vBC', str(item.base_calculo_icms))
-                    NFeService._add_tag(icms_tag, 'pICMS', f'{item.aliquota_icms:.2f}')
+                    NFeService._add_tag(icms_tag, 'pICMS', f'{aliq_icms_item:.2f}')
                     NFeService._add_tag(icms_tag, 'vICMS', NFeService._fmt_decimal(item.valor_icms))
 
-            for imp_tipo, prefix in [('PIS', 'pis'), ('COFINS', 'cofins')]:
-                cst_val = getattr(item, f'cst_{prefix}', '')
-                aliq = getattr(item, f'aliquota_{prefix}', Decimal('0'))
+            for imp_tipo, prefix, cst_val, aliq in [
+                ('PIS', 'pis', cst_pis_item, aliq_pis_item),
+                ('COFINS', 'cofins', cst_cofins_item, aliq_cofins_item),
+            ]:
                 bc = getattr(item, f'base_calculo_{prefix}', Decimal('0'))
                 valor = getattr(item, f'valor_{prefix}', Decimal('0'))
                 imp_elem = NFeService._tag(imp_tipo)
@@ -614,19 +679,25 @@ class NFeService:
         # ---- pag ----
         pag = NFeService._tag('pag')
         infNFe.append(pag)
-        pagamentos = nfe.pagamentos.all()
+        pagamentos = list(nfe.pagamentos.all())
         if not pagamentos:
             det_pag = NFeService._tag('detPag')
             pag.append(det_pag)
-            NFeService._add_tag(det_pag, 'tPag', '90')
-            NFeService._add_tag(det_pag, 'vPag', NFeService._fmt_decimal(Decimal('0.00')))
+            NFeService._add_tag(det_pag, 'indPag', '0')
+            NFeService._add_tag(det_pag, 'tPag', '01' if (nfe.valor_total or 0) > 0 else '90')
+            NFeService._add_tag(det_pag, 'vPag', NFeService._fmt_decimal(nfe.valor_total or Decimal('0.00')))
         else:
-            for pgto in pagamentos:
+            total_pgto = sum(p.valor for p in pagamentos)
+            for idx, pgto in enumerate(pagamentos):
                 det_pag = NFeService._tag('detPag')
                 pag.append(det_pag)
                 NFeService._add_tag(det_pag, 'indPag', '0')
                 NFeService._add_tag(det_pag, 'tPag', str(pgto.forma_pagamento).zfill(2))
-                NFeService._add_tag(det_pag, 'vPag', NFeService._fmt_decimal(pgto.valor))
+                if idx == len(pagamentos) - 1 and total_pgto != nfe.valor_total and (nfe.valor_total or 0) > 0:
+                    v_ajustado = pgto.valor + (nfe.valor_total - total_pgto)
+                    NFeService._add_tag(det_pag, 'vPag', NFeService._fmt_decimal(max(Decimal('0.00'), v_ajustado)))
+                else:
+                    NFeService._add_tag(det_pag, 'vPag', NFeService._fmt_decimal(pgto.valor))
 
         # ---- infAdic ----
         if nfe.informacoes_adicionais:
@@ -634,24 +705,86 @@ class NFeService:
             infNFe.append(inf_adc)
             NFeService._add_tag(inf_adc, 'infCpl', nfe.informacoes_adicionais[:5000])
 
-        # ---- infRespTec ----
-        if empresa.resp_tec_cnpj:
+        # ---- infRespTec (Opcional - só deve ser enviado se houver CSRT configurado, caso contrário SEFAZ-PR rejeita 972) ----
+        if empresa.resp_tec_cnpj and empresa.resp_tec_csrt and empresa.resp_tec_csrt_id:
             resp_tec = NFeService._tag('infRespTec')
             infNFe.append(resp_tec)
             NFeService._add_tag(resp_tec, 'CNPJ', NFeService._formatar_cnpj(empresa.resp_tec_cnpj))
-            NFeService._add_tag(resp_tec, 'xContato', empresa.resp_tec_contato[:60])
-            NFeService._add_tag(resp_tec, 'email', empresa.resp_tec_email[:60])
-            NFeService._add_tag(resp_tec, 'fone', NFeService._formatar_telefone(empresa.resp_tec_fone))
-            if empresa.resp_tec_csrt_id and empresa.resp_tec_csrt:
-                csrt_data = (empresa.resp_tec_csrt + NFeService._formatar_cnpj(empresa.resp_tec_cnpj) + nfe.chave_acesso).encode('utf-8')
-                hash_csrt = hashlib.sha1(csrt_data).hexdigest().upper()
-                NFeService._add_tag(resp_tec, 'idCSRT', empresa.resp_tec_csrt_id)
-                NFeService._add_tag(resp_tec, 'hashCSRT', hash_csrt)
+            NFeService._add_tag(resp_tec, 'xContato', (empresa.resp_tec_contato or 'Suporte')[:60])
+            NFeService._add_tag(resp_tec, 'email', (empresa.resp_tec_email or 'suporte@empresa.com')[:60])
+            NFeService._add_tag(resp_tec, 'fone', NFeService._formatar_telefone(empresa.resp_tec_fone or '0000000000'))
+            csrt_data = (empresa.resp_tec_csrt + nfe.chave_acesso).encode('utf-8')
+            hash_csrt = base64.b64encode(hashlib.sha1(csrt_data).digest()).decode('ascii')
+            NFeService._add_tag(resp_tec, 'idCSRT', str(empresa.resp_tec_csrt_id).zfill(2))
+            NFeService._add_tag(resp_tec, 'hashCSRT', hash_csrt)
+
+    @staticmethod
+    def _add_veic_prod(prod, veiculo, tipo_operacao):
+        """
+        Gera o grupo veicProd (obrigatório na venda/compra de automóveis).
+        Recebe o objeto Veiculo (apps.veiculos) e o tipo de operação.
+        """
+        veic = NFeService._tag('veicProd')
+        prod.append(veic)
+
+        # tpOp: 1=venda, 2=compra (entrada), 3=transferência, 4=devolução, 5=consignação
+        NFeService._add_tag(veic, 'tpOp', str(tipo_operacao or 1))
+        NFeService._add_tag(veic, 'chassi', veiculo.chassi)
+        NFeService._add_tag(veic, 'cCor', '99')
+        NFeService._add_tag(veic, 'xCor', (veiculo.cor or 'INDEFINIDA')[:40])
+        NFeService._add_tag(veic, 'pot', (veiculo.potencia or '0')[:4])
+        NFeService._add_tag(veic, 'cilin', (veiculo.cilindradas or '0')[:4])
+        NFeService._add_tag(veic, 'pesoL', (veiculo.peso_liquido or '0')[:9])
+        NFeService._add_tag(veic, 'pesoB', (veiculo.peso_bruto or '0')[:9])
+        NFeService._add_tag(veic, 'nSerie', veiculo.chassi)
+        NFeService._add_tag(veic, 'tpComb', veiculo.get_tp_comb_fiscal())
+        NFeService._add_tag(veic, 'nMotor', (veiculo.motor or '')[:21])
+        NFeService._add_tag(veic, 'CMT', '0.00')
+        NFeService._add_tag(veic, 'dist', '0')
+        NFeService._add_tag(veic, 'anoMod', str(veiculo.ano_modelo or ''))
+        NFeService._add_tag(veic, 'anoFab', str(veiculo.ano_fabricacao or ''))
+        NFeService._add_tag(veic, 'tpPint', '2')
+        NFeService._add_tag(veic, 'tpVeic', veiculo.get_tp_veic())
+        NFeService._add_tag(veic, 'espVeic', veiculo.get_esp_veic())
+        NFeService._add_tag(veic, 'VIN', veiculo.chassi)
+        NFeService._add_tag(veic, 'condVeic', '3')
+        NFeService._add_tag(veic, 'cMod', (veiculo.codigo_modelo or '0')[:21])
+        NFeService._add_tag(veic, 'capacidade', (veiculo.capacidade or '0')[:9])
+        NFeService._add_tag(veic, 'restricao', '0')
+        NFeService._add_tag(veic, 'cst', '0')
+        if veiculo.carroceria:
+            NFeService._add_tag(veic, 'ccOr', veiculo.get_cc_or())
+        if veiculo.cor:
+            NFeService._add_tag(veic, 'xLar', veiculo.cor[:60])
+        if veiculo.combustivel:
+            NFeService._add_tag(veic, 'combustivel', veiculo.get_combustivel_fiscal())
+        if veiculo.renavam:
+            NFeService._add_tag(veic, 'renavam', veiculo.renavam)
+
+    @staticmethod
+    def _gerar_url_qrcode_nfce(nfe):
+        empresa = nfe.empresa
+        csc = (empresa.csc or '').strip()
+        csc_id = str(empresa.csc_id or '1').strip().lstrip('0') or '1'
+        tp_amb = AMBIENTE_NFE.get(empresa.ambiente_destino, '2')
+        base_url = 'http://www.fazenda.pr.gov.br/nfce/qrcode'
+        if empresa.uf_web_service_nfe == 'SP':
+            base_url = 'https://www.nfce.fazenda.sp.gov.br/qrcode'
+        dados = f'{nfe.chave_acesso}|2|{tp_amb}|{csc_id}'
+        to_hash = f'{dados}{csc}'.encode('utf-8')
+        c_hash = hashlib.sha1(to_hash).hexdigest()
+        return f'{base_url}?p={dados}|{c_hash}'
 
     @staticmethod
     def gerar_xml_nfe(nfe):
         root = etree.Element(f'{{{NS_NFE}}}NFe', nsmap={None: NS_NFE})
         NFeService._build_nfe_content(nfe, root)
+        if str(nfe.modelo) == '65':
+            supl = etree.SubElement(root, f'{{{NS_NFE}}}infNFeSupl')
+            qr_elem = etree.SubElement(supl, f'{{{NS_NFE}}}qrCode')
+            qr_elem.text = etree.CDATA(NFeService._gerar_url_qrcode_nfce(nfe))
+            url_chave = etree.SubElement(supl, f'{{{NS_NFE}}}urlChave')
+            url_chave.text = 'http://www.fazenda.pr.gov.br/nfce/consulta'
         return etree.tostring(root, pretty_print=False, xml_declaration=True, encoding='UTF-8')
 
     @staticmethod
@@ -728,6 +861,32 @@ class NFeService:
                     aliquota_icms=prod.aliquota_icms or 0,
                     base_calculo_icms=abs(item_mov.vr_total_bruto or 0),
                     valor_icms=abs(item_mov.vr_total_bruto or 0) * (prod.aliquota_icms or 0) / 100,
+                )
+
+            # Criar pagamentos a partir dos títulos financeiros ou padrão à vista
+            tipo_padrao = TipoPagamento.objects.filter(forma_pagamento_nfe=1).first() or TipoPagamento.objects.first()
+            titulos = TituloFinanceiro.objects.filter(movimentacao_estoque=mov)
+            if titulos.exists():
+                for t in titulos:
+                    tipo_pg = t.tipo_pagamento or tipo_padrao
+                    codigo_sefaz = 1
+                    if tipo_pg and tipo_pg.forma_pagamento_nfe:
+                        try:
+                            codigo_sefaz = int(tipo_pg.forma_pagamento_nfe)
+                        except (ValueError, TypeError):
+                            codigo_sefaz = 1
+                    NFePagamento.objects.create(
+                        nfe=nfe,
+                        tipo_pagamento=tipo_pg,
+                        forma_pagamento=codigo_sefaz,
+                        valor=abs(t.valor_documento or 0)
+                    )
+            else:
+                NFePagamento.objects.create(
+                    nfe=nfe,
+                    tipo_pagamento=tipo_padrao,
+                    forma_pagamento=1,  # Dinheiro
+                    valor=v_prod
                 )
 
             xml_bytes = NFeService.gerar_xml_nfe(nfe)
@@ -841,11 +1000,14 @@ class NFeService:
     # ===================== SEFAZ SOAP =====================
 
     @staticmethod
-    def _get_sefaz_urls(empresa):
+    def _get_sefaz_urls(empresa, modelo='55'):
         ambiente = empresa.ambiente_destino
         uf = empresa.uf_web_service_nfe
-        urls_por_uf = SEFAZ_POR_UF.get(uf) or SEFAZ_POR_UF['DEFAULT']
-        return urls_por_uf.get(ambiente, urls_por_uf['H'])
+        if str(modelo) == '65' and uf in SEFAZ_NFCE_POR_UF:
+            urls_por_uf = SEFAZ_NFCE_POR_UF[uf]
+        else:
+            urls_por_uf = SEFAZ_POR_UF.get(uf) or SEFAZ_POR_UF['DEFAULT']
+        return urls_por_uf.get(ambiente, urls_por_uf.get('H'))
 
     @staticmethod
     def _enviar_soap(wsdl_url, soap_action, xml_bytes, empresa):
@@ -895,10 +1057,29 @@ class NFeService:
         if not empresa.certificado_digital:
             raise ValueError('Vincule um certificado digital à empresa em Cadastros > Empresa')
 
+        # Atualiza data de emissão para o horário atual se tiver mais de 3 minutos de diferença
+        agora = timezone.now()
+        campos_update = []
+        if nfe.status not in ('AUTORIZADO', 'CANCELADO'):
+            if abs((agora - nfe.data_emissao).total_seconds()) > 180:
+                mes_ant = nfe.data_emissao.month
+                ano_ant = nfe.data_emissao.year
+                nfe.data_emissao = agora
+                campos_update.append('data_emissao')
+                if mes_ant != agora.month or ano_ant != agora.year:
+                    cnf_val = nfe.chave_acesso[35:43] if len(nfe.chave_acesso) >= 43 else NFeService.gerar_cnf()
+                    nfe.chave_acesso = NFeService.gerar_chave_acesso(
+                        empresa, agora.year, agora.month,
+                        empresa.pessoa.cpf_cnpj, nfe.modelo, nfe.serie, nfe.numero, nfe.tipo_emissao, cnf_val
+                    )
+                    campos_update.append('chave_acesso')
+                if campos_update:
+                    nfe.save(update_fields=campos_update)
+
         nfe.xml_enviado = NFeService.gerar_xml_nfe(nfe).decode('utf-8')
         lote_xml = NFeService.montar_lote_nfe(nfe)
 
-        urls = NFeService._get_sefaz_urls(empresa)
+        urls = NFeService._get_sefaz_urls(empresa, nfe.modelo)
         lote, _ = LoteNFe.objects.get_or_create(
             empresa=empresa,
             numero_lote=nfe.pk,
@@ -1009,7 +1190,7 @@ class NFeService:
         evento_assinado = NFeService.assinar_xml(evento_xml, empresa)
         lote_evento = NFeService._montar_lote_evento(evento_assinado, nfe)
 
-        urls = NFeService._get_sefaz_urls(empresa)
+        urls = NFeService._get_sefaz_urls(empresa, nfe.modelo)
         try:
             response = NFeService._enviar_soap(
                 urls['evento'],
@@ -1108,7 +1289,7 @@ class NFeService:
         etree.SubElement(cons, f'{{{NS_NFE}}}chNFe').text = nfe.chave_acesso
         xml_consulta = etree.tostring(cons, xml_declaration=True, encoding='UTF-8')
 
-        urls = NFeService._get_sefaz_urls(empresa)
+        urls = NFeService._get_sefaz_urls(empresa, nfe.modelo)
         try:
             response = NFeService._enviar_soap(
                 urls['consulta'],
@@ -1177,7 +1358,8 @@ class NFeService:
         lote.save(update_fields=['status'])
 
         lote_xml = etree.tostring(envi, xml_declaration=True, encoding='UTF-8')
-        urls = NFeService._get_sefaz_urls(empresa)
+        modelo_lote = notas.first().modelo if notas else '55'
+        urls = NFeService._get_sefaz_urls(empresa, modelo_lote)
         try:
             response = NFeService._enviar_soap(
                 urls['autorizacao'], 'nfeAutorizacaoLote', lote_xml, empresa
@@ -1208,8 +1390,8 @@ class NFeService:
     # ===================== PARSE CERTIFICADO =====================
 
     @staticmethod
-    def testar_conexao_sefaz(empresa):
-        urls = NFeService._get_sefaz_urls(empresa)
+    def testar_conexao_sefaz(empresa, modelo='55'):
+        urls = NFeService._get_sefaz_urls(empresa, modelo)
         cons = etree.Element(f'{{{NS_NFE}}}consStatServ', attrib={'versao': '4.00'}, nsmap={None: NS_NFE})
         etree.SubElement(cons, f'{{{NS_NFE}}}tpAmb').text = AMBIENTE_NFE.get(empresa.ambiente_destino, '2')
         etree.SubElement(cons, f'{{{NS_NFE}}}cUF').text = str(empresa.cidade_sede.estado.codigo_ibge)

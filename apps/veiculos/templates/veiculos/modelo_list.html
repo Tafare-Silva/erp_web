@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}Modelos de Veículos{% endblock %}
+{% block page_title %}🚘 Modelos de Veículos{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-6">
+    <div class="flex items-center justify-between mb-5">
+        <div>
+            <a href="{% url 'veiculos:marca_list' %}" class="text-sm text-blue-600 hover:text-blue-800">← Marcas</a>
+            {% if marca %}<span class="text-sm text-gray-500"> | Marca: <strong>{{ marca.nome }}</strong></span>{% endif %}
+        </div>
+        <div class="flex gap-2">
+            {% if marca %}
+            <a href="{% url 'veiculos:modelo_importar_por_marca' marca.pk %}"
+               class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-bold">
+                <i class="fas fa-cloud-download-alt mr-1"></i>Importar Modelos da FIPE
+            </a>
+            {% endif %}
+            <a href="{% if marca %}{% url 'veiculos:modelo_create_por_marca' marca.pk %}{% else %}{% url 'veiculos:modelo_create' %}{% endif %}"
+               class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-bold">
+                <i class="fas fa-plus mr-1"></i>Novo Modelo
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-gray-500 border-b bg-gray-50">
+                    <th class="px-5 py-3">Marca</th>
+                    <th class="px-5 py-3">Modelo</th>
+                    <th class="px-5 py-3 text-center">Ano</th>
+                    <th class="px-5 py-3 text-right">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in modelos %}
+                <tr class="border-b last:border-0 hover:bg-gray-50">
+                    <td class="px-5 py-3 text-gray-600">{{ m.marca.nome }}</td>
+                    <td class="px-5 py-3 font-medium text-gray-800">{{ m.nome }}</td>
+                    <td class="px-5 py-3 text-center">{{ m.ano_modelo|default:"—" }}</td>
+                    <td class="px-5 py-3 text-right whitespace-nowrap">
+                        <a href="{% url 'veiculos:modelo_update' m.pk %}" class="text-blue-600 hover:text-blue-800 mr-2" title="Editar"><i class="fas fa-edit"></i></a>
+                        <a href="{% url 'veiculos:modelo_delete' m.pk %}" class="text-red-600 hover:text-red-800" title="Excluir"><i class="fas fa-trash"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="px-5 py-6 text-center text-gray-400">Nenhum modelo cadastrado.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

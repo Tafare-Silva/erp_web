@@ -1,0 +1,33 @@
+# Bloco Nginx inicial (HTTP). O Certbot adiciona o SSL e o redirect depois.
+server {
+    listen 80;
+    server_name __DOMAIN__;
+
+    client_max_body_size 20M;
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml text/javascript image/svg+xml;
+    gzip_min_length 1000;
+    gzip_proxied any;
+
+    location = /favicon.ico { access_log off; log_not_found off; }
+
+    location /static/ {
+        alias /var/www/clientes/__SLUG__/staticfiles/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+
+    location /media/ {
+        alias /var/www/clientes/__SLUG__/media/;
+        expires 7d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location / {
+        include proxy_params;
+        proxy_pass http://unix:/var/www/clientes/__SLUG__/__SLUG__.sock;
+        proxy_read_timeout 120s;
+    }
+}

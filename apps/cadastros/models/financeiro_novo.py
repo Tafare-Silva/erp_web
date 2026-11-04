@@ -31,6 +31,7 @@ class TituloFinanceiro(models.Model):
     )
     
     data_operacao = models.DateField(auto_now_add=True, verbose_name='Data de Operação')
+    data_emissao = models.DateField(null=True, blank=True, verbose_name='Data de Emissão')
     data_vencimento = models.DateField(verbose_name='Data de Vencimento')
     data_pagamento = models.DateField(null=True, blank=True, verbose_name='Data de Pagamento')
     
@@ -39,6 +40,8 @@ class TituloFinanceiro(models.Model):
     total_parcelas = models.IntegerField(default=1, verbose_name='Total de Parcelas')
     
     valor_documento = models.DecimalField(max_digits=14, decimal_places=2, verbose_name='Valor do Documento')
+    valor_desconto = models.DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name='Desconto')
+    valor_juros = models.DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name='Juros/Multa')
     valor_pago = models.DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name='Valor Pago')
     valor_saldo = models.DecimalField(max_digits=14, decimal_places=2, verbose_name='Saldo')
     
@@ -74,6 +77,7 @@ class TituloFinanceiro(models.Model):
     )
     
     historico = models.TextField(null=True, blank=True, verbose_name='Histórico/Observação')
+    observacoes_baixa = models.TextField(null=True, blank=True, verbose_name='Observações da Baixa')
     
     usuario_criacao = models.ForeignKey(
         User, on_delete=models.PROTECT,
@@ -90,9 +94,26 @@ class TituloFinanceiro(models.Model):
     def __str__(self):
         return f"{self.get_tipo_display()} - {self.numero_documento} ({self.parcela}/{self.total_parcelas}) - {self.pessoa.nome}"
 
+    @property
+    def is_vencido(self):
+        from datetime import date
+        if self.situacao in ['ABERTO', 'PARCIAL', 'ATRASADO'] and self.data_vencimento and self.data_vencimento < date.today():
+            return True
+        return False
+
+    @property
+    def dias_atraso(self):
+        from datetime import date
+        if self.is_vencido:
+            return (date.today() - self.data_vencimento).days
+        return 0
+
     def save(self, *args, **kwargs):
-        if not self.valor_saldo:
-            self.valor_saldo = self.valor_documento - self.valor_pago
+        if self.valor_pago is None:
+            self.valor_pago = Decimal('0.00')
+        if not self.valor_saldo and self.valor_saldo != 0:
+            total_devido = (self.valor_documento or Decimal('0.00')) + (self.valor_juros or Decimal('0.00')) - (self.valor_desconto or Decimal('0.00'))
+            self.valor_saldo = max(Decimal('0.00'), total_devido - self.valor_pago)
         super().save(*args, **kwargs)
 
 

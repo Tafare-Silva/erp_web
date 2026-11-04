@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}Excluir Marca{% endblock %}
+{% block page_title %}🗑️ Excluir Marca{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto px-4 py-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <p class="text-gray-700 mb-4">Excluir a marca <strong>{{ marca.nome }}</strong>?</p>
+        <p class="text-sm text-red-600 mb-6">Não é possível excluir uma marca que possua veículos associados.</p>
+        <form method="post" class="flex items-center gap-3">
+            {% csrf_token %}
+            <button type="submit" class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-bold text-sm">
+                <i class="fas fa-trash mr-2"></i>Excluir
+            </button>
+            <a href="{% url 'veiculos:marca_list' %}" class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50 text-sm">Cancelar</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

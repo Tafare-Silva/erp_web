@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard de Veículos{% endblock %}
+{% block page_title %}🚗 Dashboard de Veículos{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-6">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <p class="text-sm text-gray-500">Total de Veículos</p>
+            <p class="text-2xl font-bold text-gray-800">{{ total }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <p class="text-sm text-gray-500">Em Estoque</p>
+            <p class="text-2xl font-bold text-green-600">{{ status_resumo.EM_ESTOQUE|default:"0" }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <p class="text-sm text-gray-500">Reservados</p>
+            <p class="text-2xl font-bold text-yellow-600">{{ status_resumo.RESERVADO|default:"0" }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <p class="text-sm text-gray-500">Vendidos</p>
+            <p class="text-2xl font-bold text-blue-600">{{ status_resumo.VENDIDO|default:"0" }}</p>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+        <p class="text-sm text-gray-500">Valor em Estoque (preço de venda)</p>
+        <p class="text-3xl font-bold text-gray-800">R$ {{ valor_estoque }}</p>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div class="p-5 border-b flex items-center justify-between">
+            <h2 class="text-lg font-bold text-gray-800">Últimos Veículos</h2>
+            <a href="{% url 'veiculos:veiculo_list' %}" class="text-sm text-blue-600 hover:text-blue-800">Ver todos →</a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-gray-500 border-b">
+                        <th class="px-5 py-3">Veículo</th>
+                        <th class="px-5 py-3">Placa</th>
+                        <th class="px-5 py-3">Ano</th>
+                        <th class="px-5 py-3">Status</th>
+                        <th class="px-5 py-3">Preço</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in recentes %}
+                    <tr class="border-b last:border-0 hover:bg-gray-50">
+                        <td class="px-5 py-3 font-medium text-gray-800">{{ v.marca }} {{ v.modelo.nome }}</td>
+                        <td class="px-5 py-3">{{ v.placa|default:"—" }}</td>
+                        <td class="px-5 py-3">{{ v.ano_modelo }}</td>
+                        <td class="px-5 py-3">
+                            <span class="px-2 py-1 rounded-full text-xs font-semibold
+                                {% if v.status == 'EM_ESTOQUE' %}bg-green-100 text-green-700
+                                {% elif v.status == 'RESERVADO' %}bg-yellow-100 text-yellow-700
+                                {% elif v.status == 'VENDIDO' %}bg-blue-100 text-blue-700
+                                {% else %}bg-gray-100 text-gray-700{% endif %}">
+                                {{ v.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-5 py-3">R$ {{ v.preco_venda }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="px-5 py-6 text-center text-gray-400">Nenhum veículo cadastrado.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

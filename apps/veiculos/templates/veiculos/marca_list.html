@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}Marcas de Veículos{% endblock %}
+{% block page_title %}🏷️ Marcas de Veículos{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-6">
+    <div class="flex items-center justify-between mb-5">
+        <div>
+            <a href="{% url 'veiculos:modelo_list' %}" class="text-sm text-blue-600 hover:text-blue-800">→ Modelos</a>
+        </div>
+        <div class="flex gap-2">
+            <a href="{% url 'veiculos:marca_importar' %}" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-bold">
+                <i class="fas fa-cloud-download-alt mr-1"></i>Importar Marcas da FIPE
+            </a>
+            <a href="{% url 'veiculos:marca_create' %}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-bold">
+                <i class="fas fa-plus mr-1"></i>Nova Marca
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-gray-500 border-b bg-gray-50">
+                    <th class="px-5 py-3">Marca</th>
+                    <th class="px-5 py-3 text-center">Modelos</th>
+                    <th class="px-5 py-3 text-right">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in marcas %}
+                <tr class="border-b last:border-0 hover:bg-gray-50">
+                    <td class="px-5 py-3 font-medium text-gray-800">{{ m.nome }}</td>
+                    <td class="px-5 py-3 text-center">
+                        <a href="{% url 'veiculos:modelo_list_por_marca' m.pk %}" class="text-blue-600 hover:text-blue-800">
+                            {{ m.modelos.count }}
+                        </a>
+                    </td>
+                    <td class="px-5 py-3 text-right whitespace-nowrap">
+                        <a href="{% url 'veiculos:marca_update' m.pk %}" class="text-blue-600 hover:text-blue-800 mr-2" title="Editar"><i class="fas fa-edit"></i></a>
+                        <a href="{% url 'veiculos:marca_delete' m.pk %}" class="text-red-600 hover:text-red-800" title="Excluir"><i class="fas fa-trash"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3" class="px-5 py-6 text-center text-gray-400">Nenhuma marca cadastrada.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,71 +1,121 @@
-# Deploy na DigitalOcean
+# Deploy do ERP Web — multi-cliente (systemd + Gunicorn)
 
-## Pré-requisitos
+Este diretório define o padrão de implantação **um cliente por instância** (single-tenant),
+seguindo o modelo já usado no servidor DigitalOcean (systemd + Gunicorn + socket Unix + Nginx).
+**Não usamos Docker em produção.** Os `Dockerfile`/`docker-compose.yml` ficam apenas para
+desenvolvimento local.
 
-- Docker e Docker Compose instalados no droplet
-- Domínio apontado para o IP do droplet
-- PostgreSQL gerenciado pela DigitalOcean (opcional, usar container)
+## Arquitetura
 
-## 1. Gerar SECRET_KEY
+```
+/var/www/erp/
+├── app/                     # código compartilhado (clone do repositório)
+└── venv/                    # virtualenv compartilhado
 
-```bash
-python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+/var/www/clientes/<slug>/
+├── .env                     # configuração exclusiva do cliente
+├── .erp_managed             # marcador: cliente gerenciado pelos scripts
+├── staticfiles/             # collectstatic deste cliente
+├── media/                   # uploads deste cliente
+└── <slug>.sock              # socket do Gunicorn
 ```
 
-## 2. Configurar variáveis de ambiente
+Cada cliente tem: banco próprio (`<slug>_db`), role própria (`<slug>_user`),
+serviço systemd (`<slug>.service`) e site Nginx (`<slug>` em `sites-enabled`).
+
+## Preparação única do servidor
 
 ```bash
-cp .env.example .env.production
-# Editar SECRET_KEY, DB_PASSWORD, ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS
+# na raiz do repositório clonado temporariamente no servidor
+sudo ./deploy/scripts/preparar_servidor.sh
 ```
 
-## 3. Deploy com Docker Compose (recomendado)
+O script:
+1. cria swap de 2 GB (`/swapfile`, persistido no `/etc/fstab`) — obrigatório, o droplet tem ~2 GB de RAM;
+2. instala `git`, `certbot`/`python3-certbot-nginx` e `python3-venv` se faltarem;
+3. clona o repositório em `/var/www/erp/app`;
+4. cria o venv em `/var/www/erp/venv` e instala `requirements.txt`.
+
+Variáveis opcionais: `REPO_URL`, `BRANCH` (padrão `master`), `SWAP_SIZE` (padrão `2G`).
+
+> Se o repositório for privado, configure a credencial do usuário `ubuntu`
+> (`sudo -u ubuntu git config --global credential.helper store` + clone uma vez) antes de rodar.
+
+## Provisionar um cliente
 
 ```bash
-# Enviar arquivos para o servidor
-rsync -avz --exclude 'venv/' --exclude '.git/' --exclude '__pycache__/' --exclude 'media/' --exclude 'staticfiles/' ./ usuario@servidor:~/erp_web/
-
-# Acessar o servidor e deploy
-ssh usuario@servidor
-cd ~/erp_web
-
-# Criar .env a partir do exemplo
-cp .env.example .env
-nano .env   # Ajustar credenciais
-
-# Subir tudo
-docker compose up -d --build
+sudo ./deploy/scripts/novo_cliente.sh <slug> [dominio]
+# exemplo:
+sudo ./deploy/scripts/novo_cliente.sh cliente1 cliente1.blanjos.com.br
 ```
 
-## 4. Migrations e primeiro acesso
+O `slug` deve conter apenas `a-z`, `0-9` e `_`. O domínio padrão é `<slug>.blanjos.com.br`.
+
+O script executa, em ordem:
+1. cria role e banco no PostgreSQL (`<slug>_user` / `<slug>_db`);
+2. cria `/var/www/clientes/<slug>/` com `staticfiles/` e `media/`;
+3. gera o `.env` (não sobrescreve se já existir);
+4. roda `migrate` e `collectstatic` como usuário `ubuntu`;
+5. instala e sobe o serviço systemd (`gunicorn`, 2 workers, socket Unix);
+6. cria o site Nginx (HTTP) e recarrega o Nginx;
+7. emite o certificado SSL via Certbot (`--redirect`);
+8. opcionalmente cria o superusuário.
+
+Variáveis de ambiente úteis:
+```bash
+CERTBOT_EMAIL=admin@blanjos.com.br \
+DJANGO_SUPERUSER_EMAIL=admin@cliente.com \
+DJANGO_SUPERUSER_PASSWORD='SenhaForte' \
+DJANGO_SUPERUSER_USERNAME=admin \
+sudo -E ./deploy/scripts/novo_cliente.sh cliente1
+```
+
+> Antes de rodar, crie o registro **DNS A** `<slug>.blanjos.com.br` apontando para o IP do droplet.
+> Sem DNS propagado o Certbot falha (o restante do provisionamento continua; rode o Certbot depois).
+
+## Atualizar todos os clientes
 
 ```bash
-# Executar migrations
-docker compose exec app python manage.py migrate
-
-# Criar superusuário
-docker compose exec app python manage.py createsuperuser
+sudo ./deploy/scripts/atualizar_todos.sh
 ```
 
-## 5. Nginx + SSL (Let's Encrypt)
+Faz `git pull --ff-only` no código compartilhado, atualiza dependências, roda
+`migrate` + `collectstatic` e reinicia cada serviço marcado com `.erp_managed`.
+O cliente legado `erp_web` (demo) **não** possui o marcador e é ignorado.
+
+## Backup
 
 ```bash
-docker compose exec nginx apk add certbot certbot-nginx
-docker compose exec nginx certbot --nginx -d seudominio.com.br -d www.seudominio.com.br
+sudo ./deploy/scripts/backup_todos.sh
 ```
 
-## Comandos úteis
+Gera, em `/var/backups/erp` (ou `BACKUP_DIR`), um dump `.sql.gz` e um `.tar.gz` de `media`
+por cliente. Retenção automática de 30 dias.
 
-```bash
-# Ver logs
-docker compose logs -f app
-
-# Reiniciar app
-docker compose restart app
-
-# Shell no Django
-docker compose exec app python manage.py shell
-
-# Backup do banco
-docker compose exec db pg_dump -U postgres erp_db > backup_$(date +%Y%m%d).sql
+Sugestão de cron diário (03:00):
+```cron
+0 3 * * * root /var/www/erp/app/deploy/scripts/backup_todos.sh >> /var/log/erp_backup.log 2>&1
 ```
+
+## Onboarding do cliente após o provisionamento
+
+No admin do ERP (`https://<dominio>/admin/`), na ordem:
+1. **Empresa** + endereço principal;
+2. **IE / CRT / `uf_web_service_nfe` / `cidade_sede`**, séries e numeração;
+3. `ambiente_destino = H` (homologação);
+4. certificado **A1 (.pfx)** + senha;
+5. **CSC** apenas se for emitir NFC-e — **CSRT deixar vazio**.
+
+## Variáveis de configuração relevantes
+
+`config/settings.py` lê do `.env`:
+- `DB_SEARCH_PATH` — padrão `cadastros,marilia,public` (bancos legados); novos clientes usam `public`.
+- `STATIC_ROOT` / `MEDIA_ROOT` — por cliente (ver `.env` gerado).
+- `SESSION_COOKIE_SECURE` / `CSRF_COOKIE_SECURE` — `True` em produção.
+
+## Observações
+
+- **RAM:** ~2 GB no droplet. Com swap de 2 GB cabem 1–2 clientes confortavelmente;
+  para mais, faça resize do droplet.
+- **Static/Media** são servidos pelo Nginx via `alias` (sem WhiteNoise).
+- O deploy da demo antiga (`/var/www/clientes/erp_web`) permanece intocado.

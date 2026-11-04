@@ -45,6 +45,44 @@ class Pessoa(models.Model):
         verbose_name='Celular'
     )
     
+    tipo_pessoa = models.CharField(
+        max_length=1,
+        choices=[('F', 'Pessoa Física'), ('J', 'Pessoa Jurídica')],
+        default='F',
+        verbose_name='Tipo de Pessoa'
+    )
+    indicador_ie = models.CharField(
+        max_length=1,
+        choices=[
+            ('1', '1 - Contribuinte ICMS'),
+            ('2', '2 - Contribuinte Isento de Inscrição'),
+            ('9', '9 - Não Contribuinte (com ou sem IE)'),
+        ],
+        default='9',
+        verbose_name='Indicador da IE'
+    )
+    isento_ie = models.BooleanField(default=False, verbose_name='Isento de Inscrição Estadual')
+    consumidor_final = models.BooleanField(default=True, verbose_name='Consumidor Final')
+    email_nfe = models.EmailField(blank=True, null=True, verbose_name='E-mail para Envio de NF-e')
+    limite_credito = models.DecimalField(
+        max_digits=14, decimal_places=2, default=0,
+        verbose_name='Limite de Crédito (R$)'
+    )
+    suframa = models.CharField(max_length=15, blank=True, null=True, verbose_name='Inscrição Suframa')
+    vendedor_padrao = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        limit_choices_to={'vendedor': True},
+        related_name='clientes_atendidos',
+        verbose_name='Vendedor Padrão'
+    )
+    condicao_pagamento_padrao = models.CharField(
+        max_length=100, blank=True, null=True,
+        verbose_name='Condição de Pagamento Padrão'
+    )
+    
     inativo = models.BooleanField(default=False, verbose_name='Inativo')
     cliente = models.BooleanField(default=True, verbose_name='Cliente')
     fornecedor = models.BooleanField(default=False, verbose_name='Fornecedor')

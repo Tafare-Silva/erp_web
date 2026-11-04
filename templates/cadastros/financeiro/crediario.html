@@ -1,0 +1,694 @@
+{% extends 'base.html' %}
+{% block title %}Recebimento de Crediário{% endblock %}
+{% block page_title %}Recebimento de Crediário{% endblock %}
+
+{% block content %}
+<div class="p-6 max-w-5xl mx-auto" x-data="crediario({{ tipos_pagamento_json|default:'[]' }})">
+
+  <!-- Painel de seleção do cliente (overflow-visible e z-index alto para a lista não ficar escondida) -->
+  <div class="bg-white rounded-2xl shadow border overflow-visible mb-6 relative z-30">
+    <div class="bg-indigo-700 px-6 py-4 text-white rounded-t-2xl">
+      <h2 class="text-lg font-bold flex items-center gap-2">
+        <i class="fas fa-credit-card"></i> Recebimento de Crediário / Carnê
+      </h2>
+    </div>
+    <div class="p-6">
+      <label class="block text-xs font-bold text-gray-600 mb-1 uppercase tracking-wider">Buscar Cliente</label>
+      <div class="relative">
+        <input
+          type="text"
+          x-model="buscaCliente"
+          @input.debounce.300ms="pesquisarCliente()"
+          @keydown.escape="resultadosBusca = []"
+          placeholder="Digite pelo menos 3 letras do nome ou CPF/CNPJ..."
+          class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none pr-10 shadow-sm"
+          autocomplete="off"
+        >
+        <i class="fas fa-search absolute right-3.5 top-3.5 text-gray-400 pointer-events-none"></i>
+
+        <!-- Dropdown flutuante de resultados (z-50 elevado, sombra profunda) -->
+        <div
+          x-show="resultadosBusca.length > 0"
+          x-cloak
+          @click.away="resultadosBusca = []"
+          class="absolute left-0 right-0 top-full z-50 bg-white border border-gray-200 rounded-xl mt-1 shadow-2xl max-h-64 overflow-y-auto"
+        >
+          <template x-for="c in resultadosBusca" :key="c.chave">
+            <div
+              @click="selecionarCliente(c)"
+              class="px-4 py-3 hover:bg-indigo-50 cursor-pointer border-b border-gray-100 last:border-0 flex justify-between items-center transition"
+            >
+              <div>
+                <p class="font-semibold text-sm text-gray-800" x-text="c.nome"></p>
+                <div class="flex gap-3 text-xs text-gray-400 mt-0.5">
+                  <span x-text="c.cpf_cnpj ? 'Doc: ' + c.cpf_cnpj : 'Sem documento'"></span>
+                  <span x-show="c.cidade" x-text="'• ' + c.cidade"></span>
+                  <span x-show="c.telefone" x-text="'• ' + c.telefone"></span>
+                </div>
+              </div>
+              <span class="text-xs font-semibold text-indigo-600 flex items-center gap-1">
+                Selecionar <i class="fas fa-chevron-right text-[10px]"></i>
+              </span>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Indicadores de busca -->
+      <p x-show="carregandoBusca" x-cloak class="text-xs text-indigo-500 mt-2 flex items-center gap-1">
+        <i class="fas fa-spinner fa-spin"></i> Buscando clientes...
+      </p>
+      <p x-show="semResultados && !carregandoBusca" x-cloak class="text-xs text-gray-400 mt-2">
+        Nenhum cliente encontrado para "<span class="font-semibold text-gray-600" x-text="buscaCliente"></span>".
+      </p>
+    </div>
+  </div>
+
+  <!-- Painel do cliente selecionado -->
+  <div x-show="cliente !== null" x-cloak x-transition class="space-y-4 relative z-10">
+
+    <!-- Card de Informações do Cliente -->
+    <div class="bg-white rounded-2xl shadow border p-5 flex flex-wrap gap-6 items-center justify-between">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm">
+            <i class="fas fa-user"></i>
+          </span>
+          <div>
+            <h3 class="text-lg font-bold text-gray-800 leading-tight" x-text="cliente?.nome"></h3>
+            <p class="text-xs text-gray-400" x-text="cliente?.cpf_cnpj || 'Sem CPF/CNPJ informado'"></p>
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-6 text-center">
+        <div class="px-3 border-r last:border-0 border-gray-100">
+          <p class="text-xs text-gray-400 uppercase font-semibold">Total Devedor</p>
+          <p class="text-xl font-bold text-red-600" x-text="'R$ ' + fmt(cliente?.total_devedor)"></p>
+        </div>
+        <div class="px-3 border-r last:border-0 border-gray-100">
+          <p class="text-xs text-gray-400 uppercase font-semibold">Vencido</p>
+          <p class="text-xl font-bold text-orange-600" x-text="'R$ ' + fmt(cliente?.total_vencido)"></p>
+        </div>
+        <div class="px-3">
+          <p class="text-xs text-gray-400 uppercase font-semibold">Parcelas</p>
+          <p class="text-xl font-bold text-gray-700" x-text="cliente?.qtd_parcelas"></p>
+        </div>
+      </div>
+      <button @click="limparCliente()" class="text-xs font-semibold text-gray-400 hover:text-red-500 flex items-center gap-1 transition">
+        <i class="fas fa-times-circle"></i> Trocar cliente
+      </button>
+    </div>
+
+    <!-- Indicador Carregando parcelas -->
+    <div x-show="carregandoParcelas" class="bg-white rounded-2xl shadow border p-12 text-center text-indigo-600">
+      <i class="fas fa-spinner fa-spin text-3xl mb-3"></i>
+      <p class="text-sm font-semibold">Carregando títulos e parcelas em aberto...</p>
+    </div>
+
+    <!-- Lista de Parcelas -->
+    <div x-show="!carregandoParcelas" class="bg-white rounded-2xl shadow border overflow-hidden">
+      <div class="px-5 py-3.5 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+        <div>
+          <h3 class="font-bold text-gray-700 text-sm">Parcelas em Aberto</h3>
+          <p class="text-xs text-gray-400">Clique na linha ou na caixa para marcar os títulos que deseja quitar</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button @click="selecionarTodos()" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold transition">
+            <i class="fas fa-check-square mr-1"></i> Marcar todas
+          </button>
+          <span class="text-gray-300">|</span>
+          <button @click="limparSelecao()" class="text-xs text-gray-500 hover:text-gray-700 font-medium transition">
+            Desmarcar
+          </button>
+        </div>
+      </div>
+      <table class="w-full text-sm text-left">
+        <thead class="bg-gray-50 text-[11px] uppercase font-bold text-gray-500 border-b border-gray-100">
+          <tr>
+            <th class="px-4 py-3 w-10 text-center"></th>
+            <th class="px-4 py-3">Vencimento</th>
+            <th class="px-4 py-3">Documento / Parcela</th>
+            <th class="px-4 py-3 text-right">Valor Original</th>
+            <th class="px-4 py-3 text-right">Saldo Devedor</th>
+            <th class="px-4 py-3 text-center">Situação</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          <template x-for="p in parcelas" :key="p.id">
+            <tr
+              class="hover:bg-indigo-50/70 cursor-pointer transition select-none"
+              :class="selecionados.includes(p.id) ? 'bg-indigo-50/90 font-medium' : ''"
+              @click="toggleParcela(p.id)"
+            >
+              <td class="px-4 py-3.5 text-center" @click.stop>
+                <input
+                  type="checkbox"
+                  :checked="selecionados.includes(p.id)"
+                  @change="toggleParcela(p.id)"
+                  class="rounded text-indigo-600 focus:ring-indigo-400 h-4 w-4 cursor-pointer"
+                >
+              </td>
+              <td class="px-4 py-3.5" :class="p.is_vencido ? 'text-red-600 font-semibold' : 'text-gray-700'">
+                <div class="flex items-center gap-1.5">
+                  <span x-text="p.data_vencimento"></span>
+                  <span
+                    x-show="p.is_vencido"
+                    class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-600"
+                    x-text="p.dias_atraso + 'd atraso'"
+                  ></span>
+                </div>
+              </td>
+              <td class="px-4 py-3.5">
+                <span class="font-mono text-gray-900" x-text="p.numero_documento"></span>
+                <span class="text-xs text-gray-400 ml-1" x-text="'(' + p.parcela + '/' + p.total_parcelas + ')'"></span>
+              </td>
+              <td class="px-4 py-3.5 text-right text-gray-500" x-text="'R$ ' + fmt(p.valor_documento)"></td>
+              <td class="px-4 py-3.5 text-right font-bold text-gray-900 text-base" x-text="'R$ ' + fmt(p.valor_saldo)"></td>
+              <td class="px-4 py-3.5 text-center">
+                <span
+                  class="px-2.5 py-1 rounded-full text-xs font-bold"
+                  :class="p.is_vencido ? 'bg-red-100 text-red-700' : (p.situacao === 'PARCIAL' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700')"
+                  x-text="p.situacao_display"
+                ></span>
+              </td>
+            </tr>
+          </template>
+          <tr x-show="parcelas.length === 0 && !carregandoParcelas">
+            <td colspan="6" class="px-6 py-12 text-center text-gray-400 italic">
+              <i class="fas fa-check-circle text-green-500 text-3xl mb-2 block"></i>
+              Nenhuma parcela pendente para este cliente!
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Barra de ação inferior (quando há seleção) -->
+      <div
+        x-show="selecionados.length > 0"
+        x-transition
+        class="bg-gradient-to-r from-gray-900 via-indigo-950 to-gray-900 text-white p-4 flex flex-wrap justify-between items-center gap-4"
+      >
+        <div class="flex items-center gap-6">
+          <div>
+            <p class="text-xs text-gray-300 uppercase font-semibold">Títulos Marcados</p>
+            <p class="text-xl font-bold text-indigo-300" x-text="selecionados.length + ' parcela(s)'"></p>
+          </div>
+          <div class="h-8 w-px bg-gray-700"></div>
+          <div>
+            <p class="text-xs text-gray-300 uppercase font-semibold">Total a Quitar</p>
+            <p class="text-2xl font-black text-green-400" x-text="'R$ ' + fmt(totalSelecionado)"></p>
+          </div>
+        </div>
+
+        <button
+          @click="abrirModalPagamento()"
+          class="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-green-900/30 flex items-center gap-2 text-base transition transform active:scale-95"
+        >
+          <i class="fas fa-hand-holding-usd text-lg"></i>
+          <span>Receber Agora (R$ <span x-text="fmt(totalSelecionado)"></span>)</span>
+        </button>
+      </div>
+    </div>
+
+  </div><!-- /cliente selecionado -->
+
+  <!-- ============================================================== -->
+  <!-- MODAL DE PAGAMENTO (COM SUPORTE A BAIXA PARCIAL & PDV RÁPIDO)   -->
+  <!-- ============================================================== -->
+  <div
+    x-show="modalPagamento"
+    x-cloak
+    x-transition:enter="transition ease-out duration-200"
+    x-transition:enter-start="opacity-0 scale-95"
+    x-transition:enter-end="opacity-100 scale-100"
+    x-transition:leave="transition ease-in duration-150"
+    x-transition:leave-start="opacity-100 scale-100"
+    x-transition:leave-end="opacity-0 scale-95"
+    class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+  >
+    <div
+      @click.away="modalPagamento = false"
+      class="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[92vh] overflow-y-auto"
+    >
+      <!-- Topo do Modal -->
+      <div class="p-4 border-b border-indigo-700 flex justify-between items-center bg-gradient-to-r from-indigo-700 via-indigo-600 to-blue-600 text-white rounded-t-2xl">
+        <h3 class="text-lg font-bold flex items-center gap-2">
+          <i class="fas fa-credit-card"></i> Finalizar Recebimento
+        </h3>
+        <button @click="modalPagamento = false" class="text-white/80 hover:text-white p-1 rounded-lg transition">
+          <i class="fas fa-times text-lg"></i>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-5">
+
+        <!-- Totais em Destaque (Estilo PDV) -->
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4 border border-blue-100 shadow-inner">
+          <div class="grid grid-cols-3 gap-3 text-center">
+            <div>
+              <div class="text-xs text-gray-500 uppercase font-semibold">Total Marcado</div>
+              <div class="text-lg font-black text-gray-700 mt-1" x-text="'R$ ' + fmt(totalSelecionado)"></div>
+            </div>
+            <div>
+              <div class="text-xs text-indigo-700 uppercase font-bold">Valor a Abater</div>
+              <div
+                class="text-xl font-black mt-1 text-indigo-800"
+                x-text="'R$ ' + fmt(valorQuitar)"
+              ></div>
+            </div>
+            <div>
+              <div class="text-xs text-gray-500 uppercase font-semibold">Troco</div>
+              <div
+                class="text-xl font-black mt-1"
+                :class="troco > 0 ? 'text-green-700' : 'text-gray-400'"
+                x-text="'R$ ' + fmt(troco)"
+              ></div>
+            </div>
+          </div>
+
+          <div x-show="troco > 0" x-cloak class="mt-3 pt-3 border-t border-blue-200 text-center">
+            <span class="text-sm font-semibold text-gray-700">Troco a devolver ao cliente: </span>
+            <span class="text-2xl font-black text-green-700" x-text="'R$ ' + fmt(troco)"></span>
+          </div>
+        </div>
+
+        <!-- Seção: Valor a Abater / Baixa Parcial -->
+        <div class="border border-indigo-100 rounded-xl p-4 bg-indigo-50/40">
+          <div class="flex justify-between items-center mb-1.5">
+            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+              Valor a Quitar/Abater das Parcelas (R$)
+            </label>
+            <button
+              type="button"
+              x-show="valorQuitar < totalSelecionado"
+              @click="valorQuitar = totalSelecionado; valorEntregue = totalSelecionado; calcularTroco()"
+              class="text-xs font-bold text-indigo-600 hover:text-indigo-800 underline"
+            >
+              Quitar Total (R$ <span x-text="fmt(totalSelecionado)"></span>)
+            </button>
+          </div>
+
+          <div class="relative">
+            <span class="absolute left-3.5 top-3 text-gray-400 font-bold text-base">R$</span>
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              :max="totalSelecionado"
+              x-model.number="valorQuitar"
+              @input="onValorQuitarChange()"
+              class="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-xl text-lg font-black text-indigo-900 focus:ring-2 focus:ring-indigo-400 outline-none bg-white"
+            >
+          </div>
+
+          <!-- Alerta visual de Baixa Parcial -->
+          <div
+            x-show="valorQuitar < totalSelecionado && valorQuitar > 0"
+            x-cloak
+            class="mt-2.5 p-2.5 rounded-lg bg-amber-50 border border-amber-200 flex items-start gap-2 text-xs text-amber-800"
+          >
+            <i class="fas fa-exclamation-triangle text-amber-600 mt-0.5"></i>
+            <div>
+              <span class="font-bold">Baixa Parcial ativada:</span> O cliente pagará
+              <strong>R$ <span x-text="fmt(valorQuitar)"></span></strong>. A diferença de
+              <strong class="text-red-700">R$ <span x-text="fmt(totalSelecionado - valorQuitar)"></span></strong>
+              continuará pendente como saldo restante na parcela!
+            </div>
+          </div>
+        </div>
+
+        <!-- Grade de Tipos de Pagamento (Tiles como no PDV) -->
+        <div>
+          <label class="block text-xs font-bold text-gray-600 mb-2 uppercase tracking-wider">
+            Selecione a Forma de Pagamento
+          </label>
+          <div class="grid grid-cols-4 gap-2.5">
+            <template x-for="tp in tiposPagamento" :key="tp.id">
+              <button
+                type="button"
+                @click="selecionarTipoPagamento(tp)"
+                class="p-3 border-2 rounded-xl transition text-center relative flex flex-col items-center justify-center gap-1 active:scale-95"
+                :class="tipoSelecionado?.id === tp.id
+                  ? 'border-indigo-600 bg-indigo-50/80 shadow-md ring-2 ring-indigo-200'
+                  : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50'"
+              >
+                <i :class="tp.icone" class="text-2xl mb-0.5"></i>
+                <div class="text-[11px] font-bold text-gray-700 leading-tight" x-text="tp.nome"></div>
+              </button>
+            </template>
+          </div>
+        </div>
+
+        <!-- Campo de Dinheiro Entregue (apenas para pagamento em dinheiro) -->
+        <div x-show="tipoSelecionado?.dinheiro" x-cloak class="border border-green-200 rounded-xl p-4 bg-green-50/30">
+          <div class="flex justify-between items-center mb-1.5">
+            <label class="block text-xs font-bold text-gray-700 uppercase">
+              Dinheiro Entregue pelo Cliente (R$)
+            </label>
+            <span class="text-xs text-green-700 font-semibold">
+              <i class="fas fa-money-bill-wave mr-1"></i> Para cálculo de troco
+            </span>
+          </div>
+
+          <div class="relative">
+            <span class="absolute left-3.5 top-3 text-gray-400 font-bold text-base">R$</span>
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              x-model.number="valorEntregue"
+              @input="calcularTroco()"
+              class="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-xl text-lg font-bold text-gray-900 focus:ring-2 focus:ring-green-400 outline-none bg-white"
+            >
+          </div>
+
+          <!-- Atalhos rápidos para notas -->
+          <div class="mt-2.5 flex flex-wrap gap-2 items-center">
+            <span class="text-xs font-semibold text-gray-500 mr-1">Atalhos:</span>
+            <button
+              type="button"
+              @click="valorEntregue = valorQuitar; calcularTroco()"
+              class="px-2.5 py-1 text-xs font-bold bg-white border border-gray-300 rounded-lg hover:bg-green-50 hover:border-green-400 text-gray-700 transition"
+            >
+              Exato
+            </button>
+            <button
+              type="button"
+              @click="adicionarValorEntregue(10)"
+              class="px-2.5 py-1 text-xs font-bold bg-white border border-gray-300 rounded-lg hover:bg-green-50 hover:border-green-400 text-gray-700 transition"
+            >
+              + R$ 10
+            </button>
+            <button
+              type="button"
+              @click="adicionarValorEntregue(20)"
+              class="px-2.5 py-1 text-xs font-bold bg-white border border-gray-300 rounded-lg hover:bg-green-50 hover:border-green-400 text-gray-700 transition"
+            >
+              + R$ 20
+            </button>
+            <button
+              type="button"
+              @click="adicionarValorEntregue(50)"
+              class="px-2.5 py-1 text-xs font-bold bg-white border border-gray-300 rounded-lg hover:bg-green-50 hover:border-green-400 text-gray-700 transition"
+            >
+              + R$ 50
+            </button>
+            <button
+              type="button"
+              @click="adicionarValorEntregue(100)"
+              class="px-2.5 py-1 text-xs font-bold bg-white border border-gray-300 rounded-lg hover:bg-green-50 hover:border-green-400 text-gray-700 transition"
+            >
+              + R$ 100
+            </button>
+          </div>
+        </div>
+
+        <!-- Opção de Caixa -->
+        <div class="flex items-center justify-between p-3.5 bg-gray-50 rounded-xl border border-gray-200">
+          <label class="flex items-center gap-2.5 cursor-pointer text-sm font-semibold text-gray-700 select-none">
+            <input type="checkbox" x-model="lancarCaixa" class="rounded text-indigo-600 focus:ring-indigo-400 h-4 w-4">
+            <span>Registrar entrada de R$ <span class="font-bold" x-text="fmt(valorQuitar)"></span> no Caixa</span>
+          </label>
+          <div>
+            {% if caixa_aberto %}
+            <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Caixa Aberto
+            </span>
+            {% else %}
+            <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 flex items-center gap-1" title="Não há caixa aberto para seu usuário no momento">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Caixa Fechado
+            </span>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Botões de Ação do Modal -->
+        <div class="flex gap-3 pt-2">
+          <button
+            type="button"
+            @click="modalPagamento = false"
+            class="w-1/3 py-3 border border-gray-300 rounded-xl font-bold text-gray-600 hover:bg-gray-100 text-sm transition"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            @click="confirmarRecebimento()"
+            :disabled="loadingProcessar || !tipoSelecionado || valorQuitar <= 0"
+            class="w-2/3 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-green-700/20 text-base transition flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <span x-show="!loadingProcessar" class="flex items-center gap-2">
+              <i class="fas fa-check-circle"></i> Confirmar e Emitir Recibo
+            </span>
+            <span x-show="loadingProcessar" class="flex items-center gap-2">
+              <i class="fas fa-spinner fa-spin"></i> Processando Quitação...
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast de notificação -->
+  <div
+    x-show="toast.show"
+    x-cloak
+    x-transition
+    class="fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl shadow-2xl text-white font-semibold text-sm flex items-center gap-2"
+    :class="toast.tipo === 'sucesso' ? 'bg-green-600' : 'bg-red-600'"
+  >
+    <i class="fas" :class="toast.tipo === 'sucesso' ? 'fa-check-circle' : 'fa-exclamation-circle'"></i>
+    <span x-text="toast.msg"></span>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function crediario(tiposPagamentoInicial) {
+  return {
+    // ── Busca de cliente ──────────────────────────────────────────
+    buscaCliente: '',
+    resultadosBusca: [],
+    carregandoBusca: false,
+    semResultados: false,
+
+    // ── Cliente selecionado ───────────────────────────────────────
+    cliente: null,
+    parcelas: [],
+    selecionados: [],
+    carregandoParcelas: false,
+
+    // ── Modal de Pagamento & Baixa Parcial ─────────────────────────
+    modalPagamento: false,
+    tiposPagamento: tiposPagamentoInicial || [],
+    tipoSelecionado: null,
+    valorQuitar: 0,      // Valor efetivo que abaterá das parcelas
+    valorEntregue: 0,    // Valor entregue em dinheiro para troco
+    troco: 0,
+    lancarCaixa: {% if caixa_aberto %}true{% else %}false{% endif %},
+    loadingProcessar: false,
+
+    // ── Toast ─────────────────────────────────────────────────────
+    toast: { show: false, msg: '', tipo: 'sucesso' },
+
+    init() {
+      if (this.tiposPagamento.length > 0) {
+        const din = this.tiposPagamento.find(t => t.dinheiro) || this.tiposPagamento[0];
+        this.tipoSelecionado = din;
+      }
+    },
+
+    // ── Computed ──────────────────────────────────────────────────
+    get totalSelecionado() {
+      return this.parcelas
+        .filter(p => this.selecionados.includes(p.id))
+        .reduce((acc, p) => acc + parseFloat(p.valor_saldo || 0), 0);
+    },
+
+    // ── Helpers ───────────────────────────────────────────────────
+    fmt(v) {
+      return parseFloat(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    },
+
+    showToast(msg, tipo = 'sucesso') {
+      this.toast = { show: true, msg, tipo };
+      setTimeout(() => this.toast.show = false, 4000);
+    },
+
+    // ── Busca de clientes ─────────────────────────────────────────
+    async pesquisarCliente() {
+      const termo = this.buscaCliente.trim();
+      if (termo.length < 3) {
+        this.resultadosBusca = [];
+        this.semResultados = false;
+        return;
+      }
+      this.carregandoBusca = true;
+      this.semResultados = false;
+      try {
+        const r = await fetch(`/cadastros/api/pessoas/?q=${encodeURIComponent(termo)}`);
+        const d = await r.json();
+        this.resultadosBusca = d.results || [];
+        this.semResultados = this.resultadosBusca.length === 0;
+      } catch (e) {
+        this.showToast('Erro ao buscar clientes.', 'erro');
+      } finally {
+        this.carregandoBusca = false;
+      }
+    },
+
+    async selecionarCliente(c) {
+      this.buscaCliente = c.nome;
+      this.resultadosBusca = [];
+      this.semResultados = false;
+      await this.carregarParcelas(c.chave);
+    },
+
+    limparCliente() {
+      this.cliente = null;
+      this.parcelas = [];
+      this.selecionados = [];
+      this.buscaCliente = '';
+      this.resultadosBusca = [];
+      this.modalPagamento = false;
+    },
+
+    // ── Parcelas ─────────────────────────────────────────────────
+    async carregarParcelas(clienteId) {
+      this.carregandoParcelas = true;
+      this.cliente = null;
+      this.parcelas = [];
+      this.selecionados = [];
+      try {
+        const r = await fetch(`/cadastros/financeiro/api/titulos-cliente/${clienteId}/`);
+        const d = await r.json();
+        if (d.sucesso) {
+          this.cliente = d.cliente;
+          this.parcelas = d.parcelas;
+          // Já pré-seleciona parcelas vencidas por conveniência
+          this.selecionados = this.parcelas.filter(p => p.is_vencido).map(p => p.id);
+        } else {
+          this.showToast(d.erro || 'Erro ao carregar parcelas.', 'erro');
+        }
+      } catch (e) {
+        this.showToast('Erro de conexão ao carregar parcelas.', 'erro');
+      } finally {
+        this.carregandoParcelas = false;
+      }
+    },
+
+    toggleParcela(id) {
+      const idx = this.selecionados.indexOf(id);
+      if (idx >= 0) this.selecionados.splice(idx, 1);
+      else this.selecionados.push(id);
+    },
+
+    selecionarTodos() {
+      this.selecionados = this.parcelas.map(p => p.id);
+    },
+
+    limparSelecao() {
+      this.selecionados = [];
+    },
+
+    // ── Modal de Pagamento & Baixa Parcial ─────────────────────────
+    abrirModalPagamento() {
+      if (this.selecionados.length === 0) {
+        this.showToast('Selecione ao menos uma parcela para receber.', 'erro');
+        return;
+      }
+      const total = parseFloat(this.totalSelecionado.toFixed(2));
+      this.valorQuitar = total;
+      this.valorEntregue = total;
+      this.calcularTroco();
+      this.modalPagamento = true;
+    },
+
+    selecionarTipoPagamento(tp) {
+      this.tipoSelecionado = tp;
+      if (!tp.dinheiro) {
+        this.valorEntregue = this.valorQuitar;
+      }
+      this.calcularTroco();
+    },
+
+    onValorQuitarChange() {
+      if (this.valorQuitar > this.totalSelecionado) {
+        this.valorQuitar = this.totalSelecionado;
+      }
+      if (!this.tipoSelecionado?.dinheiro || this.valorEntregue < this.valorQuitar) {
+        this.valorEntregue = this.valorQuitar;
+      }
+      this.calcularTroco();
+    },
+
+    calcularTroco() {
+      const entregue = parseFloat(this.valorEntregue || 0);
+      const quitar = parseFloat(this.valorQuitar || 0);
+      if (this.tipoSelecionado?.dinheiro && entregue > quitar) {
+        this.troco = parseFloat((entregue - quitar).toFixed(2));
+      } else {
+        this.troco = 0;
+      }
+    },
+
+    adicionarValorEntregue(v) {
+      this.valorEntregue = parseFloat(((parseFloat(this.valorEntregue) || 0) + v).toFixed(2));
+      this.calcularTroco();
+    },
+
+    // ── Processar Recebimento ────────────────────────────────────
+    async confirmarRecebimento() {
+      if (this.selecionados.length === 0) {
+        this.showToast('Nenhuma parcela selecionada.', 'erro');
+        return;
+      }
+      if (!this.tipoSelecionado) {
+        this.showToast('Selecione uma forma de pagamento.', 'erro');
+        return;
+      }
+      if (!this.valorQuitar || this.valorQuitar <= 0) {
+        this.showToast('Informe um valor a quitar maior que zero.', 'erro');
+        return;
+      }
+
+      this.loadingProcessar = true;
+      try {
+        const r = await fetch('/cadastros/financeiro/processar-crediario/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+          },
+          body: JSON.stringify({
+            pessoa_id: this.cliente.id,
+            titulos_ids: this.selecionados,
+            valor_receber: this.valorQuitar,
+            forma_pagamento_id: this.tipoSelecionado.id,
+            lancar_caixa: this.lancarCaixa
+          })
+        });
+        const d = await r.json();
+        if (d.sucesso) {
+          this.modalPagamento = false;
+          this.showToast(d.mensagem, 'sucesso');
+          // Abre o comprovante de impressão em nova aba
+          if (d.recibo_url) {
+            window.open(d.recibo_url, '_blank');
+          }
+          // Recarrega as parcelas do cliente para atualizar a tela
+          await this.carregarParcelas(this.cliente.id);
+        } else {
+          this.showToast(d.erro || 'Erro ao processar recebimento.', 'erro');
+        }
+      } catch (e) {
+        this.showToast('Erro de conexão ao processar recebimento.', 'erro');
+      } finally {
+        this.loadingProcessar = false;
+      }
+    }
+  }
+}
+</script>
+{% endblock %}

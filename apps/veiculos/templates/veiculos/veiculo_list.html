@@ -1,0 +1,258 @@
+{% extends 'base.html' %}
+{% block title %}Veículos{% endblock %}
+{% block page_title %}🚗 Veículos{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-6">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <form method="get" class="flex flex-wrap items-center gap-2">
+            <input type="text" name="q" value="{{ busca }}" placeholder="Buscar placa, chassi, renavam..."
+                   class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            <select name="status" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                <option value="">Todos os status</option>
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if filtro_status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm font-semibold">
+                <i class="fas fa-search mr-1"></i>Filtrar
+            </button>
+        </form>
+        <a href="{% url 'veiculos:veiculo_create' %}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-bold">
+            <i class="fas fa-plus mr-1"></i>Novo Veículo
+        </a>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-gray-500 border-b bg-gray-50">
+                        <th class="px-5 py-3">Veículo</th>
+                        <th class="px-5 py-3">Placa</th>
+                        <th class="px-5 py-3">Chassi</th>
+                        <th class="px-5 py-3">Ano</th>
+                        <th class="px-5 py-3">KM</th>
+                        <th class="px-5 py-3">Status</th>
+                        <th class="px-5 py-3">Preço Venda</th>
+                        <th class="px-5 py-3 text-right">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in veiculos %}
+                    <tr class="border-b last:border-0 hover:bg-gray-50">
+                        <td class="px-5 py-3">
+                            <span class="font-medium text-gray-800">{{ v.marca }} {{ v.modelo.nome }}</span>
+                            <div class="text-xs text-gray-500">{{ v.cor|default:"—" }}</div>
+                        </td>
+                        <td class="px-5 py-3">{{ v.placa|default:"—" }}</td>
+                        <td class="px-5 py-3 font-mono text-xs">{{ v.chassi }}</td>
+                        <td class="px-5 py-3">{{ v.ano_modelo }}</td>
+                        <td class="px-5 py-3">{{ v.kilometragem }}</td>
+                        <td class="px-5 py-3">
+                            <span class="px-2 py-1 rounded-full text-xs font-semibold
+                                {% if v.status == 'EM_ESTOQUE' %}bg-green-100 text-green-700
+                                {% elif v.status == 'RESERVADO' %}bg-yellow-100 text-yellow-700
+                                {% elif v.status == 'VENDIDO' %}bg-blue-100 text-blue-700
+                                {% else %}bg-gray-100 text-gray-700{% endif %}">
+                                {{ v.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-5 py-3 font-medium">R$ {{ v.preco_venda }}</td>
+                        <td class="px-5 py-3 text-right whitespace-nowrap">
+                            {% if v.status == 'EM_ESTOQUE' %}
+                            <button type="button" @click="$store.venda.abrir({{ v.pk }}, '{{ v.placa|default:'' }}', '{{ v.preco_venda }}')"
+                                    class="text-green-600 hover:text-green-800 mr-2" title="Vender">
+                                <i class="fas fa-tag"></i>
+                            </button>
+                            <button type="button" @click="$store.compra.abrir({{ v.pk }})"
+                                    class="text-purple-600 hover:text-purple-800 mr-2" title="Emitir nota de compra">
+                                <i class="fas fa-file-import"></i>
+                            </button>
+                            {% endif %}
+                            <a href="{% url 'veiculos:veiculo_update' v.pk %}" class="text-blue-600 hover:text-blue-800 mr-2" title="Editar">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{% url 'veiculos:veiculo_delete' v.pk %}" class="text-red-600 hover:text-red-800" title="Excluir">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="px-5 py-6 text-center text-gray-400">Nenhum veículo encontrado.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal de Venda -->
+    <div x-show="$store.venda.aberto" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="p-5 border-b flex items-center justify-between sticky top-0 bg-white">
+                <h3 class="text-lg font-bold text-gray-800">Vender Veículo</h3>
+                <button @click="$store.venda.fechar()" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div class="bg-gray-50 rounded-lg p-3 flex justify-between">
+                    <span class="text-gray-600">Veículo</span>
+                    <span class="font-bold" x-text="$store.venda.placa"></span>
+                </div>
+                <div class="bg-blue-50 rounded-lg p-3 flex justify-between">
+                    <span class="text-gray-600">Valor de venda</span>
+                    <span class="font-bold text-blue-700" x-text="'R$ ' + $store.venda.valor"></span>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Cliente <span class="text-red-500">*</span></label>
+                    <select id="venda_cliente" x-ref="cliente" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="">Selecione o cliente...</option>
+                        {% for c in clientes %}
+                        <option value="{{ c.pk }}">{{ c.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Formas de Pagamento</label>
+                    <div class="space-y-2" id="venda_pagamentos">
+                        <div class="flex gap-2" x-init="addPagamentoLinha()">
+                            <select class="border border-gray-300 rounded-lg px-3 py-2 text-sm flex-1" x-ref="pgTipo">
+                                <option value="">Selecione...</option>
+                                {% for tp in tipos_pagamento %}
+                                <option value="{{ tp.pk_tipo_pagamento }}">{{ tp.tipo_pagamento }}</option>
+                                {% endfor %}
+                            </select>
+                            <input type="number" step="0.01" placeholder="Valor" class="border border-gray-300 rounded-lg px-3 py-2 text-sm w-32" x-ref="pgValor">
+                            <button type="button" @click="adicionarPagamento()" class="px-3 bg-green-600 text-white rounded-lg text-sm"><i class="fas fa-plus"></i></button>
+                        </div>
+                    </div>
+                    <div x-show="$store.venda.pagamentos.length" class="mt-2 space-y-1">
+                        <template x-for="(p, i) in $store.venda.pagamentos" :key="i">
+                            <div class="flex items-center justify-between bg-gray-50 rounded px-3 py-1.5 text-sm">
+                                <span x-text="p.nome + ' — R$ ' + p.valor"></span>
+                                <button @click="$store.venda.pagamentos.splice(i,1)" class="text-red-500 hover:text-red-700"><i class="fas fa-times"></i></button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Veículos como entrada (troca)</label>
+                    <div class="flex gap-2">
+                        <select id="venda_entrada" class="border border-gray-300 rounded-lg px-3 py-2 text-sm flex-1">
+                            <option value="">Selecione um veículo...</option>
+                            {% for v in veiculos_entrada %}
+                            <option value="{{ v.pk }}">{{ v.marca }} {{ v.modelo.nome }} ({{ v.placa }}) — R$ {{ v.preco_venda }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" @click="adicionarEntrada()" class="px-3 bg-indigo-600 text-white rounded-lg text-sm"><i class="fas fa-plus"></i></button>
+                    </div>
+                    <div x-show="$store.venda.entradas.length" class="mt-2 space-y-1">
+                        <template x-for="(e, i) in $store.venda.entradas" :key="i">
+                            <div class="flex items-center justify-between bg-indigo-50 rounded px-3 py-1.5 text-sm">
+                                <span x-text="e.nome + ' — R$ ' + e.valor"></span>
+                                <button @click="$store.venda.entradas.splice(i,1)" class="text-red-500 hover:text-red-700"><i class="fas fa-times"></i></button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <div x-show="$store.venda.msg" x-text="$store.venda.msg"
+                     x-bind:class="$store.venda.msgOk ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'"
+                     class="border rounded-lg p-3 text-sm"></div>
+
+                <div class="flex items-center justify-end gap-3 pt-4 border-t">
+                    <button type="button" @click="$store.venda.fechar()" class="px-4 py-2 border rounded-lg text-gray-700 text-sm">Cancelar</button>
+                    <button type="button" @click="$store.venda.confirmar()" class="px-6 py-2 bg-green-600 text-white rounded-lg text-sm font-bold">
+                        <i class="fas fa-check mr-1"></i>Confirmar Venda
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Nota de Compra -->
+    <div x-show="$store.compra.aberto" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div class="p-5 border-b flex items-center justify-between">
+                <h3 class="text-lg font-bold text-gray-800">Emitir Nota de Compra</h3>
+                <button @click="$store.compra.fechar()" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <p class="text-sm text-gray-600">Emite a NF-e de entrada (compra) do veículo. Será usado o <strong>dono do recibo</strong> como fornecedor.</p>
+                <div x-show="$store.compra.msg" x-text="$store.compra.msg"
+                     x-bind:class="$store.compra.msgOk ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'"
+                     class="border rounded-lg p-3 text-sm"></div>
+                <div class="flex items-center justify-end gap-3 pt-4 border-t">
+                    <button type="button" @click="$store.compra.fechar()" class="px-4 py-2 border rounded-lg text-gray-700 text-sm">Cancelar</button>
+                    <button type="button" @click="$store.compra.confirmar()" class="px-6 py-2 bg-purple-600 text-white rounded-lg text-sm font-bold">
+                        <i class="fas fa-file-import mr-1"></i>Emitir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.store('venda', {
+        aberto: false, veiculoId: null, placa: '', valor: '0.00',
+        pagamentos: [], entradas: [], msg: '', msgOk: true,
+        abrir(id, placa, valor) { this.veiculoId = id; this.placa = placa; this.valor = valor; this.aberto = true; this.msg = ''; },
+        fechar() { this.aberto = false; },
+        confirmar() {
+            const cliente = document.getElementById('venda_cliente').value;
+            if (!cliente) { this.msg = 'Selecione o cliente.'; this.msgOk = false; return; }
+            const fd = new FormData();
+            fd.append('cliente_id', cliente);
+            this.pagamentos.forEach(p => fd.append('pagamentos[]', `${p.tipo}:${p.valor}`));
+            this.entradas.forEach(e => fd.append('veiculos_entrada[]', e.id));
+            fetch(`/veiculos/veiculos/${this.veiculoId}/vender/`, { method: 'POST', body: fd, headers: {'X-CSRFToken': '{{ csrf_token }}'} })
+                .then(r => r.json()).then(j => {
+                    if (j.sucesso) { this.msg = 'Venda realizada! NF-e gerada.'; this.msgOk = true; setTimeout(() => location.reload(), 1200); }
+                    else { this.msg = j.erro; this.msgOk = false; }
+                }).catch(e => { this.msg = 'Erro de conexão.'; this.msgOk = false; });
+        },
+    });
+    Alpine.store('compra', {
+        aberto: false, veiculoId: null, msg: '', msgOk: true,
+        abrir(id) { this.veiculoId = id; this.aberto = true; this.msg = ''; },
+        fechar() { this.aberto = false; },
+        confirmar() {
+            const fd = new FormData();
+            fetch(`/veiculos/veiculos/${this.veiculoId}/emitir-compra/`, { method: 'POST', body: fd, headers: {'X-CSRFToken': '{{ csrf_token }}'} })
+                .then(r => r.json()).then(j => {
+                    if (j.sucesso) { this.msg = 'Nota de compra emitida!'; this.msgOk = true; setTimeout(() => location.reload(), 1200); }
+                    else { this.msg = j.erro; this.msgOk = false; }
+                }).catch(e => { this.msg = 'Erro de conexão.'; this.msgOk = false; });
+        },
+    });
+});
+
+function veiculoPagamentos() {
+    return {
+        addPagamentoLinha() {},
+        adicionarPagamento() {
+            const tipo = document.querySelector('#venda_pagamentos select');
+            const valor = document.querySelector('#venda_pagamentos input[type=number]');
+            if (!tipo.value || !valor.value) return;
+            const nome = tipo.options[tipo.selectedIndex].text;
+            Alpine.store('venda').pagamentos.push({ tipo: tipo.value, valor: valor.value, nome: nome });
+            tipo.value = ''; valor.value = '';
+        },
+        adicionarEntrada() {
+            const sel = document.getElementById('venda_entrada');
+            if (!sel.value) return;
+            const nome = sel.options[sel.selectedIndex].text;
+            const opt = sel.options[sel.selectedIndex];
+            const id = sel.value;
+            Alpine.store('venda').entradas.push({ id: id, nome: nome, valor: '' });
+            sel.value = '';
+        },
+    };
+}
+</script>
+<style>[x-cloak]{display:none!important}</style>
+{% endblock %}

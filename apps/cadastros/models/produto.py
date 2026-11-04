@@ -33,11 +33,14 @@ class LocalEstoque(models.Model):
 
 class Produto(models.Model):
     TIPO_CHOICES = [
-        ('PRODUTO ACABADO', 'Produto Acabado'),
+        ('REVENDA', 'Revenda'),
+        ('PRODUTO ACABADO', 'Produto Acabado (Fabricação Própria)'),
         ('MATERIA PRIMA', 'Matéria Prima'),
         ('PRODUTO INTERMEDIARIO', 'Produto Intermediário'),
         ('USO E CONSUMO', 'Uso e Consumo'),
+        ('EMBALAGEM', 'Embalagem'),
         ('SERVICO', 'Serviço'),
+        ('OUTRO', 'Outro'),
     ]
 
     ORIGEM_CHOICES = [
@@ -52,8 +55,31 @@ class Produto(models.Model):
         ('8', '8 - Nacional - Conteúdo de Importação > 70%'),
     ]
 
+    REGULATORIO_CHOICES = [
+        ('COMUM', 'Nenhum (produto comum)'),
+        ('MEDICAMENTO', 'Medicamento'),
+        ('ARMAMENTO', 'Armamento'),
+        ('COMBUSTIVEL', 'Combustível'),
+        ('OUTRO', 'Outro'),
+    ]
+
     pk_chave = models.AutoField(primary_key=True, verbose_name='Código')
     nome = models.CharField(max_length=255, verbose_name='Nome do Produto')
+    descricao_reduzida = models.CharField(
+        max_length=100, blank=True, null=True,
+        verbose_name='Desc. Reduzida',
+        help_text='Descrição para PDV, cupom fiscal e etiquetas'
+    )
+    codigo = models.CharField(
+        max_length=50, blank=True, null=True,
+        verbose_name='Código',
+        help_text='Código interno / SKU próprio da loja'
+    )
+    referencia = models.CharField(
+        max_length=50, blank=True, null=True,
+        verbose_name='Referência',
+        help_text='Código de referência do fabricante ou catálogo'
+    )
     
     marca = models.ForeignKey(
         Marca,
@@ -68,6 +94,14 @@ class Produto(models.Model):
         to_field='nome',
         related_name='produtos',
         verbose_name='Divisão'
+    )
+    grupo = models.CharField(
+        max_length=100, blank=True, null=True,
+        verbose_name='Grupo'
+    )
+    fabricante = models.CharField(
+        max_length=100, blank=True, null=True,
+        verbose_name='Fabricante'
     )
     ncm = models.ForeignKey(
         NCM,
@@ -104,10 +138,16 @@ class Produto(models.Model):
     inativo = models.BooleanField(default=False, verbose_name='Inativo')
     data_cadastramento = models.DateField(auto_now_add=True, verbose_name='Data Cadastro')
     tipo_produto = models.CharField(
-        max_length=21,
+        max_length=30,
         choices=TIPO_CHOICES,
-        default='PRODUTO ACABADO',
+        default='REVENDA',
         verbose_name='Tipo de Produto'
+    )
+    tipo_regulatorio = models.CharField(
+        max_length=30,
+        choices=REGULATORIO_CHOICES,
+        default='COMUM',
+        verbose_name='Tipo Regulatório'
     )
     
     referencia_fabrica = models.CharField(
@@ -124,15 +164,43 @@ class Produto(models.Model):
         related_name='produtos',
         blank=True,
         null=True,
-        verbose_name='Divisão Impostos Saída'
+        verbose_name='Divisão Impostos Saída (Perfil Fiscal)'
     )
     cest = models.CharField(max_length=7, default='0000000', verbose_name='CEST')
+    cest_isento = models.BooleanField(default=False, verbose_name='CEST não se aplica')
+    
+    controla_estoque = models.BooleanField(default=True, verbose_name='Controla Estoque')
+    permite_venda = models.BooleanField(default=True, verbose_name='Permite Venda')
+    permite_compra = models.BooleanField(default=True, verbose_name='Permite Compra')
+    
+    descricao = models.TextField(blank=True, null=True, verbose_name='Descrição Técnica')
+    descricao_comercial = models.TextField(blank=True, null=True, verbose_name='Descrição Comercial')
     
     estoque_minimo = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         default=0,
         verbose_name='Estoque Mínimo'
+    )
+    ponto_reposicao = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        default=0,
+        verbose_name='Ponto de Reposição'
+    )
+    estoque_maximo = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        default=0,
+        verbose_name='Estoque Máximo'
+    )
+    controla_lote = models.BooleanField(
+        default=False,
+        verbose_name='Controla lote (rastreabilidade + FEFO)'
+    )
+    controla_serie = models.BooleanField(
+        default=False,
+        verbose_name='Controla número de série'
     )
     permitir_estoque_negativo = models.BooleanField(
         default=False,
@@ -260,6 +328,90 @@ class Produto(models.Model):
         verbose_name='Alíquota IPI (%)'
     )
 
+    # =========================================================
+    # LOGÍSTICA
+    # =========================================================
+    peso_liquido = models.DecimalField(
+        max_digits=14, decimal_places=4, default=0,
+        verbose_name='Peso Líquido (kg)'
+    )
+    peso_bruto = models.DecimalField(
+        max_digits=14, decimal_places=4, default=0,
+        verbose_name='Peso Bruto (kg)'
+    )
+    comprimento = models.DecimalField(
+        max_digits=14, decimal_places=4, default=0,
+        verbose_name='Comprimento (cm)'
+    )
+    largura = models.DecimalField(
+        max_digits=14, decimal_places=4, default=0,
+        verbose_name='Largura (cm)'
+    )
+    altura = models.DecimalField(
+        max_digits=14, decimal_places=4, default=0,
+        verbose_name='Altura (cm)'
+    )
+    cubagem = models.DecimalField(
+        max_digits=14, decimal_places=6, default=0,
+        verbose_name='Cubagem (m³)',
+        help_text='Volume cúbico em m³ (ex: Altura x Largura x Comprimento / 1.000.000)'
+    )
+    tipo_embalagem = models.CharField(
+        max_length=50, blank=True, null=True,
+        verbose_name='Tipo Embalagem',
+        help_text='Ex: Caixa, Pacote/Envelope, Rolo/Cilindro'
+    )
+    multiplo_venda = models.DecimalField(
+        max_digits=10, decimal_places=2, default=1,
+        verbose_name='Múltiplo Venda',
+        help_text='Passo ou múltiplo mínimo de venda'
+    )
+    qtd_embalagem = models.DecimalField(
+        max_digits=10, decimal_places=2, default=1,
+        verbose_name='Qtd. Embalagem',
+        help_text='Quantidade contida na embalagem de fábrica'
+    )
+    prazo_separacao_dias = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Prazo de Separação (dias)',
+        help_text='Dias úteis para separar e despachar o pedido'
+    )
+
+    # =========================================================
+    # CANAIS E MARKETING
+    # =========================================================
+    VISIBILIDADE_CHOICES = [
+        ('TODOS', 'Catálogo e Vendas'),
+        ('VENDAS', 'Somente Vendas'),
+        ('CATALOGO', 'Somente Catálogo'),
+        ('OCULTO', 'Oculto (uso interno)'),
+    ]
+    visibilidade = models.CharField(
+        max_length=10, choices=VISIBILIDADE_CHOICES, default='TODOS',
+        verbose_name='Visibilidade'
+    )
+    produto_destaque = models.BooleanField(
+        default=False,
+        verbose_name='Produto em Destaque'
+    )
+    seo_titulo = models.CharField(
+        max_length=255, blank=True, null=True,
+        verbose_name='Título SEO'
+    )
+    seo_descricao = models.TextField(
+        blank=True, null=True,
+        verbose_name='Descrição SEO'
+    )
+    palavras_chave = models.CharField(
+        max_length=500, blank=True, null=True,
+        verbose_name='Palavras-chave',
+        help_text='Separadas por vírgula'
+    )
+    url_amigavel = models.CharField(
+        max_length=255, blank=True, null=True,
+        verbose_name='URL Amigável'
+    )
+
     class Meta:
         db_table = 'produtos'
         verbose_name = 'Produto'
@@ -291,6 +443,190 @@ class CodigoBarras(models.Model):
 
     def __str__(self):
         return f"{self.codigo_barras} - {self.produto.nome}"
+
+
+class ConversaoUnidade(models.Model):
+    """
+    Conversão de unidade de venda do produto.
+    Ex: 1 CX = 12 UN (unidade base cadastrada no produto).
+    """
+    produto = models.ForeignKey(
+        Produto,
+        on_delete=models.CASCADE,
+        related_name='conversoes_unidade',
+        verbose_name='Produto'
+    )
+    unidade = models.ForeignKey(
+        Unidade,
+        on_delete=models.PROTECT,
+        to_field='nome',
+        related_name='conversoes',
+        verbose_name='Unidade'
+    )
+    fator_conversao = models.DecimalField(
+        max_digits=14, decimal_places=4, default=1,
+        verbose_name='Fator de Estoque',
+        help_text='Quantidade de unidades base contidas em 1 desta unidade'
+    )
+    fator_preco = models.DecimalField(
+        max_digits=14, decimal_places=4, default=1,
+        verbose_name='Fator de Preço',
+        help_text='Multiplicador de preço para esta unidade'
+    )
+    sem_gtin = models.BooleanField(
+        default=False,
+        verbose_name='Sem GTIN'
+    )
+    codigo_barras = models.CharField(
+        max_length=20, blank=True, null=True,
+        verbose_name='Código de Barras',
+        help_text='EAN/DUN da embalagem (opcional)'
+    )
+    sku = models.CharField(
+        max_length=50, blank=True, null=True,
+        verbose_name='SKU'
+    )
+    permite_compra = models.BooleanField(
+        default=True,
+        verbose_name='Compra'
+    )
+    permite_venda = models.BooleanField(
+        default=True,
+        verbose_name='Venda'
+    )
+
+    class Meta:
+        db_table = 'conversao_unidade'
+        verbose_name = 'Conversão de Unidade'
+        verbose_name_plural = 'Conversões de Unidade'
+        unique_together = [['produto', 'unidade']]
+        ordering = ['unidade__nome']
+
+    def __str__(self):
+        return f"1 {self.unidade.simbolo} = {self.fator_conversao} {self.produto.unidade_venda.simbolo}"
+
+
+class ProdutoVariacao(models.Model):
+    """
+    Variações de produto (ex: tamanhos, cores, grades).
+    """
+    produto = models.ForeignKey(
+        Produto,
+        on_delete=models.CASCADE,
+        related_name='variacoes',
+        verbose_name='Produto Principal'
+    )
+    descricao = models.CharField(
+        max_length=255,
+        verbose_name='Descrição',
+        help_text='Ex: Cor: Azul, Tamanho: G'
+    )
+    codigo = models.CharField(
+        max_length=50, blank=True, null=True,
+        verbose_name='Código'
+    )
+    referencia = models.CharField(
+        max_length=50, blank=True, null=True,
+        verbose_name='Referência'
+    )
+    sku = models.CharField(
+        max_length=50, blank=True, null=True,
+        verbose_name='SKU'
+    )
+    codigo_barras = models.CharField(
+        max_length=20, blank=True, null=True,
+        verbose_name='Cód. de Barras (EAN/GTIN)'
+    )
+    ativo = models.BooleanField(
+        default=True,
+        verbose_name='Ativo'
+    )
+    preco_venda = models.DecimalField(
+        max_digits=14, decimal_places=4, null=True, blank=True,
+        verbose_name='Preço de Venda'
+    )
+    estoque_atual = models.DecimalField(
+        max_digits=14, decimal_places=4, default=0,
+        verbose_name='Estoque Atual'
+    )
+
+    class Meta:
+        db_table = 'produto_variacao'
+        verbose_name = 'Variação de Produto'
+        verbose_name_plural = 'Variações de Produtos'
+        ordering = ['descricao']
+
+    def __str__(self):
+        return f"{self.produto.nome} - {self.descricao}"
+
+
+class ProdutoCanal(models.Model):
+    """
+    Canais de venda / Marketplace para anúncios do produto.
+    """
+    CANAL_CHOICES = [
+        ('MERCADO_LIVRE', 'Mercado Livre'),
+        ('SHOPEE', 'Shopee'),
+        ('LOJA_INTEGRADA', 'Loja Integrada'),
+        ('NUVEMSHOP', 'Nuvemshop'),
+        ('WOOCOMMERCE', 'WooCommerce'),
+        ('AMAZON', 'Amazon'),
+        ('CATALOGO_WHATSAPP', 'Catálogo WhatsApp'),
+        ('OUTRO', 'Outro'),
+    ]
+    STATUS_CHOICES = [
+        ('ATIVO', 'Ativo'),
+        ('INATIVO', 'Inativo'),
+        ('PAUSADO', 'Pausado'),
+    ]
+
+    produto = models.ForeignKey(
+        Produto,
+        on_delete=models.CASCADE,
+        related_name='canais',
+        verbose_name='Produto'
+    )
+    canal = models.CharField(
+        max_length=50,
+        choices=CANAL_CHOICES,
+        default='MERCADO_LIVRE',
+        verbose_name='Canal'
+    )
+    titulo = models.CharField(
+        max_length=255, blank=True, null=True,
+        verbose_name='Título'
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='ATIVO',
+        verbose_name='Status'
+    )
+    preco = models.DecimalField(
+        max_digits=14, decimal_places=4, null=True, blank=True,
+        verbose_name='Preço'
+    )
+    unidade = models.CharField(
+        max_length=50, default='Padrão',
+        verbose_name='Unidade'
+    )
+    sku_canal = models.CharField(
+        max_length=100, blank=True, null=True,
+        verbose_name='SKU Canal'
+    )
+    url = models.CharField(
+        max_length=500, blank=True, null=True,
+        verbose_name='URL'
+    )
+
+    class Meta:
+        db_table = 'produto_canal'
+        verbose_name = 'Canal do Produto'
+        verbose_name_plural = 'Canais do Produto'
+        ordering = ['canal']
+
+    def __str__(self):
+        return f"{self.produto.nome} - {self.get_canal_display()}"
 
 
 class ImagemProduto(models.Model):

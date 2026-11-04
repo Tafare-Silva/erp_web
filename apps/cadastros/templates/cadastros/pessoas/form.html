@@ -1,539 +1,1029 @@
 {% extends 'base.html' %}
 {% block title %}{{ titulo }}{% endblock %}
-{% block page_title %}{{ titulo }}{% endblock %}
+{% block page_title %}Pessoas / Clientes{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50 pb-12">
-    <form method="post" id="form-pessoa"
-          x-data="{
-              abaAtiva: 'principais',
-              isPF: {{ form.instance.cpf_cnpj|default:''|length|yesno:"true,false" }},
-              isFuncionario: {% if form.funcionario.value %}true{% else %}false{% endif %},
-              cpfCnpjRaw: '{{ form.instance.cpf_cnpj|default:'' }}',
-              telefoneRaw: '{{ form.instance.telefone_fixo|default:'' }}',
-              celularRaw: '{{ form.instance.celular_principal|default:'' }}',
+<div class="min-h-screen bg-slate-50/60 pb-16" x-data="pessoaApp()">
 
-              mascaraCPFCNPJ(e) {
-                  let v = e.target.value.replace(/\D/g,'');
-                  if (v.length <= 11) {
-                      v = v.replace(/(\d{3})(\d)/, '$1.$2');
-                      v = v.replace(/(\d{3})(\d)/, '$1.$2');
-                      v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-                  } else {
-                      v = v.replace(/(\d{2})(\d)/, '$1.$2');
-                      v = v.replace(/(\d{3})(\d)/, '$1.$2');
-                      v = v.replace(/(\d{3})(\d)/, '$1/$2');
-                      v = v.replace(/(\d{4})(\d{1,2})$/, '$1-$2');
-                  }
-                  e.target.value = v;
-                  this.cpfCnpjRaw = v;
-                  this.isPF = (v.replace(/\D/g,'').length === 11);
-              },
+<form method="post" id="form-pessoa">
+{% csrf_token %}
 
-              mascaraTelefone(e) {
-                  let v = e.target.value.replace(/\D/g,'');
-                  if (v.length <= 10) {
-                      v = v.replace(/(\d{2})(\d)/, '($1) $2');
-                      v = v.replace(/(\d{4})(\d)/, '$1-$2');
-                  } else {
-                      v = v.replace(/(\d{2})(\d)/, '($1) $2');
-                      v = v.replace(/(\d{5})(\d)/, '$1-$2');
-                  }
-                  e.target.value = v;
-                  this.telefoneRaw = v;
-              },
+<!-- Hidden inputs para garantir integridade do envio -->
+<input type="hidden" name="tipo_pessoa" id="id_tipo_pessoa" :value="tipoPessoa">
+<input type="hidden" name="inativo" :value="!ativo ? 'on' : ''">
+<input type="hidden" name="isento_ie" :value="isentoIE ? 'on' : ''">
+<input type="hidden" name="consumidor_final" :value="consumidorFinal ? 'on' : ''">
 
-              mascaraCelular(e) {
-                  let v = e.target.value.replace(/\D/g,'');
-                  if (v.length > 10) {
-                      v = v.replace(/(\d{2})(\d)/, '($1) $2');
-                      v = v.replace(/(\d{5})(\d)/, '$1-$2');
-                  } else {
-                      v = v.replace(/(\d{2})(\d)/, '($1) $2');
-                      v = v.replace(/(\d{4})(\d)/, '$1-$2');
-                  }
-                  e.target.value = v;
-                  this.celularRaw = v;
-              },
-
-              mascaraCEP(e) {
-                  let v = e.target.value.replace(/\D/g,'');
-                  v = v.replace(/(\d{5})(\d)/, '$1-$2');
-                  e.target.value = v;
-                  if (v.replace(/\D/g,'').length === 8) this.buscarCEP(v);
-              },
-
-              async buscarCEP(cep) {
-                  try {
-                      const r = await fetch(`https://viacep.com.br/ws/${cep.replace(/\D/g,'')}/json/`);
-                      const d = await r.json();
-                      if (d.erro) {
-                          this.mostrarAlerta('CEP não encontrado no ViaCEP', 'erro');
-                          return;
-                      }
-                      document.getElementById('id_logradouro').value = d.logradouro || '';
-                      document.getElementById('id_bairro').value = d.bairro || '';
-                      document.getElementById('id_cep_uf').value = d.uf || '';
-                      if (d.ibge) {
-                          const resp = await fetch(`/cadastros/api/cidade-ibge/${d.ibge}/`);
-                          const json = await resp.json();
-                          if (json.id) {
-                              const text = json.nome + '/' + json.estado_uf;
-                              this.cidadeId = json.id;
-                              this.cidadeText = text;
-                              this.cidadeSearch = text;
-                          } else {
-                              this.cidadeSearch = '';
-                              this.mostrarAlerta('Cidade do CEP não encontrada no banco de dados local', 'aviso');
-                          }
-                      }
-                  } catch(e) {
-                      this.mostrarAlerta('Erro ao buscar CEP: ' + e.message, 'erro');
-                  }
-              },
-
-              cidadeSearch: '{% if endereco and endereco.cidade %}{{ endereco.cidade.nome }}/{{ endereco.cidade.estado.uf }}{% endif %}',
-              cidadeId: '{{ endereco.cidade.codigo_ibge|default:"" }}',
-              cidadeText: '{% if endereco and endereco.cidade %}{{ endereco.cidade.nome }}/{{ endereco.cidade.estado.uf }}{% endif %}',
-              cidadeResults: [],
-              cidadeOpen: false,
-              cidadeLoading: false,
-              cidadeTimeout: null,
-
-              async buscarCidades() {
-                  const q = this.cidadeSearch;
-                  if (q.length < 2) {
-                      this.cidadeResults = [];
-                      this.cidadeOpen = false;
-                      return;
-                  }
-                  this.cidadeLoading = true;
-                  try {
-                      const r = await fetch(`/cadastros/api/cidades/?q=${encodeURIComponent(q)}`);
-                      const data = await r.json();
-                      this.cidadeResults = data.results || [];
-                      this.cidadeOpen = this.cidadeResults.length > 0;
-                  } catch(e) {
-                      this.cidadeResults = [];
-                  } finally {
-                      this.cidadeLoading = false;
-                  }
-              },
-
-              selecionarCidade(item) {
-                  this.cidadeId = item.id;
-                  this.cidadeText = item.text;
-                  this.cidadeSearch = item.text;
-                  this.cidadeOpen = false;
-              },
-
-              mostrarAlerta(msg, tipo) {
-                  const div = document.createElement('div');
-                  div.className = 'fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium ' +
-                      (tipo === 'erro' ? 'bg-red-500 text-white' : 'bg-yellow-500 text-white');
-                  div.textContent = msg;
-                  document.body.appendChild(div);
-                  setTimeout(() => div.remove(), 4000);
-              },
-
-              validarCPF(cpf) {
-                  const s = cpf.replace(/\D/g,'');
-                  if (s.length !== 11) return false;
-                  let sum = 0, rest;
-                  for (let i = 1; i <= 9; i++) sum += parseInt(s.charAt(i-1)) * (11 - i);
-                  rest = (sum * 10) % 11;
-                  if (rest === 10 || rest === 11) rest = 0;
-                  if (rest !== parseInt(s.charAt(9))) return false;
-                  sum = 0;
-                  for (let i = 1; i <= 10; i++) sum += parseInt(s.charAt(i-1)) * (12 - i);
-                  rest = (sum * 10) % 11;
-                  if (rest === 10 || rest === 11) rest = 0;
-                  if (rest !== parseInt(s.charAt(10))) return false;
-                  return true;
-              },
-
-              validarCNPJ(cnpj) {
-                  const s = cnpj.replace(/\D/g,'');
-                  if (s.length !== 14) return false;
-                  let size = s.length - 2, numbers = s.substring(0, size), digits = s.substring(size), sum = 0, pos = size - 7;
-                  for (let i = size; i >= 1; i--) { sum += parseInt(numbers.charAt(size - i)) * pos--; if (pos < 2) pos = 9; }
-                  let result = sum % 11 < 2 ? 0 : 11 - sum % 11;
-                  if (result !== parseInt(digits.charAt(0))) return false;
-                  size += 1; numbers = s.substring(0, size); sum = 0; pos = size - 7;
-                  for (let i = size; i >= 1; i--) { sum += parseInt(numbers.charAt(size - i)) * pos--; if (pos < 2) pos = 9; }
-                  result = sum % 11 < 2 ? 0 : 11 - sum % 11;
-                  if (result !== parseInt(digits.charAt(1))) return false;
-                  return true;
-              },
-
-              validarDocumento() {
-                  const raw = this.cpfCnpjRaw.replace(/\D/g,'');
-                  if (raw.length === 11) return this.validarCPF(raw);
-                  if (raw.length === 14) return this.validarCNPJ(raw);
-                  return false;
-              },
-
-              get documentoValido() {
-                  const raw = this.cpfCnpjRaw.replace(/\D/g,'');
-                  if (raw.length === 0) return true;
-                  if (raw.length === 11) return this.validarCPF(raw);
-                  if (raw.length === 14) return this.validarCNPJ(raw);
-                  return false;
-              }
-          }">
-        {% csrf_token %}
-
-        <!-- ========== TOP BAR ========== -->
-        <div class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-30 shadow-sm">
-            <div class="flex items-center gap-4">
-                <a href="{% url 'cadastros:pessoa_list' %}"
-                   class="p-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors">
-                    <i class="fas fa-arrow-left text-lg"></i>
-                </a>
-                <div>
-                    <div class="flex items-center gap-2">
-                        <h1 class="text-xl font-bold text-gray-900">{{ titulo }}</h1>
-                        {% if form.instance.chave %}
-                        <span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-md">#{{ form.instance.chave }}</span>
+<!-- ========================================================================= -->
+<!-- HEADER BAR (ESTILO MANTO SISTEMAS) -->
+<!-- ========================================================================= -->
+<div class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs px-4 md:px-8 py-3.5 mb-6">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+            <a href="{% url 'cadastros:pessoa_list' %}"
+               class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-smooth">
+                <i class="fas fa-arrow-left text-[11px]"></i>
+                <span>Voltar</span>
+            </a>
+            <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <h1 class="text-lg md:text-xl font-bold text-slate-900 tracking-tight">
+                        {{ titulo }}
+                    </h1>
+                    {% if form.instance.chave %}
+                        <span class="px-2 py-0.5 bg-slate-100 text-slate-600 font-mono text-[11px] font-bold rounded-md">#{{ form.instance.chave }}</span>
+                        <span class="px-2 py-0.5 font-bold text-[11px] rounded-md"
+                              :class="tipoPessoa === 'J' ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'"
+                              x-text="tipoPessoa === 'J' ? 'Pessoa Jurídica' : 'Pessoa Física'"></span>
+                        {% if form.instance.inativo %}
+                            <span class="px-2 py-0.5 bg-red-50 text-red-700 text-[11px] font-bold rounded-md">Inativo</span>
+                        {% else %}
+                            <span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[11px] font-bold rounded-md">Ativo</span>
                         {% endif %}
-                    </div>
-                    <p class="text-xs text-gray-500 mt-0.5">Preencha os dados da pessoa</p>
+                    {% endif %}
                 </div>
             </div>
-            <button type="submit" class="px-6 py-2 text-sm font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-md">
-                <i class="fas fa-save mr-2"></i>{{ botao_texto }}
+        </div>
+
+        <!-- Botões de Ação Topo -->
+        <div class="flex items-center gap-2 self-end md:self-auto" x-data="{ menuMaisAberto: false }">
+            <a href="{% url 'cadastros:pessoa_list' %}"
+               class="px-4 py-2 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-smooth">
+                Cancelar
+            </a>
+
+            <button type="submit"
+                    class="px-5 py-2 text-xs font-semibold bg-[#0f2b48] hover:bg-[#153a61] text-white rounded-lg transition-smooth shadow-sm flex items-center gap-2">
+                <i class="fas fa-save text-[11px]"></i>
+                <span>{{ botao_texto }}</span>
             </button>
-        </div>
 
-        {% if form.errors or form_pf.errors %}
-        <div class="max-w-5xl mx-auto mt-6 px-4">
-            <div class="p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg shadow-sm">
-                ...
-            </div>
-        </div>
-        {% endif %}
-
-        <div class="max-w-5xl mx-auto mt-6 px-4">
-            <!-- ========== ABAS ========== -->
-            <div class="mb-6 border-b border-gray-200 bg-white rounded-t-xl px-6">
-                <nav class="flex space-x-8 overflow-x-auto" aria-label="Tabs">
-                    <button type="button" @click="abaAtiva = 'principais'"
-                            :class="abaAtiva === 'principais' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
-                        <i class="fas fa-id-card mr-2"></i>Dados Principais
+            <!-- Menu Mais Dropdown -->
+            <div class="relative">
+                <button type="button" @click="menuMaisAberto = !menuMaisAberto" @click.away="menuMaisAberto = false"
+                        class="px-3 py-2 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-smooth flex items-center gap-1.5">
+                    <i class="fas fa-ellipsis-vertical text-[11px]"></i>
+                    <span>Mais</span>
+                </button>
+                <div x-show="menuMaisAberto" x-cloak x-transition
+                     class="absolute right-0 mt-1.5 w-48 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 z-40 text-xs text-slate-700">
+                    {% if form.instance.chave %}
+                    <a href="{% url 'cadastros:pessoa_detail' form.instance.chave %}" class="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50">
+                        <i class="fas fa-eye text-slate-400 w-4"></i>Visualizar Ficha
+                    </a>
+                    <button type="button" @click="abrirWhatsApp(); menuMaisAberto = false;" class="w-full text-left flex items-center gap-2.5 px-4 py-2 text-emerald-600 hover:bg-emerald-50">
+                        <i class="fab fa-whatsapp text-emerald-500 w-4"></i>Conversar no WhatsApp
                     </button>
-                    <button type="button" @click="abaAtiva = 'endereco'"
-                            :class="abaAtiva === 'endereco' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
-                        <i class="fas fa-map-marker-alt mr-2"></i>Endereço
-                    </button>
-                    <button type="button" @click="abaAtiva = 'classificacoes'"
-                            :class="abaAtiva === 'classificacoes' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
-                        <i class="fas fa-tags mr-2"></i>Classificações
-                    </button>
-                    <button type="button" @click="abaAtiva = 'fiscal'"
-                            :class="abaAtiva === 'fiscal' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
-                        <i class="fas fa-file-invoice text-red-500 mr-2"></i>Fiscal NF-e
-                    </button>
-                    <button type="button" @click="abaAtiva = 'complementares'"
-                            :class="abaAtiva === 'complementares' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
-                        <i class="fas fa-info-circle mr-2"></i>Complementares
-                    </button>
-                    <button type="button" x-show="isPF" @click="abaAtiva = 'pf'"
-                            :class="abaAtiva === 'pf' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
-                        <i class="fas fa-user mr-2"></i>Pessoa Física
-                    </button>
-                </nav>
-            </div>
-
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <!-- Aba 1: Dados Principais -->
-                <div x-show="abaAtiva === 'principais'" x-transition>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Nome / Razão Social <span class="text-red-500">*</span></label>
-                            {{ form.nome }}
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">CPF / CNPJ <span class="text-red-500">*</span></label>
-                            <input type="text" name="cpf_cnpj" value="{{ form.cpf_cnpj.value|default:'' }}" maxlength="18"
-                                   style="width:100%;padding:7px 10px;border:1.5px solid #9ca3af;border-radius:6px;font-size:13.5px;background:#fff;color:#111827;outline:none;box-sizing:border-box;min-height:36px;font-family:monospace;letter-spacing:0.5px;"
-                                   @input="mascaraCPFCNPJ" x-model="cpfCnpjRaw">
-                            <div class="flex items-center gap-2 mt-1">
-                                <span class="text-xs text-gray-500">11 dígitos (CPF) ou 14 (CNPJ)</span>
-                                <span x-show="cpfCnpjRaw.replace(/\D/g,'').length >= 11"
-                                      x-text="documentoValido ? '✅ Válido' : '❌ Inválido'"
-                                      :class="documentoValido ? 'text-green-600' : 'text-red-600'"
-                                      class="text-xs font-bold"></span>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">RG / Inscrição Estadual</label>
-                            {{ form.rg_ie }}
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Nome Fantasia</label>
-                            {{ form.nome_fantasia }}
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
-                            {{ form.email }}
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Telefone Fixo</label>
-                            <input type="text" name="telefone_fixo" value="{{ form.telefone_fixo.value|default:'' }}" maxlength="15"
-                                   style="width:100%;padding:7px 10px;border:1.5px solid #9ca3af;border-radius:6px;font-size:13.5px;background:#fff;color:#111827;outline:none;box-sizing:border-box;min-height:36px;"
-                                   @input="mascaraTelefone" x-model="telefoneRaw">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Celular</label>
-                            <input type="text" name="celular_principal" value="{{ form.celular_principal.value|default:'' }}" maxlength="15"
-                                   style="width:100%;padding:7px 10px;border:1.5px solid #9ca3af;border-radius:6px;font-size:13.5px;background:#fff;color:#111827;outline:none;box-sizing:border-box;min-height:36px;"
-                                   @input="mascaraCelular" x-model="celularRaw">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Aba 2: Endereço -->
-                <div x-show="abaAtiva === 'endereco'" x-transition>
-                    <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-                        <div class="flex items-start gap-3">
-                            <i class="fas fa-map-marker-alt text-green-600 mt-0.5"></i>
-                            <div>
-                                <h4 class="text-sm font-medium text-green-900">Endereço Principal</h4>
-                                <p class="text-sm text-green-700">Digite o CEP para buscar automaticamente. A cidade será criada via IBGE.</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">CEP</label>
-                            <input type="text" id="id_cep" name="cep" value="{{ endereco.cep|default:'' }}" maxlength="9"
-                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                                   @input="mascaraCEP" placeholder="00000-000">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">UF</label>
-                            <input type="text" id="id_cep_uf" name="cep_uf" readonly
-                                   class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50"
-                                   placeholder="Preenchido via CEP">
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Logradouro</label>
-                            <input type="text" id="id_logradouro" name="logradouro" value="{{ endereco.logradouro|default:'' }}"
-                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Número</label>
-                            <input type="text" name="numero" value="{{ endereco.numero|default:'' }}"
-                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Complemento</label>
-                            <input type="text" name="complemento" value="{{ endereco.complemento|default:'' }}"
-                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Bairro</label>
-                            <input type="text" id="id_bairro" name="bairro" value="{{ endereco.bairro|default:'' }}"
-                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                        </div>
-                        <div class="relative">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Cidade</label>
-                            <input type="hidden" name="cidade" x-model="cidadeId">
-                            <input type="text" x-model="cidadeSearch"
-                                   x-init="if(cidadeText) cidadeSearch = cidadeText"
-                                   @input="clearTimeout(cidadeTimeout); cidadeTimeout=setTimeout(buscarCidades, 300)"
-                                   @focus="if(cidadeResults.length) cidadeOpen = true"
-                                   @click.away="cidadeOpen = false"
-                                   @keydown.escape="cidadeOpen = false"
-                                   @keydown.down.prevent="$el.nextElementSibling?.querySelector('li')?.focus()"
-                                   autocomplete="off"
-                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                                   placeholder="Digite o nome da cidade ou UF...">
-                            <div x-show="cidadeOpen" x-cloak
-                                 class="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                                <template x-if="cidadeLoading">
-                                    <div class="px-3 py-2 text-sm text-gray-400"><i class="fas fa-spinner fa-spin mr-1"></i>Buscando...</div>
-                                </template>
-                                <template x-if="!cidadeLoading && cidadeResults.length === 0 && cidadeSearch.length >= 2">
-                                    <div class="px-3 py-2 text-sm text-gray-400">Nenhuma cidade encontrada</div>
-                                </template>
-                                <ul>
-                                    <template x-for="item in cidadeResults" :key="item.id">
-                                        <li @click="selecionarCidade(item)"
-                                            @keydown.enter="selecionarCidade(item)"
-                                            tabindex="0"
-                                            class="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-0"
-                                            x-text="item.text"></li>
-                                    </template>
-                                </ul>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo Endereço</label>
-                            <select name="tipo_endereco" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                                <option value="RESIDENCIAL">Residencial</option>
-                                <option value="COMERCIAL">Comercial</option>
-                                <option value="COBRANCA">Cobrança</option>
-                                <option value="ENTREGA">Entrega</option>
-                                <option value="OUTRO">Outro</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Aba 3: Classificações -->
-                <div x-show="abaAtiva === 'classificacoes'" x-transition>
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                        <div class="flex items-start gap-3">
-                            <i class="fas fa-info-circle text-blue-600 mt-0.5"></i>
-                            <div>
-                                <h4 class="text-sm font-medium text-blue-900">Classificações</h4>
-                                <p class="text-sm text-blue-700">Marque as opções que se aplicam a esta pessoa.</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="flex items-start p-4 border border-gray-200 rounded-xl hover:bg-blue-50 transition cursor-pointer" @click="$el.querySelector('input[type=checkbox]').click()">
-                            <div class="flex items-center h-5">{{ form.cliente }}</div>
-                            <div class="ml-3"><label class="font-medium text-gray-700 cursor-pointer"><i class="fas fa-shopping-cart text-blue-600 mr-1"></i>Cliente</label><p class="text-sm text-gray-500">É cliente da empresa</p></div>
-                        </div>
-                        <div class="flex items-start p-4 border border-gray-200 rounded-xl hover:bg-orange-50 transition cursor-pointer" @click="$el.querySelector('input[type=checkbox]').click()">
-                            <div class="flex items-center h-5">{{ form.fornecedor }}</div>
-                            <div class="ml-3"><label class="font-medium text-gray-700 cursor-pointer"><i class="fas fa-truck text-orange-600 mr-1"></i>Fornecedor</label><p class="text-sm text-gray-500">É fornecedor da empresa</p></div>
-                        </div>
-                        <div class="flex items-start p-4 border border-gray-200 rounded-xl hover:bg-green-50 transition cursor-pointer" @click="$el.querySelector('input[type=checkbox]').click()">
-                            <div class="flex items-center h-5">{{ form.funcionario }}</div>
-                            <div class="ml-3">
-                                <label class="font-medium text-gray-700 cursor-pointer"><i class="fas fa-user-tie text-green-600 mr-1"></i>Funcionário</label>
-                                <p class="text-sm text-gray-500">É funcionário</p>
-                                <div x-show="isFuncionario" x-transition class="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                                    <div class="flex items-center">
-                                        <div class="flex items-center h-5">{{ form_funcionario.e_vendedor }}</div>
-                                        <div class="ml-2"><label class="text-sm font-medium text-green-800 cursor-pointer">Este funcionário é vendedor?</label></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex items-start p-4 border border-gray-200 rounded-xl hover:bg-yellow-50 transition cursor-pointer" @click="$el.querySelector('input[type=checkbox]').click()">
-                            <div class="flex items-center h-5">{{ form.vendedor }}</div>
-                            <div class="ml-3"><label class="font-medium text-gray-700 cursor-pointer"><i class="fas fa-hand-holding-usd text-yellow-600 mr-1"></i>Vendedor</label><p class="text-sm text-gray-500">É vendedor</p></div>
-                        </div>
-                        <div class="flex items-start p-4 border border-gray-200 rounded-xl hover:bg-purple-50 transition cursor-pointer" @click="$el.querySelector('input[type=checkbox]').click()">
-                            <div class="flex items-center h-5">{{ form.transportador }}</div>
-                            <div class="ml-3"><label class="font-medium text-gray-700 cursor-pointer"><i class="fas fa-shipping-fast text-purple-600 mr-1"></i>Transportador</label><p class="text-sm text-gray-500">Empresa de transporte</p></div>
-                        </div>
-                        <div class="flex items-start p-4 border border-gray-200 rounded-xl hover:bg-indigo-50 transition cursor-pointer" @click="$el.querySelector('input[type=checkbox]').click()">
-                            <div class="flex items-center h-5">{{ form.motorista }}</div>
-                            <div class="ml-3"><label class="font-medium text-gray-700 cursor-pointer"><i class="fas fa-car text-indigo-600 mr-1"></i>Motorista</label><p class="text-sm text-gray-500">É motorista</p></div>
-                        </div>
-                        <div class="flex items-start p-4 border border-red-200 rounded-xl hover:bg-red-50 transition cursor-pointer" @click="$el.querySelector('input[type=checkbox]').click()">
-                            <div class="flex items-center h-5">{{ form.inativo }}</div>
-                            <div class="ml-3"><label class="font-medium text-gray-700 cursor-pointer"><i class="fas fa-ban text-red-600 mr-1"></i>Inativo</label><p class="text-sm text-gray-500">Pessoa inativa</p></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Aba 4: Fiscal NF-e -->
-                <div x-show="abaAtiva === 'fiscal'" x-transition>
-                    <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-                        <div class="flex items-start gap-3">
-                            <i class="fas fa-file-invoice text-red-600 mt-0.5"></i>
-                            <div>
-                                <h4 class="text-sm font-medium text-red-900">Configurações Fiscais (NF-e / NFC-e)</h4>
-                                <p class="text-sm text-red-700">Essas configurações afetam a emissão de notas fiscais para esta pessoa.</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Inscrição Municipal</label>
-                            {{ form.ins_municipal }}
-                            <p class="mt-1 text-xs text-gray-500">Obrigatório para serviços (ISS)</p>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Situação Cadastro</label>
-                            {{ form.situacao_cadastro }}
-                        </div>
-                    </div>
-                    <div class="mt-6 border-t pt-6">
-                        <h5 class="text-sm font-bold text-gray-700 mb-4">ICMS ST</h5>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="flex items-start gap-3 p-4 border border-blue-200 rounded-xl bg-blue-50">
-                                <div class="flex items-center h-5 mt-0.5">{{ form.somar_frete_bc_icms_st }}</div>
-                                <div><label class="text-sm font-medium text-gray-700 cursor-pointer">Somar Frete na BC ICMS ST</label><p class="text-xs text-gray-500">Inclui frete na base de cálculo do ICMS ST</p></div>
-                            </div>
-                            <div class="flex items-start gap-3 p-4 border border-blue-200 rounded-xl bg-blue-50">
-                                <div class="flex items-center h-5 mt-0.5">{{ form.somar_ipi_bc_icms_st }}</div>
-                                <div><label class="text-sm font-medium text-gray-700 cursor-pointer">Somar IPI na BC ICMS ST</label><p class="text-xs text-gray-500">Inclui IPI na base de cálculo do ICMS ST</p></div>
-                            </div>
-                            <div class="flex items-start gap-3 p-4 border border-blue-200 rounded-xl bg-blue-50">
-                                <div class="flex items-center h-5 mt-0.5">{{ form.somar_oda_bc_icms_st }}</div>
-                                <div><label class="text-sm font-medium text-gray-700 cursor-pointer">Somar Outras Desp. na BC ICMS ST</label><p class="text-xs text-gray-500">Inclui outras despesas na base de cálculo do ICMS ST</p></div>
-                            </div>
-                            <div class="flex items-start gap-3 p-4 border border-purple-200 rounded-xl bg-purple-50">
-                                <div class="flex items-center h-5 mt-0.5">{{ form.nao_destacar_impostos_nfse }}</div>
-                                <div><label class="text-sm font-medium text-gray-700 cursor-pointer">Não Destacar Impostos NFSe</label><p class="text-xs text-gray-500">NFSe sem destaque de impostos</p></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Aba 5: Complementares -->
-                <div x-show="abaAtiva === 'complementares'" x-transition>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Observações</label>
-                        {{ form.observacoes }}
-                    </div>
-                </div>
-
-                <!-- Aba 6: Pessoa Física -->
-                <div x-show="abaAtiva === 'pf' && isPF" x-transition>
-                    <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6">
-                        <div class="flex items-start gap-3">
-                            <i class="fas fa-user text-purple-600 mt-0.5"></i>
-                            <div>
-                                <h4 class="text-sm font-medium text-purple-900">Dados de Pessoa Física</h4>
-                                <p class="text-sm text-purple-700">Informações complementares para CPF.</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>{{ form_pf.data_nascimento }}</div>
-                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Estado Civil</label>{{ form_pf.estado_civil }}</div>
-                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Nome do Pai</label>{{ form_pf.nome_pai }}</div>
-                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Nome da Mãe</label>{{ form_pf.nome_mae }}</div>
-                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Empresa onde Trabalha</label>{{ form_pf.empresa_trabalho }}</div>
-                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Profissão</label>{{ form_pf.profissao }}</div>
-                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Renda Familiar</label>{{ form_pf.renda_familiar }}</div>
-                    </div>
+                    <div class="my-1 border-t border-slate-100"></div>
+                    <a href="{% url 'cadastros:pessoa_delete' form.instance.chave %}" class="flex items-center gap-2.5 px-4 py-2 text-red-600 hover:bg-red-50">
+                        <i class="fas fa-trash-alt text-red-400 w-4"></i>Excluir Cadastro
+                    </a>
+                    {% else %}
+                    <span class="block px-4 py-2 text-slate-400 italic">Disponível após salvar</span>
+                    {% endif %}
                 </div>
             </div>
         </div>
-    </form>
+    </div>
 </div>
 
+<div class="max-w-7xl mx-auto px-4 md:px-8">
+
+    <!-- Erros de Formulário -->
+    {% if form.errors or form_pf.errors %}
+    <div class="bg-red-50 border border-red-200 rounded-2xl p-5 mb-6 shadow-xs">
+        <div class="flex items-center gap-2 mb-2">
+            <i class="fas fa-triangle-exclamation text-red-600"></i>
+            <h3 class="text-xs font-bold text-red-800 uppercase tracking-wider">Verifique os erros no cadastro:</h3>
+        </div>
+        <ul class="list-disc list-inside text-xs text-red-700 space-y-1 ml-2">
+            {% for field, errors in form.errors.items %}
+                {% for error in errors %}
+                <li><strong>{{ field|capfirst }}:</strong> {{ error }}</li>
+                {% endfor %}
+            {% endfor %}
+            {% for field, errors in form_pf.errors.items %}
+                {% for error in errors %}
+                <li><strong>Pessoa Física ({{ field|capfirst }}):</strong> {{ error }}</li>
+                {% endfor %}
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <!-- ========================================================================= -->
+    <!-- ABAS ESTILO MANTO SISTEMAS (Horizontal, limpa com linha ativa inferior) -->
+    <!-- ========================================================================= -->
+    <div class="border-b border-slate-200 mb-6 bg-white rounded-t-2xl px-2 sm:px-6 shadow-xs">
+        <nav class="flex space-x-6 sm:space-x-8 overflow-x-auto scrollbar-none" aria-label="Tabs">
+            <button type="button" @click="aba='dados'"
+                    :class="aba==='dados' ? 'border-[#0f2b48] text-[#0f2b48] font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300 font-medium'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 text-xs md:text-sm transition-colors">
+                Dados Principais
+            </button>
+            <button type="button" @click="aba='contato'"
+                    :class="aba==='contato' ? 'border-[#0f2b48] text-[#0f2b48] font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300 font-medium'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 text-xs md:text-sm transition-colors">
+                Contato
+            </button>
+            <button type="button" @click="aba='endereco'"
+                    :class="aba==='endereco' ? 'border-[#0f2b48] text-[#0f2b48] font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300 font-medium'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 text-xs md:text-sm transition-colors">
+                Endereço
+            </button>
+            <button type="button" @click="aba='comercial'"
+                    :class="aba==='comercial' ? 'border-[#0f2b48] text-[#0f2b48] font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300 font-medium'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 text-xs md:text-sm transition-colors">
+                Comercial & Financeiro
+            </button>
+            <button type="button" @click="aba='fiscal'"
+                    :class="aba==='fiscal' ? 'border-[#0f2b48] text-[#0f2b48] font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300 font-medium'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 text-xs md:text-sm transition-colors">
+                Fiscal (NF-e)
+            </button>
+            <button type="button" @click="aba='classificacoes'"
+                    :class="aba==='classificacoes' ? 'border-[#0f2b48] text-[#0f2b48] font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300 font-medium'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 text-xs md:text-sm transition-colors">
+                Classificações & Papéis
+            </button>
+            <button type="button" x-show="tipoPessoa === 'F'" @click="aba='pf'"
+                    :class="aba==='pf' ? 'border-[#0f2b48] text-[#0f2b48] font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300 font-medium'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 text-xs md:text-sm transition-colors">
+                Pessoa Física (Detalhes)
+            </button>
+            <button type="button" @click="aba='observacoes'"
+                    :class="aba==='observacoes' ? 'border-[#0f2b48] text-[#0f2b48] font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300 font-medium'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 text-xs md:text-sm transition-colors">
+                Observações
+            </button>
+        </nav>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- CONTEÚDO DAS ABAS -->
+    <!-- ========================================================================= -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 md:p-8">
+
+        <!-- ===================================================================== -->
+        <!-- ABA 1: DADOS PRINCIPAIS -->
+        <!-- ===================================================================== -->
+        <div x-show="aba==='dados'" x-transition class="space-y-6">
+
+            <!-- Switch Seletor Tipo de Pessoa (Física vs Jurídica) e Ativo -->
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold text-slate-500 mr-2">Tipo de Cadastro:</span>
+                    <button type="button" @click="setTipoPessoa('F')"
+                            :class="tipoPessoa === 'F' ? 'bg-[#0f2b48] text-white font-bold shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium'"
+                            class="px-4 py-2 rounded-lg text-xs transition-smooth flex items-center gap-1.5">
+                        <i class="fas fa-user"></i> Pessoa Física (CPF)
+                    </button>
+                    <button type="button" @click="setTipoPessoa('J')"
+                            :class="tipoPessoa === 'J' ? 'bg-[#0f2b48] text-white font-bold shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium'"
+                            class="px-4 py-2 rounded-lg text-xs transition-smooth flex items-center gap-1.5">
+                        <i class="fas fa-building"></i> Pessoa Jurídica (CNPJ)
+                    </button>
+                </div>
+
+                <!-- Toggle Ativo -->
+                <div class="flex items-center gap-2.5">
+                    <span class="text-xs font-semibold text-slate-700">Cadastro Ativo:</span>
+                    <button type="button" @click="ativo = !ativo"
+                            :class="ativo ? 'bg-[#0f2b48]' : 'bg-slate-200'"
+                            class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none">
+                        <span :class="ativo ? 'translate-x-5' : 'translate-x-0'"
+                              class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out"></span>
+                    </button>
+                    <span x-text="ativo ? 'Sim' : 'Não'" class="text-xs font-bold text-slate-700"></span>
+                </div>
+            </div>
+
+            <!-- Linha 1: CPF / CNPJ com botão de consulta automática na Receita! -->
+            <div class="grid grid-cols-12 gap-5 items-end">
+                <div class="col-span-12 sm:col-span-6 md:col-span-4">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="text-xs font-semibold text-slate-700">
+                            <span class="text-red-500 font-bold">*</span> <span x-text="tipoPessoa === 'J' ? 'CNPJ' : 'CPF'"></span>
+                        </label>
+                        <span x-show="cpfCnpjRaw.replace(/\D/g,'').length >= (tipoPessoa === 'J' ? 14 : 11)"
+                              x-text="documentoValido ? '✓ Documento Válido' : '✕ Documento Inválido'"
+                              :class="documentoValido ? 'text-emerald-600' : 'text-red-600'"
+                              class="text-[11px] font-bold"></span>
+                    </div>
+                    <div class="relative">
+                        <input type="text" name="cpf_cnpj" value="{{ form.cpf_cnpj.value|default:'' }}"
+                               class="font-mono tracking-wide"
+                               :placeholder="tipoPessoa === 'J' ? '00.000.000/0000-00' : '000.000.000-00'"
+                               @input="mascaraCPFCNPJ" x-model="cpfCnpjRaw">
+                    </div>
+                </div>
+
+                <!-- Botão de Consulta Automática de CNPJ -->
+                <div class="col-span-12 sm:col-span-6 md:col-span-4" x-show="tipoPessoa === 'J'">
+                    <button type="button" @click="consultarCNPJ()" :disabled="buscandoCNPJ"
+                            class="w-full px-4 py-2.5 text-xs font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg transition-smooth flex items-center justify-center gap-2">
+                        <i x-show="!buscandoCNPJ" class="fas fa-magnifying-glass text-blue-600"></i>
+                        <i x-show="buscandoCNPJ" class="fas fa-spinner fa-spin text-blue-600"></i>
+                        <span x-show="!buscandoCNPJ">Consultar Dados na Receita (CNPJ)</span>
+                        <span x-show="buscandoCNPJ">Buscando dados...</span>
+                    </button>
+                </div>
+
+                <!-- Status de cadastro -->
+                <div class="col-span-12 sm:col-span-6 md:col-span-4" :class="tipoPessoa === 'F' ? 'md:col-span-8' : ''">
+                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Situação Cadastral</label>
+                    {{ form.situacao_cadastro }}
+                </div>
+            </div>
+
+            <!-- Feedback de consulta CNPJ -->
+            <div x-show="cnpjMensagem" x-cloak x-transition
+                 :class="cnpjErro ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'"
+                 class="p-3 rounded-xl border text-xs font-medium flex items-center gap-2">
+                <i :class="cnpjErro ? 'fas fa-circle-xmark text-red-500' : 'fas fa-circle-check text-emerald-600'"></i>
+                <span x-text="cnpjMensagem"></span>
+            </div>
+
+            <!-- Linha 2: Razão Social / Nome e Nome Fantasia / Apelido -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">
+                        <span class="text-red-500 font-bold">*</span> <span x-text="tipoPessoa === 'J' ? 'Razão Social' : 'Nome Completo'"></span>
+                    </label>
+                    {{ form.nome }}
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">
+                        <span x-text="tipoPessoa === 'J' ? 'Nome Fantasia' : 'Apelido'"></span>
+                    </label>
+                    {{ form.nome_fantasia }}
+                </div>
+            </div>
+
+            <!-- Linha 3: RG / Inscrição Estadual, Isento IE, Indicador da IE, Inscrição Municipal -->
+            <div class="grid grid-cols-12 gap-5 items-end pt-3 border-t border-slate-100">
+                <div class="col-span-12 sm:col-span-6 md:col-span-4">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="text-xs font-semibold text-slate-700">
+                            <span x-text="tipoPessoa === 'J' ? 'Inscrição Estadual (IE)' : 'RG / Identidade'"></span>
+                        </label>
+                        <label class="inline-flex items-center gap-1.5 text-[11px] text-slate-500 cursor-pointer" x-show="tipoPessoa === 'J'">
+                            <input type="checkbox" :checked="isentoIE" @change="toggleIsentoIE()" class="rounded border-slate-300 text-brand-600 focus:ring-0">
+                            <span>Isento</span>
+                        </label>
+                    </div>
+                    <div :class="isentoIE ? 'opacity-50 pointer-events-none' : ''">
+                        {{ form.rg_ie }}
+                    </div>
+                </div>
+
+                <div class="col-span-12 sm:col-span-6 md:col-span-4">
+                    <label class="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
+                        Indicador da IE (NF-e) <i class="fas fa-question-circle text-slate-400 text-[11px]" title="Define o enquadramento fiscal do destinatário na NF-e"></i>
+                    </label>
+                    {{ form.indicador_ie }}
+                </div>
+
+                <div class="col-span-12 sm:col-span-6 md:col-span-4">
+                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Inscrição Municipal</label>
+                    {{ form.ins_municipal }}
+                </div>
+            </div>
+
+            <!-- Linha 4: Consumidor Final -->
+            <div class="pt-3 border-t border-slate-100">
+                <div class="p-4 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+                    <div>
+                        <span class="block text-xs font-bold text-slate-800">Operação com Consumidor Final</span>
+                        <span class="text-[11px] text-slate-500">Marque "Sim" caso as vendas para este cliente sejam destinadas ao uso, consumo final ou prestação ao consumidor.</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" @click="consumidorFinal = !consumidorFinal"
+                                :class="consumidorFinal ? 'bg-[#0f2b48]' : 'bg-slate-200'"
+                                class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none">
+                            <span :class="consumidorFinal ? 'translate-x-5' : 'translate-x-0'"
+                                  class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out"></span>
+                        </button>
+                        <span x-text="consumidorFinal ? 'Sim' : 'Não'" class="text-xs font-bold text-slate-700"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- ABA 2: CONTATO -->
+        <!-- ===================================================================== -->
+        <div x-show="aba==='contato'" x-transition class="space-y-6">
+            <div class="border border-slate-200 rounded-xl p-5 bg-white">
+                <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-4 pb-2 border-b border-slate-100">
+                    Canais de Comunicação
+                </h3>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">E-mail Principal</label>
+                        {{ form.email }}
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
+                            E-mail para Envio de NF-e (XML/DANFE) <i class="fas fa-question-circle text-slate-400 text-[11px]" title="E-mail que receberá automaticamente as notas fiscais emitidas"></i>
+                        </label>
+                        {{ form.email_nfe }}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 pt-3 border-t border-slate-100 items-end">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Telefone Fixo</label>
+                        <input type="text" id="id_telefone_fixo" name="telefone_fixo" value="{{ form.telefone_fixo.value|default:'' }}"
+                               placeholder="(00) 0000-0000" maxlength="15"
+                               @input="mascaraTelefone" x-model="telefoneRaw">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Celular / WhatsApp</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="id_celular_principal" name="celular_principal" value="{{ form.celular_principal.value|default:'' }}"
+                                   placeholder="(00) 90000-0000" maxlength="15"
+                                   @input="mascaraCelular" x-model="celularRaw">
+                            <button type="button" @click="abrirWhatsApp()"
+                                    class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-smooth flex items-center gap-1.5 flex-shrink-0"
+                                    title="Abrir WhatsApp">
+                                <i class="fab fa-whatsapp text-sm"></i>
+                                <span class="hidden sm:inline">WhatsApp</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- ABA 3: ENDEREÇO -->
+        <!-- ===================================================================== -->
+        <div x-show="aba==='endereco'" x-transition class="space-y-6">
+            <div class="border border-slate-200 rounded-xl p-5 bg-white">
+                <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+                    <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                        Endereço Principal
+                    </h3>
+                    <span class="text-xs text-brand-600 font-medium"><i class="fas fa-magic mr-1"></i>Preenchimento automático via CEP</span>
+                </div>
+
+                <!-- Linha CEP e UF -->
+                <div class="grid grid-cols-12 gap-5 items-end mb-5">
+                    <div class="col-span-12 sm:col-span-4 md:col-span-3">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">CEP</label>
+                        <div class="relative">
+                            <input type="text" id="id_cep" name="cep" value="{{ endereco.cep|default:'' }}" maxlength="9"
+                                   placeholder="00000-000" class="font-mono"
+                                   @input="mascaraCEP" x-model="cepRaw">
+                            <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none" x-show="buscandoCEP">
+                                <i class="fas fa-spinner fa-spin text-slate-400 text-xs"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-span-12 sm:col-span-8 md:col-span-9">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Logradouro (Rua, Avenida, etc.)</label>
+                        <input type="text" id="id_logradouro" name="logradouro" value="{{ endereco.logradouro|default:'' }}"
+                               placeholder="Ex: Av. Brasil">
+                    </div>
+                </div>
+
+                <!-- Linha Número, Complemento, Bairro -->
+                <div class="grid grid-cols-12 gap-5 mb-5">
+                    <div class="col-span-6 sm:col-span-3 md:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Número</label>
+                        <input type="text" id="id_numero" name="numero" value="{{ endereco.numero|default:'' }}"
+                               placeholder="Ex: 123 ou S/N">
+                    </div>
+                    <div class="col-span-6 sm:col-span-4 md:col-span-4">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Complemento</label>
+                        <input type="text" id="id_complemento" name="complemento" value="{{ endereco.complemento|default:'' }}"
+                               placeholder="Apto, Sala, Bloco, etc.">
+                    </div>
+                    <div class="col-span-12 sm:col-span-5 md:col-span-6">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Bairro</label>
+                        <input type="text" id="id_bairro" name="bairro" value="{{ endereco.bairro|default:'' }}"
+                               placeholder="Bairro">
+                    </div>
+                </div>
+
+                <!-- Linha Cidade (Autocomplete IBGE) e Tipo de Endereço -->
+                <div class="grid grid-cols-12 gap-5 items-end pt-3 border-t border-slate-100">
+                    <div class="col-span-12 sm:col-span-8 relative">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Cidade (IBGE)</label>
+                        <input type="hidden" name="cidade" x-model="cidadeId">
+                        <input type="text" x-model="cidadeSearch"
+                               x-init="if(cidadeText) cidadeSearch = cidadeText"
+                               @input="clearTimeout(cidadeTimeout); cidadeTimeout=setTimeout(buscarCidades, 300)"
+                               @focus="if(cidadeResults.length) cidadeOpen = true"
+                               @click.away="cidadeOpen = false"
+                               autocomplete="off"
+                               placeholder="Digite o nome da cidade para buscar...">
+                        
+                        <!-- Dropdown de Cidades -->
+                        <div x-show="cidadeOpen" x-cloak
+                             class="absolute z-50 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto text-xs">
+                            <template x-if="cidadeLoading">
+                                <div class="p-3 text-slate-400"><i class="fas fa-spinner fa-spin mr-1"></i>Buscando...</div>
+                            </template>
+                            <template x-if="!cidadeLoading && cidadeResults.length === 0 && cidadeSearch.length >= 2">
+                                <div class="p-3 text-slate-400">Nenhuma cidade encontrada</div>
+                            </template>
+                            <ul>
+                                <template x-for="item in cidadeResults" :key="item.id">
+                                    <li @click="selecionarCidade(item)"
+                                        class="px-3 py-2 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0 font-medium text-slate-700"
+                                        x-text="item.text"></li>
+                                </template>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="col-span-12 sm:col-span-4">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Tipo de Endereço</label>
+                        <select name="tipo_endereco" class="w-full">
+                            <option value="COMERCIAL" {% if endereco and endereco.tipo_endereco == 'COMERCIAL' %}selected{% endif %}>Comercial</option>
+                            <option value="RESIDENCIAL" {% if endereco and endereco.tipo_endereco == 'RESIDENCIAL' %}selected{% endif %}>Residencial</option>
+                            <option value="COBRANCA" {% if endereco and endereco.tipo_endereco == 'COBRANCA' %}selected{% endif %}>Cobrança</option>
+                            <option value="ENTREGA" {% if endereco and endereco.tipo_endereco == 'ENTREGA' %}selected{% endif %}>Entrega</option>
+                            <option value="OUTRO" {% if endereco and endereco.tipo_endereco == 'OUTRO' %}selected{% endif %}>Outro</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- ABA 4: COMERCIAL & FINANCEIRO -->
+        <!-- ===================================================================== -->
+        <div x-show="aba==='comercial'" x-transition class="space-y-6">
+            <div class="border border-slate-200 rounded-xl p-5 bg-white">
+                <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-4 pb-2 border-b border-slate-100">
+                    Parâmetros Comerciais e Crédito
+                </h3>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
+                            Limite de Crédito <i class="fas fa-question-circle text-slate-400 text-[11px]" title="Limite máximo para compras a prazo ou condicional"></i>
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-xs font-bold text-slate-400">R$</span>
+                            <div class="pl-7">
+                                {{ form.limite_credito }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Vendedor Padrão</label>
+                        {{ form.vendedor_padrao }}
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Condição de Pagamento Padrão</label>
+                        {{ form.condicao_pagamento_padrao }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- ABA 5: FISCAL (NF-e) -->
+        <!-- ===================================================================== -->
+        <div x-show="aba==='fiscal'" x-transition class="space-y-6">
+            <div class="border border-slate-200 rounded-xl p-5 bg-white">
+                <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-4 pb-2 border-b border-slate-100">
+                    Regras de Emissão Fiscal (NF-e / NFC-e / NFS-e)
+                </h3>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Inscrição Suframa</label>
+                        {{ form.suframa }}
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-100">
+                    <h4 class="text-xs font-bold text-slate-700 mb-3">Substituição Tributária (ICMS-ST) & NFS-e</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <label class="flex items-start gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-smooth">
+                            {{ form.somar_frete_bc_icms_st }}
+                            <div>
+                                <span class="text-xs font-bold text-slate-800">Somar Frete na BC ICMS ST</span>
+                                <p class="text-[11px] text-slate-500">Inclui o valor do frete na base de cálculo da ST</p>
+                            </div>
+                        </label>
+
+                        <label class="flex items-start gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-smooth">
+                            {{ form.somar_ipi_bc_icms_st }}
+                            <div>
+                                <span class="text-xs font-bold text-slate-800">Somar IPI na BC ICMS ST</span>
+                                <p class="text-[11px] text-slate-500">Inclui o valor do IPI na base de cálculo da ST</p>
+                            </div>
+                        </label>
+
+                        <label class="flex items-start gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-smooth">
+                            {{ form.somar_oda_bc_icms_st }}
+                            <div>
+                                <span class="text-xs font-bold text-slate-800">Somar Outras Desp. na BC ICMS ST</span>
+                                <p class="text-[11px] text-slate-500">Inclui outras despesas acessórias na base da ST</p>
+                            </div>
+                        </label>
+
+                        <label class="flex items-start gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-smooth">
+                            {{ form.nao_destacar_impostos_nfse }}
+                            <div>
+                                <span class="text-xs font-bold text-slate-800">Não Destacar Impostos na NFS-e</span>
+                                <p class="text-[11px] text-slate-500">Emissão de notas de serviço sem retenção explícita</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- ABA 6: CLASSIFICAÇÕES & PAPÉIS -->
+        <!-- ===================================================================== -->
+        <div x-show="aba==='classificacoes'" x-transition class="space-y-6">
+            <div class="border border-slate-200 rounded-xl p-5 bg-white">
+                <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-4 pb-2 border-b border-slate-100">
+                    Papéis do Cadastro no ERP
+                </h3>
+                <p class="text-xs text-slate-500 mb-4">Um mesmo cadastro pode desempenhar múltiplos papéis no sistema (ex: ser cliente e fornecedor simultaneamente).</p>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    <label class="flex items-start gap-3 p-3.5 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-smooth">
+                        {{ form.cliente }}
+                        <div>
+                            <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5"><i class="fas fa-shopping-bag text-blue-600"></i> Cliente</span>
+                            <span class="text-[11px] text-slate-400">Aparece em Vendas, PDV e Condicionais</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-start gap-3 p-3.5 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-smooth">
+                        {{ form.fornecedor }}
+                        <div>
+                            <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5"><i class="fas fa-truck text-amber-600"></i> Fornecedor</span>
+                            <span class="text-[11px] text-slate-400">Aparece em Compras e Entrada de NF</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-start gap-3 p-3.5 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-smooth">
+                        {{ form.vendedor }}
+                        <div>
+                            <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5"><i class="fas fa-user-tie text-emerald-600"></i> Vendedor</span>
+                            <span class="text-[11px] text-slate-400">Aparece na seleção de vendedores</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-start gap-3 p-3.5 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-smooth">
+                        {{ form.transportador }}
+                        <div>
+                            <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5"><i class="fas fa-dolly text-purple-600"></i> Transportador</span>
+                            <span class="text-[11px] text-slate-400">Disponível nos fretes e despachos</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-start gap-3 p-3.5 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-smooth">
+                        {{ form.motorista }}
+                        <div>
+                            <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5"><i class="fas fa-car text-indigo-600"></i> Motorista</span>
+                            <span class="text-[11px] text-slate-400">Disponível para romaneios de entrega</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-start gap-3 p-3.5 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-smooth">
+                        {{ form.funcionario }}
+                        <div>
+                            <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5"><i class="fas fa-id-badge text-teal-600"></i> Funcionário</span>
+                            <span class="text-[11px] text-slate-400">Colaborador interno da empresa</span>
+                        </div>
+                    </label>
+                </div>
+
+                <div x-show="isFuncionario" x-transition class="mt-4 p-4 bg-teal-50 border border-teal-200 rounded-xl">
+                    <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-teal-900">
+                        {{ form_funcionario.e_vendedor }}
+                        <span>Este funcionário atua ativamente como vendedor no sistema?</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- ABA 7: PESSOA FÍSICA (DETALHES) -->
+        <!-- ===================================================================== -->
+        <div x-show="aba==='pf' && tipoPessoa === 'F'" x-transition class="space-y-6">
+            <div class="border border-slate-200 rounded-xl p-5 bg-white">
+                <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-4 pb-2 border-b border-slate-100">
+                    Informações Adicionais de Pessoa Física
+                </h3>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Data de Nascimento</label>
+                        {{ form_pf.data_nascimento }}
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Estado Civil</label>
+                        {{ form_pf.estado_civil }}
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Renda Familiar (R$)</label>
+                        {{ form_pf.renda_familiar }}
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Profissão</label>
+                        {{ form_pf.profissao }}
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Empresa onde Trabalha</label>
+                        {{ form_pf.empresa_trabalho }}
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Nome da Mãe</label>
+                        {{ form_pf.nome_mae }}
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Nome do Pai</label>
+                        {{ form_pf.nome_pai }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- ABA 8: OBSERVAÇÕES -->
+        <!-- ===================================================================== -->
+        <div x-show="aba==='observacoes'" x-transition class="space-y-6">
+            <div class="border border-slate-200 rounded-xl p-5 bg-white">
+                <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-4 pb-2 border-b border-slate-100">
+                    Observações Internas e Histórico
+                </h3>
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Anotações internas sobre o cliente</label>
+                {{ form.observacoes }}
+            </div>
+        </div>
+
+    </div><!-- fim container abas -->
+
+</div><!-- fim max-w -->
+</form>
+
 <style>
-    #form-pessoa input, #form-pessoa select, #form-pessoa textarea {
+    #form-pessoa input[type="text"],
+    #form-pessoa input[type="email"],
+    #form-pessoa input[type="number"],
+    #form-pessoa input[type="date"],
+    #form-pessoa select,
+    #form-pessoa textarea {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        background-color: white;
+        border: 1px solid #cbd5e1;
+        border-radius: 0.5rem;
+        font-size: 0.8125rem;
+        color: #1e293b;
+        transition: all 0.15s ease-in-out;
         outline: none;
+        box-sizing: border-box;
+        min-height: 38px;
     }
-    #form-pessoa input:focus, #form-pessoa select:focus, #form-pessoa textarea:focus {
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+
+    #form-pessoa input:focus,
+    #form-pessoa select:focus,
+    #form-pessoa textarea:focus {
+        border-color: #0f2b48;
+        box-shadow: 0 0 0 2px rgba(15, 43, 72, 0.12);
     }
-    #form-pessoa input[type="checkbox"] {
-        width: 1rem;
-        height: 1rem;
-        margin: 0;
-        cursor: pointer;
-    }
+
     #form-pessoa textarea {
         min-height: 90px;
+        resize: vertical;
+    }
+
+    .form-checkbox {
+        width: 1.05rem;
+        height: 1.05rem;
+        border-radius: 0.25rem;
+        border: 1px solid #cbd5e1;
+        accent-color: #0f2b48;
+        cursor: pointer;
     }
 </style>
+
+<script>
+function pessoaApp() {
+    return {
+        aba: 'dados',
+        tipoPessoa: '{{ form.tipo_pessoa.value|default:"F" }}',
+        ativo: {% if form.instance.chave %}{% if form.instance.inativo %}false{% else %}true{% endif %}{% else %}true{% endif %},
+        isentoIE: {% if form.isento_ie.value %}true{% else %}false{% endif %},
+        consumidorFinal: {% if form.consumidor_final.value is not None %}{% if form.consumidor_final.value %}true{% else %}false{% endif %}{% else %}true{% endif %},
+        isFuncionario: {% if form.funcionario.value %}true{% else %}false{% endif %},
+        
+        // Documentos e máscaras
+        cpfCnpjRaw: '{{ form.instance.cpf_cnpj|default:""|escapejs }}',
+        telefoneRaw: '{{ form.instance.telefone_fixo|default:""|escapejs }}',
+        celularRaw: '{{ form.instance.celular_principal|default:""|escapejs }}',
+        buscandoCNPJ: false,
+        cnpjMensagem: '',
+        cnpjErro: false,
+
+        // Endereço e CEP
+        cepRaw: '{{ endereco.cep|default:""|escapejs }}',
+        buscandoCEP: false,
+        cidadeSearch: '{% if endereco and endereco.cidade %}{{ endereco.cidade.nome|escapejs }}/{{ endereco.cidade.estado.uf|escapejs }}{% endif %}',
+        cidadeId: '{{ endereco.cidade.codigo_ibge|default:""|escapejs }}',
+        cidadeText: '{% if endereco and endereco.cidade %}{{ endereco.cidade.nome|escapejs }}/{{ endereco.cidade.estado.uf|escapejs }}{% endif %}',
+        cidadeResults: [],
+        cidadeOpen: false,
+        cidadeLoading: false,
+        cidadeTimeout: null,
+
+        init() {
+            if (this.cpfCnpjRaw) {
+                const clean = this.cpfCnpjRaw.replace(/\D/g, '');
+                if (clean.length > 11) {
+                    this.tipoPessoa = 'J';
+                }
+            }
+        },
+
+        setTipoPessoa(tipo) {
+            this.tipoPessoa = tipo;
+            const sel = document.getElementById('id_tipo_pessoa');
+            if (sel) sel.value = tipo;
+        },
+
+        toggleIsentoIE() {
+            this.isentoIE = !this.isentoIE;
+            const indIeEl = document.getElementById('id_indicador_ie');
+            const rgIeEl = document.getElementById('id_rg_ie');
+            if (this.isentoIE) {
+                if (indIeEl) indIeEl.value = '2'; // 2 = Contribuinte Isento
+                if (rgIeEl) rgIeEl.value = 'ISENTO';
+            } else {
+                if (indIeEl && indIeEl.value === '2') indIeEl.value = '9';
+                if (rgIeEl && rgIeEl.value === 'ISENTO') rgIeEl.value = '';
+            }
+        },
+
+        mascaraCPFCNPJ(e) {
+            let v = e.target.value.replace(/\D/g, '');
+            if (this.tipoPessoa === 'F' || v.length <= 11) {
+                v = v.substring(0, 11);
+                v = v.replace(/(\d{3})(\d)/, '$1.$2');
+                v = v.replace(/(\d{3})(\d)/, '$1.$2');
+                v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            } else {
+                v = v.substring(0, 14);
+                v = v.replace(/(\d{2})(\d)/, '$1.$2');
+                v = v.replace(/(\d{3})(\d)/, '$1.$2');
+                v = v.replace(/(\d{3})(\d)/, '$1/$2');
+                v = v.replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+            }
+            e.target.value = v;
+            this.cpfCnpjRaw = v;
+        },
+
+        mascaraTelefone(e) {
+            let v = e.target.value.replace(/\D/g, '');
+            if (v.length <= 10) {
+                v = v.replace(/(\d{2})(\d)/, '($1) $2');
+                v = v.replace(/(\d{4})(\d)/, '$1-$2');
+            } else {
+                v = v.replace(/(\d{2})(\d)/, '($1) $2');
+                v = v.replace(/(\d{5})(\d)/, '$1-$2');
+            }
+            e.target.value = v;
+            this.telefoneRaw = v;
+        },
+
+        mascaraCelular(e) {
+            let v = e.target.value.replace(/\D/g, '');
+            if (v.length > 10) {
+                v = v.replace(/(\d{2})(\d)/, '($1) $2');
+                v = v.replace(/(\d{5})(\d)/, '$1-$2');
+            } else {
+                v = v.replace(/(\d{2})(\d)/, '($1) $2');
+                v = v.replace(/(\d{4})(\d)/, '$1-$2');
+            }
+            e.target.value = v;
+            this.celularRaw = v;
+        },
+
+        mascaraCEP(e) {
+            let v = e.target.value.replace(/\D/g, '').substring(0, 8);
+            v = v.replace(/(\d{5})(\d)/, '$1-$2');
+            e.target.value = v;
+            this.cepRaw = v;
+            if (v.replace(/\D/g, '').length === 8) {
+                this.buscarCEP(v);
+            }
+        },
+
+        async buscarCEP(cep) {
+            const clean = cep.replace(/\D/g, '');
+            if (clean.length !== 8) return;
+            this.buscandoCEP = true;
+            try {
+                const r = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
+                const d = await r.json();
+                if (d.erro) {
+                    this.mostrarAlerta('CEP não encontrado no ViaCEP.', 'aviso');
+                    return;
+                }
+                const logEl = document.getElementById('id_logradouro');
+                const baiEl = document.getElementById('id_bairro');
+                const compEl = document.getElementById('id_complemento');
+                if (logEl && d.logradouro) logEl.value = d.logradouro;
+                if (baiEl && d.bairro) baiEl.value = d.bairro;
+                if (compEl && d.complemento && !compEl.value) compEl.value = d.complemento;
+
+                if (d.ibge) {
+                    const resp = await fetch(`/cadastros/api/cidade-ibge/${d.ibge}/`);
+                    const json = await resp.json();
+                    if (json.id) {
+                        const txt = json.nome + '/' + json.estado_uf;
+                        this.cidadeId = json.id;
+                        this.cidadeText = txt;
+                        this.cidadeSearch = txt;
+                    }
+                }
+            } catch(e) {
+                console.error('Erro ao buscar CEP:', e);
+            } finally {
+                this.buscandoCEP = false;
+            }
+        },
+
+        async buscarCidades() {
+            const q = this.cidadeSearch;
+            if (!q || q.length < 2) {
+                this.cidadeResults = [];
+                this.cidadeOpen = false;
+                return;
+            }
+            this.cidadeLoading = true;
+            try {
+                const r = await fetch(`/cadastros/api/cidades/?q=${encodeURIComponent(q)}`);
+                const data = await r.json();
+                this.cidadeResults = data.results || [];
+                this.cidadeOpen = this.cidadeResults.length > 0;
+            } catch(e) {
+                this.cidadeResults = [];
+            } finally {
+                this.cidadeLoading = false;
+            }
+        },
+
+        selecionarCidade(item) {
+            this.cidadeId = item.id;
+            this.cidadeText = item.text;
+            this.cidadeSearch = item.text;
+            this.cidadeOpen = false;
+        },
+
+        async consultarCNPJ() {
+            const clean = this.cpfCnpjRaw.replace(/\D/g, '');
+            if (clean.length !== 14) {
+                this.mostrarAlerta('Informe um CNPJ com 14 dígitos para consultar.', 'erro');
+                return;
+            }
+            this.buscandoCNPJ = true;
+            this.cnpjMensagem = 'Consultando Receita Federal...';
+            this.cnpjErro = false;
+
+            try {
+                const resp = await fetch(`/cadastros/api/cnpj/${clean}/`);
+                const data = await resp.json();
+
+                if (resp.ok && data.sucesso) {
+                    const nomeEl = document.getElementById('id_nome');
+                    const fantasiaEl = document.getElementById('id_nome_fantasia');
+                    const emailEl = document.getElementById('id_email');
+                    const emailNfeEl = document.getElementById('id_email_nfe');
+                    const telEl = document.getElementById('id_telefone_fixo');
+                    const situacaoEl = document.getElementById('id_situacao_cadastro');
+                    const logEl = document.getElementById('id_logradouro');
+                    const numEl = document.getElementById('id_numero');
+                    const compEl = document.getElementById('id_complemento');
+                    const baiEl = document.getElementById('id_bairro');
+                    const cepEl = document.getElementById('id_cep');
+
+                    if (nomeEl && data.razao_social) nomeEl.value = data.razao_social;
+                    if (fantasiaEl && data.nome_fantasia) fantasiaEl.value = data.nome_fantasia;
+                    if (emailEl && data.email && !emailEl.value) emailEl.value = data.email.toLowerCase();
+                    if (emailNfeEl && data.email && !emailNfeEl.value) emailNfeEl.value = data.email.toLowerCase();
+                    if (telEl && data.telefone) {
+                        telEl.value = data.telefone;
+                        this.telefoneRaw = data.telefone;
+                    }
+                    if (situacaoEl && data.situacao_cadastral) {
+                        const sit = data.situacao_cadastral.toUpperCase();
+                        if (sit.includes('ATIVA')) situacaoEl.value = 'NORMAL';
+                        else situacaoEl.value = 'SUSPEITO';
+                    }
+
+                    if (cepEl && data.cep) {
+                        const cepFormatado = data.cep.replace(/\D/g, '').replace(/(\d{5})(\d)/, '$1-$2');
+                        cepEl.value = cepFormatado;
+                        this.cepRaw = cepFormatado;
+                    }
+                    if (logEl && data.logradouro) logEl.value = data.logradouro;
+                    if (numEl && data.numero) numEl.value = data.numero;
+                    if (compEl && data.complemento) compEl.value = data.complemento;
+                    if (baiEl && data.bairro) baiEl.value = data.bairro;
+
+                    if (data.cidade_id && data.cidade_nome) {
+                        this.cidadeId = data.cidade_id;
+                        this.cidadeText = data.cidade_nome;
+                        this.cidadeSearch = data.cidade_nome;
+                    }
+
+                    this.cnpjMensagem = 'CNPJ localizado e dados importados com sucesso!';
+                    this.mostrarAlerta('Dados da empresa importados com sucesso da Receita!', 'sucesso');
+                } else {
+                    this.cnpjErro = true;
+                    this.cnpjMensagem = data.erro || 'Não foi possível consultar os dados deste CNPJ.';
+                    this.mostrarAlerta(this.cnpjMensagem, 'erro');
+                }
+            } catch (e) {
+                this.cnpjErro = true;
+                this.cnpjMensagem = 'Erro de conexão ao consultar CNPJ.';
+                this.mostrarAlerta('Erro ao conectar com serviço de consulta de CNPJ.', 'erro');
+            } finally {
+                this.buscandoCNPJ = false;
+                setTimeout(() => { this.cnpjMensagem = ''; }, 6000);
+            }
+        },
+
+        abrirWhatsApp() {
+            const clean = this.celularRaw.replace(/\D/g, '');
+            if (!clean || clean.length < 10) {
+                this.mostrarAlerta('Preencha um número de celular válido com DDD para abrir o WhatsApp.', 'aviso');
+                return;
+            }
+            window.open(`https://wa.me/55${clean}`, '_blank');
+        },
+
+        mostrarAlerta(msg, tipo) {
+            const div = document.createElement('div');
+            div.className = 'fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-lg text-xs font-bold transition-all flex items-center gap-2 ' +
+                (tipo === 'erro' ? 'bg-red-600 text-white shadow-red-200' :
+                 tipo === 'sucesso' ? 'bg-emerald-600 text-white shadow-emerald-200' :
+                 'bg-amber-500 text-white shadow-amber-200');
+            const icon = tipo === 'erro' ? 'circle-exclamation' : tipo === 'sucesso' ? 'circle-check' : 'triangle-exclamation';
+            div.innerHTML = '<i class="fas fa-' + icon + '"></i><span>' + msg + '</span>';
+            document.body.appendChild(div);
+            setTimeout(() => { div.remove(); }, 4000);
+        },
+
+        validarCPF(cpf) {
+            const s = cpf.replace(/\D/g, '');
+            if (s.length !== 11 || /^(\d)\1+$/.test(s)) return false;
+            let sum = 0, rest;
+            for (let i = 1; i <= 9; i++) sum += parseInt(s.charAt(i - 1)) * (11 - i);
+            rest = (sum * 10) % 11;
+            if (rest === 10 || rest === 11) rest = 0;
+            if (rest !== parseInt(s.charAt(9))) return false;
+            sum = 0;
+            for (let i = 1; i <= 10; i++) sum += parseInt(s.charAt(i - 1)) * (12 - i);
+            rest = (sum * 10) % 11;
+            if (rest === 10 || rest === 11) rest = 0;
+            if (rest !== parseInt(s.charAt(10))) return false;
+            return true;
+        },
+
+        validarCNPJ(cnpj) {
+            const s = cnpj.replace(/\D/g, '');
+            if (s.length !== 14 || /^(\d)\1+$/.test(s)) return false;
+            let size = s.length - 2, numbers = s.substring(0, size), digits = s.substring(size), sum = 0, pos = size - 7;
+            for (let i = size; i >= 1; i--) { sum += parseInt(numbers.charAt(size - i)) * pos--; if (pos < 2) pos = 9; }
+            let result = sum % 11 < 2 ? 0 : 11 - sum % 11;
+            if (result !== parseInt(digits.charAt(0))) return false;
+            size += 1; numbers = s.substring(0, size); sum = 0; pos = size - 7;
+            for (let i = size; i >= 1; i--) { sum += parseInt(numbers.charAt(size - i)) * pos--; if (pos < 2) pos = 9; }
+            result = sum % 11 < 2 ? 0 : 11 - sum % 11;
+            if (result !== parseInt(digits.charAt(1))) return false;
+            return true;
+        },
+
+        get documentoValido() {
+            const raw = this.cpfCnpjRaw.replace(/\D/g, '');
+            if (raw.length === 0) return true;
+            if (raw.length === 11) return this.validarCPF(raw);
+            if (raw.length === 14) return this.validarCNPJ(raw);
+            return false;
+        }
+    };
+}
+</script>
+
+</div>
 {% endblock %}

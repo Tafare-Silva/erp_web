@@ -227,6 +227,9 @@
                         <a href="{% url 'cadastros:contas_receber' %}" class="flex items-center px-3 py-1.5 rounded-md text-xs transition-smooth {% if '/financeiro/contas-receber/' in request.path %}bg-brand-700 text-white{% else %}text-slate-300 hover:bg-sidebar-hover hover:text-white{% endif %}">
                             <i class="fas fa-arrow-up text-green-400 w-4 text-center flex-shrink-0 mr-2"></i><span class="whitespace-nowrap">Contas a Receber</span>
                         </a>
+                        <a href="{% url 'cadastros:recebimento_crediario' %}" class="flex items-center px-3 py-1.5 rounded-md text-xs transition-smooth {% if '/financeiro/crediario/' in request.path %}bg-brand-700 text-white{% else %}text-slate-300 hover:bg-sidebar-hover hover:text-white{% endif %}">
+                            <i class="fas fa-hand-holding-dollar text-emerald-400 w-4 text-center flex-shrink-0 mr-2"></i><span class="whitespace-nowrap">Receb. Crediário</span>
+                        </a>
                         <a href="{% url 'cadastros:caixa_controle' %}" class="flex items-center px-3 py-1.5 rounded-md text-xs transition-smooth {% if '/cadastros/caixa/' in request.path %}bg-brand-700 text-white{% else %}text-slate-300 hover:bg-sidebar-hover hover:text-white{% endif %}">
                             <i class="fas fa-cash-register w-4 text-center flex-shrink-0 mr-2"></i><span class="whitespace-nowrap">Controle de Caixa</span>
                         </a>

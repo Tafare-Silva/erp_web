@@ -196,3 +196,39 @@ class Empresa(models.Model):
 
     def __str__(self):
         return self.nome_fantasia or self.pessoa.nome
+
+    @property
+    def razao_social(self):
+        return self.pessoa.nome if self.pessoa else ''
+
+    @property
+    def cnpj(self):
+        return self.pessoa.cpf_cnpj if self.pessoa else ''
+
+    @property
+    def telefone(self):
+        return self.telefone_principal or (self.pessoa.celular_principal if self.pessoa else '')
+
+    @property
+    def endereco(self):
+        try:
+            end = self.pessoa.endereco_principal_rel
+            if end:
+                partes = []
+                if end.logradouro: partes.append(end.logradouro)
+                if end.numero: partes.append(f'nº {end.numero}')
+                if end.bairro: partes.append(end.bairro)
+                return ', '.join(partes)
+        except Exception:
+            pass
+        return ''
+
+    @property
+    def cidade(self):
+        try:
+            end = self.pessoa.endereco_principal_rel
+            if end and end.cidade:
+                return f'{end.cidade.nome}/{end.cidade.uf}'
+        except Exception:
+            pass
+        return ''

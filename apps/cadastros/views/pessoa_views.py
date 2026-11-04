@@ -240,3 +240,108 @@ def api_cidade_por_ibge(request, ibge):
         })
     except (Cidade.DoesNotExist, ValueError):
         return JsonResponse({'erro': 'Cidade não encontrada'}, status=404)
+
+
+@require_GET
+def api_consultar_cnpj(request, cnpj):
+    """Consulta CNPJ nas APIs públicas (BrasilAPI com fallback para ReceitaWS) e associa cidade local."""
+    import json
+    import urllib.request
+    import urllib.error
+
+    cnpj_limpo = ''.join(filter(str.isdigit, str(cnpj)))
+    if len(cnpj_limpo) != 14:
+        return JsonResponse({'erro': 'CNPJ deve conter exatamente 14 dígitos.'}, status=400)
+
+    # 1. Tenta BrasilAPI
+    try:
+        req = urllib.request.Request(
+            f'https://brasilapi.com.br/api/cnpj/v1/{cnpj_limpo}',
+            headers={'User-Agent': 'ERP-Blanjos/1.0'}
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            if resp.status == 200:
+                data = json.loads(resp.read().decode('utf-8'))
+                ibge = data.get('codigo_ibge') or data.get('codigo_municipio_ibge')
+                cidade_obj = None
+                if ibge:
+                    try:
+                        cidade_obj = Cidade.objects.filter(codigo_ibge=int(ibge)).first()
+                    except:
+                        pass
+                if not cidade_obj and data.get('municipio') and data.get('uf'):
+                    cidade_obj = Cidade.objects.filter(
+                        nome__iexact=data.get('municipio'),
+                        estado__uf__iexact=data.get('uf')
+                    ).first()
+
+                telefone = data.get('ddd_telefone_1', '')
+                if not telefone and data.get('telefone'):
+                    telefone = data.get('telefone')
+
+                return JsonResponse({
+                    'sucesso': True,
+                    'razao_social': data.get('razao_social') or '',
+                    'nome_fantasia': data.get('nome_fantasia') or '',
+                    'cnpj': cnpj_limpo,
+                    'cep': data.get('cep') or '',
+                    'logradouro': data.get('logradouro') or '',
+                    'numero': data.get('numero') or '',
+                    'complemento': data.get('complemento') or '',
+                    'bairro': data.get('bairro') or '',
+                    'municipio': data.get('municipio') or '',
+                    'uf': data.get('uf') or '',
+                    'cidade_id': cidade_obj.codigo_ibge if cidade_obj else (ibge or ''),
+                    'cidade_nome': f"{cidade_obj.nome}/{cidade_obj.estado.uf}" if cidade_obj else (f"{data.get('municipio')}/{data.get('uf')}" if data.get('municipio') else ''),
+                    'telefone': telefone,
+                    'email': data.get('email') or '',
+                    'situacao_cadastral': data.get('descricao_situacao_cadastral') or '',
+                })
+    except Exception:
+        pass
+
+    # 2. Fallback para ReceitaWS
+    try:
+        req = urllib.request.Request(
+            f'https://receitaws.com.br/v1/cnpj/{cnpj_limpo}',
+            headers={'User-Agent': 'ERP-Blanjos/1.0'}
+        )
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            if resp.status == 200:
+                data = json.loads(resp.read().decode('utf-8'))
+                if data.get('status') == 'ERROR':
+                    return JsonResponse({'erro': data.get('message', 'Erro na consulta')}, status=400)
+
+                ibge = data.get('ibge')
+                cidade_obj = None
+                if ibge:
+                    try:
+                        cidade_obj = Cidade.objects.filter(codigo_ibge=int(ibge)).first()
+                    except:
+                        pass
+                if not cidade_obj and data.get('municipio') and data.get('uf'):
+                    cidade_obj = Cidade.objects.filter(
+                        nome__iexact=data.get('municipio'),
+                        estado__uf__iexact=data.get('uf')
+                    ).first()
+
+                return JsonResponse({
+                    'sucesso': True,
+                    'razao_social': data.get('nome') or '',
+                    'nome_fantasia': data.get('fantasia') or '',
+                    'cnpj': cnpj_limpo,
+                    'cep': (data.get('cep') or '').replace('.', '').replace('-', ''),
+                    'logradouro': data.get('logradouro') or '',
+                    'numero': data.get('numero') or '',
+                    'complemento': data.get('complemento') or '',
+                    'bairro': data.get('bairro') or '',
+                    'municipio': data.get('municipio') or '',
+                    'uf': data.get('uf') or '',
+                    'cidade_id': cidade_obj.codigo_ibge if cidade_obj else (ibge or ''),
+                    'cidade_nome': f"{cidade_obj.nome}/{cidade_obj.estado.uf}" if cidade_obj else (f"{data.get('municipio')}/{data.get('uf')}" if data.get('municipio') else ''),
+                    'telefone': data.get('telefone') or '',
+                    'email': data.get('email') or '',
+                    'situacao_cadastral': data.get('situacao') or '',
+                })
+    except Exception as e:
+        return JsonResponse({'erro': f'Falha ao consultar CNPJ: {str(e)}'}, status=500)

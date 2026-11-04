@@ -218,12 +218,15 @@ def gerar_danfe(nfe) -> bytes:
     ch    = nfe.chave_acesso or ''
     ch_f  = _chave_fmt(ch)
     prot  = nfe.protocolo or ''
+    is_nfce = str(nfe.modelo) == '65'
+    doc_sigla = 'NFC-e' if is_nfce else 'NF-e'
+    doc_nome = 'NOTA FISCAL DO CONSUMIDOR ELETRÔNICA' if is_nfce else 'NOTA FISCAL ELETRÔNICA'
 
     el, en, ec, eb, ecid, euf, ecep = _end(emit)
     dl, dn, dc, db, dcid, duf, dcep = _end(dest)
 
     dp  = _d(nfe.data_emissao)
-    dsa = _d(nfe.data_saida or nfe.data_emissao)
+    dsa = _d(getattr(nfe, 'data_saida', None) or nfe.data_emissao)
     hs  = _d(nfe.data_emissao, '%H:%M:%S')
 
     transp   = nfe.transportadora
@@ -240,7 +243,7 @@ def gerar_danfe(nfe) -> bytes:
         f'CONSTANTES DA NOTA FISCAL INDICADO AO LADO'
     )
     nf_ref = (
-        f'<b>NF-e</b><br/>'
+        f'<b>{doc_sigla}</b><br/>'
         f'N° <b>{str(nfe.numero).zfill(9)}</b><br/>'
         f'SÉRIE {str(nfe.serie).zfill(3)}'
     )
@@ -290,7 +293,7 @@ def gerar_danfe(nfe) -> bytes:
     danfe_central = [
         _p('<b>DANFE</b>', 16, bold=True, align='CENTER'),
         _p('DOCUMENTO AUXILIAR DA', FS_TIT, align='CENTER'),
-        _p('NOTA FISCAL ELETRÔNICA', FS_TIT, align='CENTER'),
+        _p(doc_nome, FS_TIT, align='CENTER'),
         Spacer(1, 3),
         _p('0 - ENTRADA', FS_VAL, align='CENTER'),
         _p('<b><font color="#1a3a6e">1</font></b> - SAÍDA', FS_VAL, align='CENTER'),

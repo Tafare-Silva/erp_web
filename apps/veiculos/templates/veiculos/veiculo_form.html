@@ -1,0 +1,295 @@
+{% extends 'base.html' %}
+{% block title %}{% if veiculo %}Editar{% else %}Novo{% endif %} Veículo{% endblock %}
+{% block page_title %}{% if veiculo %}✏️ Editar Veículo{% else %}➕ Novo Veículo{% endif %}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-6" x-data="veiculoForm()">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <form method="post">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+                <div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+
+            <div class="flex items-center justify-between mb-4 pb-4 border-b flex-wrap gap-2">
+                <h2 class="text-lg font-bold text-gray-800">Preenchimento automático</h2>
+                <div class="flex gap-2 flex-wrap">
+                    <button type="button" @click="buscarFipe()"
+                            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-semibold"
+                            :disabled="buscando">
+                        <i class="fas fa-search-dollar mr-1"></i>Buscar preço FIPE
+                    </button>
+                    <button type="button" @click="buscarPlaca()"
+                            class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm font-semibold"
+                            :disabled="buscando">
+                        <i class="fas fa-car mr-1"></i>Buscar dados pela placa
+                    </button>
+                </div>
+            </div>
+            <div class="mb-4 p-3 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg text-xs">
+                <strong>Buscar preço FIPE</strong> (grátis): preenche o valor de referência usando marca + modelo.
+                <strong>Buscar dados pela placa</strong> (integrado, requer contrato): preenche chassi, renavam, cor etc.
+                Quando o provedor de placa não está configurado, use a FIPE escolhendo a marca e o modelo.
+            </div>
+            <div x-show="mensagem" x-text="mensagem" x-bind:class="mensagemCls"
+                 class="mb-4 p-3 rounded-lg text-sm" x-cloak></div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Chassi <span class="text-red-500">*</span></label>
+                    {{ form.chassi }}
+                    {% for e in form.chassi.errors %}<p class="text-xs text-red-600 mt-1">{{ e }}</p>{% endfor %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Placa</label>
+                    <div class="flex gap-2">
+                        {{ form.placa }}
+                        <button type="button" @click="buscarPlaca()" title="Consultar placa"
+                                class="px-3 bg-gray-100 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-200">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Renavam</label>
+                    {{ form.renavam }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Marca <span class="text-red-500">*</span></label>
+                    {{ form.marca }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Modelo <span class="text-red-500">*</span></label>
+                    {{ form.modelo }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Cor</label>
+                    {{ form.cor }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Ano de Fabricação <span class="text-red-500">*</span></label>
+                    {{ form.ano_fabricacao }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Ano do Modelo <span class="text-red-500">*</span></label>
+                    {{ form.ano_modelo }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Motor</label>
+                    {{ form.motor }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Combustível</label>
+                    {{ form.combustivel }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Carroceria</label>
+                    {{ form.carroceria }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Espécie</label>
+                    {{ form.especie }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Kilometragem</label>
+                    {{ form.kilometragem }}
+                </div>
+
+                <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-5 border-t pt-5 mt-2">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Valor de Custo</label>
+                        {{ form.valor_custo }}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Preço de Venda</label>
+                        {{ form.preco_venda }}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tabela FIPE</label>
+                        <div class="flex gap-2">
+                            {{ form.tabela_fipe }}
+                            <button type="button" @click="buscarFipe()" title="Buscar FIPE"
+                                    class="px-3 bg-gray-100 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-200">
+                                <i class="fas fa-search-dollar"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    {{ form.status }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Dono do Veículo (Recibo)</label>
+                    {{ form.dono_recibo }}
+                    <p class="text-xs text-gray-400 mt-1">Quem vendeu o carro à loja (nome do recibo).</p>
+                </div>
+                <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-5 border-t pt-5 mt-2">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">NCM</label>
+                        {{ form.ncm }}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">CFOP</label>
+                        {{ form.cfop }}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Origem</label>
+                        {{ form.origem }}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">CST ICMS</label>
+                        {{ form.cst_icms }}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">CSOSN</label>
+                        {{ form.csosn }}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Alíquota ICMS %</label>
+                        {{ form.aliquota_icms }}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">CST PIS</label>
+                        {{ form.cst_pis }}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Alíq. PIS %</label>
+                        {{ form.aliquota_pis }}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">CST COFINS</label>
+                        {{ form.cst_cofins }}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Alíq. COFINS %</label>
+                        {{ form.aliquota_cofins }}
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Local de Estoque</label>
+                    {{ form.local }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Vendedor</label>
+                    {{ form.vendedor }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Produto (NF-e)</label>
+                    {{ form.produto }}
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                    {{ form.observacoes }}
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 mt-6 pt-6 border-t">
+                <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold text-sm">
+                    <i class="fas fa-save mr-2"></i>Salvar
+                </button>
+                <a href="{% url 'veiculos:veiculo_list' %}" class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50 text-sm">
+                    Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function veiculoForm() {
+    return {
+        buscando: false,
+        mensagem: '',
+        mensagemCls: '',
+        _marcaNome() {
+            const s = document.querySelector('#id_marca');
+            return s ? s.options[s.selectedIndex]?.text || '' : '';
+        },
+        _modeloNome() {
+            const s = document.querySelector('#id_modelo');
+            return s ? s.options[s.selectedIndex]?.text || '' : '';
+        },
+        _setField(name, value) {
+            if (value === null || value === undefined || value === '') return;
+            const el = document.querySelector(`#id_${name}`);
+            if (el) el.value = value;
+        },
+        _show(msg, ok) {
+            this.mensagem = msg;
+            this.mensagemCls = ok
+                ? 'bg-green-50 border border-green-200 text-green-700'
+                : 'bg-red-50 border border-red-200 text-red-700';
+        },
+        async buscarFipe() {
+            const marca = this._marcaNome();
+            const modelo = this._modeloNome();
+            const ano = document.querySelector('#id_ano_modelo')?.value || '';
+            if (!marca || !modelo) {
+                this._show('Selecione marca e modelo antes de buscar a FIPE.', false);
+                return;
+            }
+            this.buscando = true;
+            this.mensagem = '';
+            try {
+                const resp = await fetch(`/veiculos/api/fipe/?marca=${encodeURIComponent(marca)}&modelo=${encodeURIComponent(modelo)}&ano=${encodeURIComponent(ano)}`);
+                const json = await resp.json();
+                if (!resp.ok) { this._show(json.erro || 'Erro ao consultar FIPE.', false); return; }
+                if (json.tabela_fipe) this._setField('tabela_fipe', json.tabela_fipe);
+                if (json.ano_modelo && !ano) this._setField('ano_modelo', json.ano_modelo);
+                this._show(`FIPE consultada (${json.referencia || ''}).`, true);
+            } catch(e) {
+                this._show('Erro de conexão ao consultar FIPE.', false);
+            } finally {
+                this.buscando = false;
+            }
+        },
+        async buscarPlaca() {
+            const placa = document.querySelector('#id_placa')?.value || '';
+            if (!placa) {
+                this._show('Informe a placa.', false);
+                return;
+            }
+            this.buscando = true;
+            this.mensagem = '';
+            try {
+                const resp = await fetch(`/veiculos/api/consulta-placa/?placa=${encodeURIComponent(placa)}`);
+                const json = await resp.json();
+                if (!resp.ok) { this._show(json.erro || 'Erro ao consultar placa.', false); return; }
+                this._setField('renavam', json.renavam);
+                this._setField('chassi', json.chassi);
+                this._setField('cor', json.cor);
+                if (json.ano_fabricacao) this._setField('ano_fabricacao', json.ano_fabricacao);
+                if (json.ano_modelo) this._setField('ano_modelo', json.ano_modelo);
+                this._setField('motor', json.motor);
+                this._setField('combustivel', json.combustivel);
+                if (json.marca_id) {
+                    const marcaSel = document.querySelector('#id_marca');
+                    if (marcaSel) {
+                        const opt = Array.from(marcaSel.options).find(o => o.value == json.marca_id);
+                        if (opt) { marcaSel.value = opt.value; }
+                    }
+                }
+                if (json.modelo_id) {
+                    const modSel = document.querySelector('#id_modelo');
+                    if (modSel) {
+                        const opt = Array.from(modSel.options).find(o => o.value == json.modelo_id);
+                        if (opt) { modSel.value = opt.value; }
+                    }
+                }
+                this._show('Dados do veículo preenchidos pela placa.', true);
+            } catch(e) {
+                this._show('Erro de conexão ao consultar placa.', false);
+            } finally {
+                this.buscando = false;
+            }
+        },
+    };
+}
+</script>
+<style>[x-cloak]{display:none!important}</style>
+{% endblock %}

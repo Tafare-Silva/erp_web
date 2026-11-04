@@ -1,114 +1,209 @@
 {% extends 'base.html' %}
-{% block title %}NF-e {{ nota.numero }}{% endblock %}
-{% block page_title %}📄 NF-e #{{ nota.numero }}{% endblock %}
+{% block title %}{{ nota.get_modelo_display }} #{{ nota.numero }}{% endblock %}
+{% block page_title %}<i class="fas fa-file-invoice text-blue-600"></i> {{ nota.get_modelo_display }} #{{ nota.numero }}{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 py-6">
-    <div class="flex flex-wrap gap-2 mb-6">
-        <a href="{% url 'fiscal:nfe_list' %}" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
-            <i class="fas fa-arrow-left"></i> Voltar
-        </a>
-        {% if nota.status == 'VALIDADO' %}
-        <button onclick="enviarLote({{ nota.pk }})" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-            <i class="fas fa-paper-plane"></i> Autorizar
-        </button>
-        {% endif %}
-        {% if nota.status == 'AUTORIZADO' %}
-        <a href="{% url 'fiscal:nfe_cancelar' nota.pk %}" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
-            <i class="fas fa-ban"></i> Cancelar
-        </a>
-        <a href="{% url 'fiscal:nfe_cce' nota.pk %}" class="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700">
-            <i class="fas fa-pen"></i> Carta de Correção
-        </a>
-        <a href="{% url 'fiscal:nfe_danfe' nota.pk %}" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-            <i class="fas fa-file-pdf"></i> DANFE
-        </a>
-        {% endif %}
-        {% if debug and nota.status == 'VALIDADO' %}
-        <a href="{% url 'fiscal:nfe_simular_autorizar' nota.pk %}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
-            <i class="fas fa-flask"></i> Simular Autorização
-        </a>
-        {% endif %}
-        {% if nota.xml_enviado %}
-        <a href="{% url 'fiscal:nfe_download_xml' nota.pk %}" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
-            <i class="fas fa-file-code"></i> Download XML
-        </a>
-        {% endif %}
+    <!-- Barra Superior de Ações -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div class="flex items-center gap-3">
+            <a href="{% url 'fiscal:nfe_list' %}" class="w-10 h-10 rounded-xl bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 flex items-center justify-center shadow-sm transition">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-2xl font-bold text-gray-900">{{ nota.get_modelo_display }} #{{ nota.numero }}</h1>
+                    {% if nota.status == 'AUTORIZADO' %}
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            Autorizada SEFAZ
+                        </span>
+                    {% elif nota.status == 'REJEITADO' or nota.status == 'DENEGADO' %}
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                            <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                            {{ nota.get_status_display }}
+                        </span>
+                    {% elif nota.status == 'CANCELADO' %}
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700 border border-gray-300">
+                            <i class="fas fa-ban text-[10px]"></i> Cancelada
+                        </span>
+                    {% else %}
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                            <i class="fas fa-clock text-[10px]"></i> {{ nota.get_status_display }}
+                        </span>
+                    {% endif %}
+                </div>
+                <p class="text-xs text-gray-400 font-mono mt-0.5">Série {{ nota.serie }} • Emissão: {{ nota.data_emissao|date:"d/m/Y H:i:s" }}</p>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+            <!-- Ação de Transmitir / Reenviar SEFAZ -->
+            {% if nota.status != 'AUTORIZADO' and nota.status != 'CANCELADO' %}
+            <button onclick="transmitirNota({{ nota.pk }})" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm transition text-sm">
+                <i class="fas fa-paper-plane"></i> Transmitir para SEFAZ
+            </button>
+            {% endif %}
+
+            <!-- DANFE PDF -->
+            {% if nota.status == 'AUTORIZADO' or debug %}
+            <a href="{% url 'fiscal:nfe_danfe' nota.pk %}" target="_blank" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm transition text-sm">
+                <i class="fas fa-file-pdf"></i> Visualizar DANFE (PDF)
+            </a>
+            {% endif %}
+
+            <!-- Cancelar -->
+            {% if nota.status == 'AUTORIZADO' %}
+            <a href="{% url 'fiscal:nfe_cancelar' nota.pk %}" class="inline-flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white font-medium px-3.5 py-2 rounded-lg shadow-sm transition text-sm">
+                <i class="fas fa-ban"></i> Cancelar Nota
+            </a>
+            <a href="{% url 'fiscal:nfe_cce' nota.pk %}" class="inline-flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white font-medium px-3.5 py-2 rounded-lg shadow-sm transition text-sm">
+                <i class="fas fa-pen"></i> Carta de Correção (CC-e)
+            </a>
+            {% endif %}
+
+            <!-- Download XML -->
+            {% if nota.xml_enviado %}
+            <a href="{% url 'fiscal:nfe_download_xml' nota.pk %}" class="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-medium px-3.5 py-2 rounded-lg shadow-sm transition text-sm">
+                <i class="fas fa-file-code"></i> Baixar XML
+            </a>
+            {% endif %}
+        </div>
     </div>
 
+    <!-- Alerta de Rejeição SEFAZ (se houver) -->
+    {% if nota.mensagem_retorno and nota.status != 'AUTORIZADO' and nota.status != 'CANCELADO' %}
+    <div class="bg-rose-50 border border-rose-200 rounded-xl p-4 mb-6 text-rose-800 flex items-start gap-3">
+        <div class="w-8 h-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 mt-0.5">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div class="flex-1">
+            <h4 class="font-bold text-sm text-rose-900">Motivo do Retorno da SEFAZ:</h4>
+            <p class="text-sm mt-0.5 font-medium">{{ nota.mensagem_retorno }}</p>
+            <p class="text-xs text-rose-600 mt-2">Você pode revisar as informações cadastrais e clicar em <strong>"Transmitir para SEFAZ"</strong> acima para tentar novamente a qualquer momento.</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Grid de Informações Principais -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="font-bold text-gray-900 mb-3">Identificação</h3>
-            <dl class="space-y-2 text-sm">
-                <div class="flex justify-between"><dt class="text-gray-500">Número:</dt><dd class="font-medium">{{ nota.numero }}</dd></div>
-                <div class="flex justify-between"><dt class="text-gray-500">Série:</dt><dd class="font-medium">{{ nota.serie }}</dd></div>
-                <div class="flex justify-between"><dt class="text-gray-500">Modelo:</dt><dd class="font-medium">{{ nota.get_modelo_display }}</dd></div>
-                <div class="flex justify-between"><dt class="text-gray-500">Origem:</dt>
-                    <dd class="font-medium">{% if nota.movimentacao %}<a href="{% url 'cadastros:venda_detail' nota.movimentacao.pk_chave %}" class="text-blue-600 hover:underline">Venda #{{ nota.movimentacao.pk_chave }}</a>{% else %}Manual{% endif %}</dd>
+        <!-- Identificação -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div class="flex items-center gap-2 mb-4 pb-2 border-b border-gray-100 text-gray-800">
+                <i class="fas fa-file-alt text-blue-600"></i>
+                <h3 class="font-bold text-sm">Dados da Operação</h3>
+            </div>
+            <dl class="space-y-2.5 text-xs">
+                <div class="flex justify-between items-center"><dt class="text-gray-500">Modelo:</dt><dd class="font-bold text-gray-800">{{ nota.get_modelo_display }}</dd></div>
+                <div class="flex justify-between items-center"><dt class="text-gray-500">Número / Série:</dt><dd class="font-bold text-gray-800">#{{ nota.numero }} / Série {{ nota.serie }}</dd></div>
+                <div class="flex justify-between items-center"><dt class="text-gray-500">Natureza:</dt><dd class="font-medium text-gray-700">{{ nota.natureza_operacao }}</dd></div>
+                <div class="flex justify-between items-center"><dt class="text-gray-500">Origem:</dt>
+                    <dd class="font-medium">
+                        {% if nota.movimentacao %}
+                            <a href="{% url 'cadastros:venda_detail' nota.movimentacao.pk_chave %}" class="text-blue-600 hover:underline">Venda #{{ nota.movimentacao.pk_chave }}</a>
+                        {% else %}
+                            <span class="text-gray-500">Emissão Avulsa</span>
+                        {% endif %}
+                    </dd>
                 </div>
-                <div class="flex justify-between"><dt class="text-gray-500">Chave:</dt><dd class="font-medium text-xs break-all">{{ nota.chave_acesso }}</dd></div>
-                <div class="flex justify-between"><dt class="text-gray-500">Status:</dt>
-                    <dd><span class="px-2 py-1 rounded text-xs font-bold
-                        {% if nota.status == 'AUTORIZADO' %}bg-green-100 text-green-700
-                        {% elif nota.status == 'REJEITADO' or nota.status == 'DENEGADO' %}bg-red-100 text-red-700
-                        {% elif nota.status == 'CANCELADO' %}bg-gray-100 text-gray-700
-                        {% else %}bg-yellow-100 text-yellow-700{% endif %}">
-                        {{ nota.get_status_display }}</span></dd>
+                <div class="pt-2 border-t border-gray-100">
+                    <dt class="text-gray-500 mb-1">Chave de Acesso:</dt>
+                    <dd class="font-mono text-[11px] text-gray-700 break-all bg-gray-50 p-2 rounded border border-gray-200 select-all">{{ nota.chave_acesso }}</dd>
                 </div>
                 {% if nota.protocolo %}
-                <div class="flex justify-between"><dt class="text-gray-500">Protocolo:</dt><dd class="font-medium">{{ nota.protocolo }}</dd></div>
+                <div class="flex justify-between items-center pt-1"><dt class="text-gray-500">Protocolo SEFAZ:</dt><dd class="font-mono font-bold text-emerald-700">{{ nota.protocolo }}</dd></div>
                 {% endif %}
             </dl>
         </div>
 
-        <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="font-bold text-gray-900 mb-3">Destinatário</h3>
-            <dl class="space-y-2 text-sm">
-                <div class="flex justify-between"><dt class="text-gray-500">Nome:</dt><dd class="font-medium">{{ nota.destinatario.nome }}</dd></div>
-                <div class="flex justify-between"><dt class="text-gray-500">CPF/CNPJ:</dt><dd class="font-medium">{{ nota.destinatario.cpf_cnpj }}</dd></div>
-                <div class="flex justify-between"><dt class="text-gray-500">IE:</dt><dd class="font-medium">{{ nota.destinatario.rg_ie|default:'-' }}</dd></div>
+        <!-- Destinatário -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div class="flex items-center gap-2 mb-4 pb-2 border-b border-gray-100 text-gray-800">
+                <i class="fas fa-user text-blue-600"></i>
+                <h3 class="font-bold text-sm">Destinatário</h3>
+            </div>
+            <dl class="space-y-2.5 text-xs">
+                <div class="flex justify-between"><dt class="text-gray-500">Nome / Razão:</dt><dd class="font-bold text-gray-800 text-right">{{ nota.destinatario.nome }}</dd></div>
+                <div class="flex justify-between"><dt class="text-gray-500">CPF / CNPJ:</dt><dd class="font-mono text-gray-700">{{ nota.destinatario.cpf_cnpj|default:'Não informado' }}</dd></div>
+                <div class="flex justify-between"><dt class="text-gray-500">Inscrição Estadual:</dt><dd class="text-gray-700">{{ nota.destinatario.rg_ie|default:'ISENTO' }}</dd></div>
+                {% with end=nota.destinatario.enderecos.first %}
+                {% if end %}
+                <div class="pt-2 border-t border-gray-100">
+                    <dt class="text-gray-500 mb-1">Endereço:</dt>
+                    <dd class="text-gray-700 leading-relaxed">
+                        {{ end.logradouro }}, {{ end.numero }} {% if end.complemento %}- {{ end.complemento }}{% endif %}<br>
+                        {{ end.bairro }} • {{ end.cidade.nome }}/{{ end.cidade.estado.uf }}<br>
+                        CEP: {{ end.cep }}
+                    </dd>
+                </div>
+                {% endif %}
+                {% endwith %}
             </dl>
         </div>
 
-        <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="font-bold text-gray-900 mb-3">Valores</h3>
-            <dl class="space-y-2 text-sm">
-                <div class="flex justify-between"><dt class="text-gray-500">Total Produtos:</dt><dd class="font-medium">R$ {{ nota.valor_total_produtos|floatformat:2 }}</dd></div>
-                <div class="flex justify-between"><dt class="text-gray-500">Desconto:</dt><dd class="font-medium text-red-600">R$ {{ nota.valor_desconto|floatformat:2 }}</dd></div>
-                <div class="flex justify-between"><dt class="text-gray-500">Frete:</dt><dd class="font-medium">R$ {{ nota.valor_frete|floatformat:2 }}</dd></div>
-                <div class="border-t pt-2 mt-2 flex justify-between"><dt class="text-gray-800 font-bold">Total NF-e:</dt><dd class="font-bold text-lg text-blue-600">R$ {{ nota.valor_total|floatformat:2 }}</dd></div>
-                <div class="flex justify-between"><dt class="text-gray-500">ICMS:</dt><dd class="font-medium">R$ {{ nota.valor_icms|floatformat:2 }}</dd></div>
+        <!-- Totais Fiscais -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div class="flex items-center gap-2 mb-4 pb-2 border-b border-gray-100 text-gray-800">
+                <i class="fas fa-calculator text-blue-600"></i>
+                <h3 class="font-bold text-sm">Totais do Documento</h3>
+            </div>
+            <dl class="space-y-2 text-xs">
+                <div class="flex justify-between"><dt class="text-gray-500">Total dos Produtos:</dt><dd class="font-medium text-gray-800">R$ {{ nota.valor_total_produtos|floatformat:2 }}</dd></div>
+                {% if nota.valor_desconto > 0 %}
+                <div class="flex justify-between"><dt class="text-gray-500">Descontos:</dt><dd class="font-medium text-rose-600">- R$ {{ nota.valor_desconto|floatformat:2 }}</dd></div>
+                {% endif %}
+                {% if nota.valor_frete > 0 %}
+                <div class="flex justify-between"><dt class="text-gray-500">Frete:</dt><dd class="font-medium text-gray-800">R$ {{ nota.valor_frete|floatformat:2 }}</dd></div>
+                {% endif %}
+                <div class="flex justify-between"><dt class="text-gray-500">Base de Cálculo ICMS:</dt><dd class="text-gray-700">R$ {{ nota.valor_base_calculo_icms|floatformat:2 }}</dd></div>
+                <div class="flex justify-between"><dt class="text-gray-500">Valor ICMS:</dt><dd class="text-gray-700">R$ {{ nota.valor_icms|floatformat:2 }}</dd></div>
+                <div class="border-t border-gray-200 pt-3 mt-3 flex justify-between items-center">
+                    <dt class="text-sm font-bold text-gray-800">Valor Total da Nota:</dt>
+                    <dd class="text-xl font-bold text-blue-600">R$ {{ nota.valor_total|floatformat:2 }}</dd>
+                </div>
             </dl>
         </div>
     </div>
 
-    <div class="bg-white rounded-lg shadow overflow-hidden mb-6">
-        <div class="px-6 py-4 bg-gray-50 border-b">
-            <h3 class="font-bold text-gray-900">Itens</h3>
+    <!-- Tabela de Itens / Produtos -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+        <div class="px-6 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+            <h3 class="font-bold text-gray-800 text-sm flex items-center gap-2">
+                <i class="fas fa-boxes text-blue-600"></i> Itens da Nota Fiscal ({{ itens|length }})
+            </h3>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
-                <thead class="bg-gray-50 border-b">
-                    <tr>
-                        <th class="px-4 py-3 text-left">#</th>
-                        <th class="px-4 py-3 text-left">Produto</th>
+                <thead>
+                    <tr class="bg-gray-50/50 border-b border-gray-100 text-gray-500 text-xs uppercase font-semibold">
+                        <th class="px-4 py-3 text-center w-12">#</th>
+                        <th class="px-4 py-3 text-left">Código / Descrição do Produto</th>
                         <th class="px-4 py-3 text-center">NCM</th>
                         <th class="px-4 py-3 text-center">CFOP</th>
+                        <th class="px-4 py-3 text-center">UN</th>
                         <th class="px-4 py-3 text-right">Qtd</th>
                         <th class="px-4 py-3 text-right">Valor Unit.</th>
-                        <th class="px-4 py-3 text-right">Total</th>
+                        <th class="px-4 py-3 text-right">Valor Total</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody class="divide-y divide-gray-100">
                     {% for item in itens %}
-                    <tr class="border-b hover:bg-gray-50">
-                        <td class="px-4 py-3">{{ item.numero_item }}</td>
-                        <td class="px-4 py-3">{{ item.nome }}</td>
-                        <td class="px-4 py-3 text-center">{{ item.ncm }}</td>
-                        <td class="px-4 py-3 text-center">{{ item.cfop }}</td>
-                        <td class="px-4 py-3 text-right">{{ item.quantidade|floatformat:4 }}</td>
-                        <td class="px-4 py-3 text-right">R$ {{ item.valor_unitario|floatformat:6 }}</td>
-                        <td class="px-4 py-3 text-right font-medium">R$ {{ item.valor_total|floatformat:2 }}</td>
+                    <tr class="hover:bg-gray-50 transition text-xs">
+                        <td class="px-4 py-3 text-center text-gray-400 font-bold">{{ item.numero_item }}</td>
+                        <td class="px-4 py-3">
+                            <div class="font-bold text-gray-800">{{ item.nome }}</div>
+                            <div class="text-[11px] text-gray-400">Cód: {{ item.codigo_produto }} | EAN: {{ item.ean|default:'SEM GTIN' }}</div>
+                        </td>
+                        <td class="px-4 py-3 text-center font-mono text-gray-600">{{ item.ncm }}</td>
+                        <td class="px-4 py-3 text-center font-mono text-gray-600">{{ item.cfop }}</td>
+                        <td class="px-4 py-3 text-center text-gray-600 font-medium">{{ item.unidade|default:'UN' }}</td>
+                        <td class="px-4 py-3 text-right font-medium text-gray-800">{{ item.quantidade|floatformat:4 }}</td>
+                        <td class="px-4 py-3 text-right text-gray-700">R$ {{ item.valor_unitario|floatformat:2 }}</td>
+                        <td class="px-4 py-3 text-right font-bold text-gray-900">R$ {{ item.valor_total|floatformat:2 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="px-4 py-6 text-center text-gray-400 text-xs">Nenhum item adicionado a esta nota.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -116,63 +211,115 @@
         </div>
     </div>
 
-    {% if pagamentos %}
-    <div class="bg-white rounded-lg shadow overflow-hidden mb-6">
-        <div class="px-6 py-4 bg-gray-50 border-b">
-            <h3 class="font-bold text-gray-900">Pagamentos</h3>
+    <!-- Pagamentos & Eventos -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Pagamentos -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="px-6 py-4 bg-gray-50 border-b border-gray-100">
+                <h3 class="font-bold text-gray-800 text-sm flex items-center gap-2">
+                    <i class="fas fa-credit-card text-emerald-600"></i> Formas de Pagamento
+                </h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs">
+                    <thead>
+                        <tr class="bg-gray-50/50 border-b border-gray-100 text-gray-500 uppercase font-semibold">
+                            <th class="px-4 py-3 text-left">Forma de Pagamento</th>
+                            <th class="px-4 py-3 text-right">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        {% for pag in pagamentos %}
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-4 py-3 font-medium text-gray-800">{{ pag.get_forma_pagamento_display }}</td>
+                            <td class="px-4 py-3 text-right font-bold text-gray-900">R$ {{ pag.valor|floatformat:2 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="2" class="px-4 py-6 text-center text-gray-400">Nenhum pagamento cadastrado.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50 border-b">
-                    <tr><th class="px-4 py-3 text-left">Forma</th><th class="px-4 py-3 text-right">Valor</th></tr>
-                </thead>
-                <tbody>
-                    {% for pag in pagamentos %}
-                    <tr class="border-b hover:bg-gray-50">
-                        <td class="px-4 py-3">{{ pag.get_forma_pagamento_display }}</td>
-                        <td class="px-4 py-3 text-right font-medium">R$ {{ pag.valor|floatformat:2 }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-    {% endif %}
 
-    {% if eventos %}
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-        <div class="px-6 py-4 bg-gray-50 border-b">
-            <h3 class="font-bold text-gray-900">Eventos</h3>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50 border-b">
-                    <tr><th class="px-4 py-3 text-left">Tipo</th><th class="px-4 py-3 text-left">Data</th><th class="px-4 py-3 text-left">Justificativa</th><th class="px-4 py-3 text-left">Protocolo</th></tr>
-                </thead>
-                <tbody>
-                    {% for ev in eventos %}
-                    <tr class="border-b hover:bg-gray-50">
-                        <td class="px-4 py-3">{{ ev.get_tipo_display }}</td>
-                        <td class="px-4 py-3 text-xs">{{ ev.data_evento|date:"d/m/Y H:i" }}</td>
-                        <td class="px-4 py-3">{{ ev.justificativa|truncatechars:60 }}</td>
-                        <td class="px-4 py-3">{{ ev.protocolo|default:'-' }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <!-- Histórico de Eventos -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="px-6 py-4 bg-gray-50 border-b border-gray-100">
+                <h3 class="font-bold text-gray-800 text-sm flex items-center gap-2">
+                    <i class="fas fa-history text-purple-600"></i> Eventos Fiscais / Retornos
+                </h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs">
+                    <thead>
+                        <tr class="bg-gray-50/50 border-b border-gray-100 text-gray-500 uppercase font-semibold">
+                            <th class="px-4 py-3 text-left">Evento</th>
+                            <th class="px-4 py-3 text-center">Data</th>
+                            <th class="px-4 py-3 text-left">Protocolo / Retorno</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        {% for ev in eventos %}
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-4 py-3 font-bold text-gray-800">{{ ev.get_tipo_display }}</td>
+                            <td class="px-4 py-3 text-center text-gray-500">{{ ev.data_evento|date:"d/m/Y H:i" }}</td>
+                            <td class="px-4 py-3 text-gray-700">
+                                <div>Prot: {{ ev.protocolo|default:'-' }}</div>
+                                {% if ev.justificativa %}<div class="text-[11px] text-gray-400 truncate">{{ ev.justificativa }}</div>{% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="px-4 py-6 text-center text-gray-400">Nenhum evento registrado até o momento.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
-    {% endif %}
+</div>
+
+<!-- Modal de Processamento -->
+<div id="loadingModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl text-center">
+        <div class="w-14 h-14 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-2xl mx-auto mb-4 animate-spin">
+            <i class="fas fa-circle-notch"></i>
+        </div>
+        <h3 class="font-bold text-gray-900 text-lg mb-1">Comunicando com a SEFAZ...</h3>
+        <p class="text-xs text-gray-500 mb-2">Assinando digitalmente o XML e aguardando retorno dos WebServices autorizadores.</p>
+    </div>
 </div>
 
 <script>
-function enviarLote(nfeId) {
-    if (!confirm('Enviar esta NF-e para autorização?')) return;
-    fetch('{% url "fiscal:nfe_enviar_lote" %}', {
+function transmitirNota(nfeId) {
+    if (!confirm('Deseja transmitir este documento fiscal para a SEFAZ agora?')) return;
+    document.getElementById('loadingModal').classList.remove('hidden');
+
+    fetch(`/fiscal/nfe/${nfeId}/autorizar/`, {
         method: 'POST',
-        headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/x-www-form-urlencoded'},
-        body: 'nfe_ids=' + nfeId
-    }).then(() => location.reload());
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('loadingModal').classList.add('hidden');
+        if (data.sucesso) {
+            alert('Sucesso! ' + data.mensagem);
+            location.reload();
+        } else {
+            alert('Retorno SEFAZ: ' + (data.erro || 'Não autorizada'));
+            location.reload();
+        }
+    })
+    .catch(err => {
+        document.getElementById('loadingModal').classList.add('hidden');
+        alert('Erro ao se comunicar com o servidor: ' + err);
+    });
 }
 </script>
 {% endblock %}

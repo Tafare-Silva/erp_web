@@ -10,7 +10,7 @@ from .views import (
     ncm_views, cfop_views, divisao_impostos_views, codigo_barras_views, imagem_produto_views, pdv_views, venda_views,
     condicional_views, financeiro_views
 )
-from .views.pessoa_views import api_cidade_por_ibge, api_buscar_cidades
+from .views.pessoa_views import api_cidade_por_ibge, api_buscar_cidades, api_consultar_cnpj
 from .views.empresa_views import empresa_config
 from .views.produto import ProdutoListView, ProdutoCreateView, ProdutoUpdateView, ProdutoDeleteView, ProdutoDetailView, ajustar_estoque_produto, pagina_ajuste_estoque
 from .views.entrada_views import (
@@ -170,6 +170,7 @@ urlpatterns = [
     # API - Cidade por IBGE (usado pelo ViaCEP frontend)
     path('api/cidade-ibge/<str:ibge>/', api_cidade_por_ibge, name='api_cidade_ibge'),
     path('api/cidades/', api_buscar_cidades, name='api_buscar_cidades'),
+    path('api/cnpj/<str:cnpj>/', api_consultar_cnpj, name='api_consultar_cnpj'),
 
     # Empresa (Configurações)
     path('empresa/', empresa_config, name='empresa_config'),
@@ -179,8 +180,23 @@ urlpatterns = [
 
     # ========== FINANCEIRO E CAIXA ==========
     path('financeiro/contas-pagar/', financeiro_views.listar_titulos, {'tipo': 'P'}, name='contas_pagar'),
+    path('financeiro/contas-pagar/novo/', financeiro_views.titulo_novo_view, {'tipo': 'P'}, name='contas_pagar_novo'),
     path('financeiro/contas-receber/', financeiro_views.listar_titulos, {'tipo': 'R'}, name='contas_receber'),
-    path('financeiro/salvar-titulo/', financeiro_views.salvar_titulo_manual, name='salvar_titulo_manual'),
+    path('financeiro/contas-receber/novo/', financeiro_views.titulo_novo_view, {'tipo': 'R'}, name='contas_receber_novo'),
+    path('financeiro/titulos/novo/', financeiro_views.titulo_novo_view, name='titulo_create'),
+    path('financeiro/titulos/<int:pk>/editar/', financeiro_views.titulo_editar_view, name='titulo_update'),
+    path('financeiro/titulos/<int:pk>/baixar/', financeiro_views.baixar_titulo, name='titulo_baixar'),
+    path('financeiro/titulos/<int:pk>/cancelar/', financeiro_views.cancelar_titulo, name='titulo_cancelar'),
+    path('financeiro/titulos/<int:pk>/estornar/', financeiro_views.estornar_titulo, name='titulo_estornar'),
+    path('financeiro/titulos/<int:pk>/excluir/', financeiro_views.excluir_titulo, name='titulo_delete'),
+    
+    # Recebimento de Crediário (Carnê)
+    path('financeiro/crediario/', financeiro_views.recebimento_crediario, name='recebimento_crediario'),
+    path('financeiro/api/titulos-cliente/<int:pessoa_id>/', financeiro_views.api_titulos_cliente, name='api_titulos_cliente'),
+    path('financeiro/processar-crediario/', financeiro_views.processar_recebimento_crediario, name='processar_recebimento_crediario'),
+    path('financeiro/recibo-crediario/', financeiro_views.imprimir_recibo_crediario, name='recibo_crediario'),
+    
+    # Caixa
     path('caixa/status/', financeiro_views.caixa_status, name='caixa_status'),
     path('caixa/abrir/', financeiro_views.caixa_abrir, name='caixa_abrir'),
     path('caixa/fechar/', financeiro_views.caixa_fechar, name='caixa_fechar'),

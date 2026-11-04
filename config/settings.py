@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     'apps.cadastros',
     'apps.estoque',
     'apps.fiscal',
+    'apps.veiculos',
 ]
 
 MIDDLEWARE = [
@@ -65,7 +66,7 @@ DATABASES = {
         'HOST': config('DB_HOST', default='localhost'),
         'PORT': config('DB_PORT', default='5432'),
         'OPTIONS': {
-            'options': '-c search_path=cadastros,marilia,public'
+            'options': f"-c search_path={config('DB_SEARCH_PATH', default='cadastros,marilia,public')}"
         },
     }
 }
@@ -84,10 +85,10 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_ROOT = config('STATIC_ROOT', default=str(BASE_DIR / 'staticfiles'))
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = config('MEDIA_ROOT', default=str(BASE_DIR / 'media'))
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

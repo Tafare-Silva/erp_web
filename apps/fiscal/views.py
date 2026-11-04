@@ -51,6 +51,11 @@ class NFeListView(LoginRequiredMixin, ListView):
         context['cliente_filter'] = self.request.GET.get('cliente', '')
         context['dt_ini_filter'] = self.request.GET.get('dt_ini', '')
         context['dt_fim_filter'] = self.request.GET.get('dt_fim', '')
+        context['empresa'] = Empresa.objects.first()
+        context['total_autorizadas'] = NFe.objects.filter(status='AUTORIZADO').count()
+        context['total_pendentes'] = NFe.objects.filter(status__in=['VALIDADO', 'DIGITACAO']).count()
+        context['total_rejeitadas'] = NFe.objects.filter(status__in=['REJEITADO', 'DENEGADO']).count()
+        context['total_canceladas'] = NFe.objects.filter(status='CANCELADO').count()
         return context
 
 
@@ -82,19 +87,11 @@ def emitir_nfe_da_venda(request, pk):
         nfe = NFeService.criar_nfe_da_venda(venda.pk_chave, usuario=request.user, modelo=modelo)
 
         if nfe.status == 'VALIDADO':
-            from django.conf import settings
-            if settings.DEBUG:
-                nfe.status = 'AUTORIZADO'
-                nfe.protocolo = '999999999999999'
-                nfe.data_autorizacao = datetime.now()
-                nfe.save(update_fields=['status', 'protocolo', 'data_autorizacao'])
-                messages.success(request, f'NF-e #{nfe.numero} emitida com sucesso (simulação)!')
+            nfe = NFeService.autorizar_nfe(nfe.pk)
+            if nfe.status == 'AUTORIZADO':
+                messages.success(request, f'NF-e #{nfe.numero} autorizada com sucesso na SEFAZ!')
             else:
-                nfe = NFeService.autorizar_nfe(nfe.pk)
-                if nfe.status == 'AUTORIZADO':
-                    messages.success(request, f'NF-e #{nfe.numero} autorizada!')
-                else:
-                    messages.warning(request, f'NF-e #{nfe.numero}: {nfe.status} - {nfe.mensagem_retorno}')
+                messages.warning(request, f'NF-e #{nfe.numero}: {nfe.status} - {nfe.mensagem_retorno}')
 
         return redirect('fiscal:nfe_detail', pk=nfe.pk)
     except Exception as e:

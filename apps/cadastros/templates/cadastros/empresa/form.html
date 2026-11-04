@@ -135,7 +135,45 @@
                 <div>
                     <label for="{{ form.csc_id.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">ID do CSC</label>
                     {{ form.csc_id }}
-                    <p class="mt-1 text-xs text-gray-500">Identificador numérico do CSC</p>
+                    <p class="mt-1 text-xs text-gray-500">Identificador numérico do CSC (ex: 000001)</p>
+                </div>
+
+                <!-- ==================== RESPONSÁVEL TÉCNICO & CSRT ==================== -->
+                <div class="lg:col-span-2 mt-4">
+                    <h4 class="text-base font-semibold text-blue-800 border-b border-blue-200 pb-2 mb-2">
+                        <i class="fas fa-laptop-code mr-2"></i>Responsável Técnico & CSRT (SEFAZ-PR)
+                    </h4>
+                    <p class="text-xs text-gray-500 mb-4">
+                        Obrigatório pela SEFAZ-PR para autorização de NF-e (mod. 55). No portal <strong>Receita/PR</strong>, vincule o CNPJ da software house em <em>UPD &gt; Autorização de uso</em> e gere o CSRT em <em>UPD &gt; Gestão de CSRT</em>.
+                    </p>
+                </div>
+
+                <div>
+                    <label for="{{ form.resp_tec_cnpj.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">CNPJ do Responsável Técnico</label>
+                    {{ form.resp_tec_cnpj }}
+                    <p class="mt-1 text-xs text-gray-500">CNPJ cadastrado e autorizado no UPD da Receita Estadual</p>
+                </div>
+                <div>
+                    <label for="{{ form.resp_tec_contato.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Nome do Contato</label>
+                    {{ form.resp_tec_contato }}
+                </div>
+                <div>
+                    <label for="{{ form.resp_tec_email.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">E-mail do Suporte/Técnico</label>
+                    {{ form.resp_tec_email }}
+                </div>
+                <div>
+                    <label for="{{ form.resp_tec_fone.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Telefone do Suporte</label>
+                    {{ form.resp_tec_fone }}
+                </div>
+                <div>
+                    <label for="{{ form.resp_tec_csrt_id.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Identificador do CSRT (idCSRT)</label>
+                    {{ form.resp_tec_csrt_id }}
+                    <p class="mt-1 text-xs text-gray-500">Ex: 01 (fornecido pela SEFAZ no portal Receita/PR)</p>
+                </div>
+                <div>
+                    <label for="{{ form.resp_tec_csrt.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Código do CSRT (Token)</label>
+                    {{ form.resp_tec_csrt }}
+                    <p class="mt-1 text-xs text-gray-500">Chave secreta alfanumérica gerada no portal Receita/PR</p>
                 </div>
 
                 <!-- ==================== SEDE ==================== -->

@@ -76,15 +76,22 @@
                     {% for produto in produtos %}
                     <tr class="hover:bg-blue-50/50 transition-colors group">
                         <td class="px-6 py-4">
-                            <span class="px-2 py-1 bg-gray-100 text-gray-500 rounded text-[10px] font-bold font-mono">#{{ produto.pk_chave }}</span>
+                            <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-[10px] font-bold font-mono">#{{ produto.codigo|default:produto.pk_chave }}</span>
                         </td>
                         
                         <td class="px-6 py-4">
                             <div class="flex flex-col">
                                 <span class="text-sm font-bold text-gray-900 group-hover:text-blue-700 transition-colors">{{ produto.nome }}</span>
-                                {% if produto.referencia_fabrica %}
-                                <span class="text-[10px] text-gray-400">Ref: {{ produto.referencia_fabrica }}</span>
-                                {% endif %}
+                                <div class="flex flex-wrap items-center gap-2 mt-0.5">
+                                    {% if produto.referencia %}
+                                    <span class="text-[10px] text-gray-500 font-mono">Ref: {{ produto.referencia }}</span>
+                                    {% elif produto.referencia_fabrica %}
+                                    <span class="text-[10px] text-gray-500 font-mono">Ref: {{ produto.referencia_fabrica }}</span>
+                                    {% endif %}
+                                    {% if produto.codigo_barras %}
+                                    <span class="text-[10px] text-gray-400"><i class="fas fa-barcode mr-1"></i>{{ produto.codigo_barras }}</span>
+                                    {% endif %}
+                                </div>
                             </div>
                         </td>
                         

@@ -124,6 +124,10 @@ class NFe(models.Model):
     chave_acesso = models.CharField(max_length=44, unique=True, verbose_name='Chave de Acesso')
     tipo_emissao = models.IntegerField(choices=TIPO_EMISSAO_CHOICES, default=1, verbose_name='Tipo Emissão')
     natureza_operacao = models.CharField(max_length=255, verbose_name='Natureza da Operação')
+    tipo_operacao = models.IntegerField(
+        choices=[(1, '1 - Saída (venda)'), (2, '2 - Entrada (compra)')],
+        default=1, verbose_name='Tipo de Operação'
+    )
     finalidade = models.IntegerField(
         choices=[(1, 'Normal'), (2, 'Complementar'), (3, 'Ajuste'), (4, 'Devolução')],
         default=1, verbose_name='Finalidade'
@@ -193,7 +197,7 @@ class NFe(models.Model):
         verbose_name = 'NF-e / NFC-e'
         verbose_name_plural = 'NF-e / NFC-e'
         ordering = ['-data_emissao']
-        unique_together = [['empresa', 'serie', 'numero']]
+        unique_together = [['empresa', 'modelo', 'serie', 'numero']]
 
     def __str__(self):
         return f'{self.get_modelo_display()} #{self.numero} - {self.destinatario.nome}'
@@ -220,6 +224,11 @@ class NFeItem(models.Model):
     produto = models.ForeignKey(
         'cadastros.Produto', on_delete=models.PROTECT,
         related_name='itens_nfe', verbose_name='Produto'
+    )
+    veiculo = models.ForeignKey(
+        'veiculos.Veiculo', on_delete=models.PROTECT,
+        related_name='itens_nfe', null=True, blank=True,
+        verbose_name='Veículo'
     )
     numero_item = models.IntegerField(verbose_name='Nº Item')
     codigo_produto = models.CharField(max_length=60, verbose_name='Código Produto')

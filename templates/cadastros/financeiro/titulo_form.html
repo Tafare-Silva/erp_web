@@ -1,0 +1,305 @@
+{% extends 'base.html' %}
+{% block title %}{{ titulo_pagina }}{% endblock %}
+{% block page_title %}{{ titulo_pagina }}{% endblock %}
+
+{% block content %}
+<div class="p-6 max-w-5xl mx-auto" x-data="tituloForm()">
+
+  <!-- Breadcrumb -->
+  <div class="flex items-center gap-2 text-sm text-gray-500 mb-6">
+    {% if tipo == 'P' %}
+    <a href="{% url 'cadastros:contas_pagar' %}" class="hover:text-blue-600"><i class="fas fa-arrow-left mr-1"></i>Contas a Pagar</a>
+    {% else %}
+    <a href="{% url 'cadastros:contas_receber' %}" class="hover:text-green-600"><i class="fas fa-arrow-left mr-1"></i>Contas a Receber</a>
+    {% endif %}
+    <span>/</span>
+    <span class="font-semibold text-gray-700">{{ titulo_pagina }}</span>
+  </div>
+
+  <div class="bg-white rounded-2xl shadow border overflow-hidden">
+    <!-- Cabeçalho do card -->
+    <div class="{% if tipo == 'P' %}bg-blue-700{% else %}bg-green-700{% endif %} px-6 py-4 text-white">
+      <h2 class="text-xl font-bold flex items-center gap-2">
+        <i class="fas {% if tipo == 'P' %}fa-file-invoice-dollar{% else %}fa-hand-holding-usd{% endif %}"></i>
+        {{ titulo_pagina }}
+      </h2>
+      {% if modo_edicao %}
+      <p class="text-sm opacity-75 mt-1">Título #{{ titulo.numero_documento }} — Situação: {{ titulo.get_situacao_display }}</p>
+      {% endif %}
+    </div>
+
+    <div class="p-6 space-y-6">
+
+      <!-- Pessoa -->
+      <div>
+        <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 pb-1 border-b">{% if tipo == 'P' %}Fornecedor{% else %}Cliente{% endif %}</h3>
+        {% if modo_edicao %}
+          <p class="text-base font-semibold text-gray-800">{{ titulo.pessoa.nome }}</p>
+        {% else %}
+        <div class="relative" x-data="autocompletePessoa()">
+          <input type="text" x-model="pessoaNome" @input.debounce.300ms="buscar()" @focus="buscar()"
+                 placeholder="Digite o nome ou CPF/CNPJ..."
+                 class="w-full border rounded-xl px-4 py-3 text-sm focus:ring-2 {% if tipo == 'P' %}focus:ring-blue-400{% else %}focus:ring-green-400{% endif %} outline-none">
+          <div x-show="results.length > 0"
+               class="absolute z-40 w-full bg-white border rounded-xl mt-1 shadow-2xl max-h-52 overflow-y-auto">
+            <template x-for="p in results" :key="p.id">
+              <div @click="selecionar(p)" class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b last:border-0">
+                <p class="font-semibold text-sm" x-text="p.nome"></p>
+                <p class="text-xs text-gray-400" x-text="p.cpf_cnpj || ''"></p>
+              </div>
+            </template>
+          </div>
+          <input type="hidden" x-model="form.pessoa_id" id="id_pessoa_id">
+          <p x-show="pessoaSelecionada" class="text-xs text-green-600 mt-1"><i class="fas fa-check-circle mr-1"></i><span x-text="pessoaSelecionada"></span></p>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Documento e Datas -->
+      <div>
+        <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 pb-1 border-b">Documento</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1">Nº Documento</label>
+            <input type="text" x-model="form.numero_documento" placeholder="Ex: NF-001"
+                   class="w-full border rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 {% if tipo == 'P' %}focus:ring-blue-400{% else %}focus:ring-green-400{% endif %}">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1">Data Emissão</label>
+            <input type="date" x-model="form.data_emissao"
+                   class="w-full border rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 {% if tipo == 'P' %}focus:ring-blue-400{% else %}focus:ring-green-400{% endif %}">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1">Vencimento (1ª Parc.)</label>
+            <input type="date" x-model="form.data_vencimento"
+                   class="w-full border rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 {% if tipo == 'P' %}focus:ring-blue-400{% else %}focus:ring-green-400{% endif %}">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1">Nº de Parcelas</label>
+            <input type="number" min="1" max="60" x-model="form.qtd_parcelas" @change="gerarParcelas()"
+                   class="w-full border rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 {% if tipo == 'P' %}focus:ring-blue-400{% else %}focus:ring-green-400{% endif %}">
+          </div>
+        </div>
+      </div>
+
+      <!-- Valores -->
+      <div>
+        <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 pb-1 border-b">Valores</h3>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1">Valor Total *</label>
+            <input type="number" step="0.01" x-model="form.valor_total" @change="gerarParcelas()"
+                   class="w-full border rounded-xl px-4 py-3 text-base font-bold outline-none focus:ring-2 {% if tipo == 'P' %}focus:ring-blue-400{% else %}focus:ring-green-400{% endif %}">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1">Intervalo entre Parcelas</label>
+            <select x-model="form.intervalo" @change="gerarParcelas()" class="w-full border rounded-xl px-4 py-2 text-sm bg-white outline-none focus:ring-2 {% if tipo == 'P' %}focus:ring-blue-400{% else %}focus:ring-green-400{% endif %}">
+              <option value="30">Mensal (30 dias)</option>
+              <option value="15">Quinzenal (15 dias)</option>
+              <option value="7">Semanal (7 dias)</option>
+              <option value="1">Diário (1 dia)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1">Histórico / Observação</label>
+            <input type="text" x-model="form.historico" placeholder="Opcional..."
+                   class="w-full border rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 {% if tipo == 'P' %}focus:ring-blue-400{% else %}focus:ring-green-400{% endif %}">
+          </div>
+        </div>
+      </div>
+
+      <!-- Classificação -->
+      <div>
+        <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 pb-1 border-b">Classificação</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1">Tipo de Pagamento</label>
+            <select x-model="form.tipo_pagamento_id" class="w-full border rounded-xl px-4 py-2 text-sm bg-white outline-none focus:ring-2 {% if tipo == 'P' %}focus:ring-blue-400{% else %}focus:ring-green-400{% endif %}">
+              <option value="">Selecione...</option>
+              {% for tp in tipos_pagamento %}
+              <option value="{{ tp.pk_tipo_pagamento }}" {% if modo_edicao and titulo.tipo_pagamento_id == tp.pk_tipo_pagamento %}selected{% endif %}>{{ tp.tipo_pagamento }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1">Plano de Contas</label>
+            <select x-model="form.plano_contas_id" class="w-full border rounded-xl px-4 py-2 text-sm bg-white outline-none focus:ring-2 {% if tipo == 'P' %}focus:ring-blue-400{% else %}focus:ring-green-400{% endif %}">
+              <option value="">Selecione...</option>
+              {% for pc in planos_contas %}
+              <option value="{{ pc.pk }}" {% if modo_edicao and titulo.plano_contas_id == pc.pk %}selected{% endif %}>{{ pc.codigo }} - {{ pc.nome }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1">Centro de Custo</label>
+            <select x-model="form.centro_custo_id" class="w-full border rounded-xl px-4 py-2 text-sm bg-white outline-none focus:ring-2 {% if tipo == 'P' %}focus:ring-blue-400{% else %}focus:ring-green-400{% endif %}">
+              <option value="">Selecione...</option>
+              {% for cc in centros_custo %}
+              <option value="{{ cc.pk }}" {% if modo_edicao and titulo.centro_custo_id == cc.pk %}selected{% endif %}>{{ cc.codigo }} - {{ cc.nome }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gerador de parcelas (apenas no novo) -->
+      {% if not modo_edicao %}
+      <div x-show="form.qtd_parcelas > 1 && parcelas.length > 0">
+        <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 pb-1 border-b">Parcelas Geradas <span class="text-blue-600 normal-case font-normal text-xs">(ajuste os valores se necessário)</span></h3>
+        <div class="space-y-2 max-h-64 overflow-y-auto pr-1">
+          <template x-for="(p, i) in parcelas" :key="i">
+            <div class="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-2">
+              <span class="text-xs font-bold text-gray-500 w-8" x-text="(i+1) + 'ª'"></span>
+              <input type="date" x-model="p.data_vencimento" class="border rounded-lg px-3 py-1 text-sm flex-1 outline-none focus:ring-2 focus:ring-blue-300">
+              <input type="number" step="0.01" x-model="p.valor" class="border rounded-lg px-3 py-1 text-sm w-36 text-right font-bold outline-none focus:ring-2 focus:ring-blue-300">
+              <span class="text-xs text-gray-400">R$</span>
+            </div>
+          </template>
+        </div>
+      </div>
+      {% endif %}
+
+    </div><!-- /p-6 -->
+
+    <!-- Rodapé com botões -->
+    <div class="bg-gray-50 px-6 py-4 flex justify-between items-center border-t">
+      {% if tipo == 'P' %}
+      <a href="{% url 'cadastros:contas_pagar' %}" class="px-5 py-2 border rounded-xl hover:bg-gray-100 text-sm font-semibold text-gray-600">Cancelar</a>
+      {% else %}
+      <a href="{% url 'cadastros:contas_receber' %}" class="px-5 py-2 border rounded-xl hover:bg-gray-100 text-sm font-semibold text-gray-600">Cancelar</a>
+      {% endif %}
+      <button @click="salvar()" :disabled="loading"
+              class="px-8 py-2 {% if tipo == 'P' %}bg-blue-600 hover:bg-blue-700{% else %}bg-green-600 hover:bg-green-700{% endif %} text-white rounded-xl font-bold text-sm shadow-lg transition-colors">
+        <span x-show="!loading"><i class="fas fa-save mr-2"></i>{% if modo_edicao %}Salvar Alterações{% else %}Lançar Título(s){% endif %}</span>
+        <span x-show="loading"><i class="fas fa-spinner fa-spin mr-2"></i>Salvando...</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div x-show="toast.show" x-cloak x-transition
+       class="fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl shadow-2xl text-white font-semibold text-sm flex items-center gap-2"
+       :class="toast.tipo === 'sucesso' ? 'bg-green-600' : 'bg-red-600'">
+    <i class="fas" :class="toast.tipo === 'sucesso' ? 'fa-check-circle' : 'fa-exclamation-circle'"></i>
+    <span x-text="toast.msg"></span>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function tituloForm() {
+  const hoje = '{{ hoje }}';
+  const tipo = '{{ tipo }}';
+  const modoEdicao = {{ modo_edicao|yesno:'true,false' }};
+
+  return {
+    loading: false,
+    toast: { show: false, msg: '', tipo: 'sucesso' },
+    parcelas: [],
+    form: {
+      tipo: tipo,
+      pessoa_id: '{% if modo_edicao %}{{ titulo.pessoa_id }}{% endif %}',
+      numero_documento: '{% if modo_edicao %}{{ titulo.numero_documento|escapejs }}{% endif %}',
+      data_emissao: '{% if modo_edicao %}{{ titulo.data_emissao|date:"Y-m-d" }}{% else %}' + hoje + '{% endif %}',
+      data_vencimento: '{% if modo_edicao %}{{ titulo.data_vencimento|date:"Y-m-d" }}{% else %}' + hoje + '{% endif %}',
+      valor_total: {% if modo_edicao %}{{ titulo.valor_documento }}{% else %}0{% endif %},
+      qtd_parcelas: 1,
+      intervalo: 30,
+      historico: '{% if modo_edicao %}{{ titulo.historico|escapejs }}{% endif %}',
+      tipo_pagamento_id: '',
+      plano_contas_id: '',
+      centro_custo_id: '',
+    },
+
+    showToast(msg, tipo = 'sucesso') {
+      this.toast = { show: true, msg, tipo };
+      setTimeout(() => this.toast.show = false, 4000);
+    },
+
+    gerarParcelas() {
+      const n = parseInt(this.form.qtd_parcelas) || 1;
+      const total = parseFloat(this.form.valor_total) || 0;
+      const intervalo = parseInt(this.form.intervalo) || 30;
+      if (n <= 1 || total <= 0) { this.parcelas = []; return; }
+      const valorParcela = Math.floor((total / n) * 100) / 100;
+      const resto = Math.round((total - valorParcela * n) * 100) / 100;
+      const venc = new Date(this.form.data_vencimento + 'T00:00:00');
+      this.parcelas = [];
+      for (let i = 0; i < n; i++) {
+        const d = new Date(venc);
+        d.setDate(d.getDate() + intervalo * i);
+        this.parcelas.push({
+          parcela: i + 1,
+          data_vencimento: d.toISOString().split('T')[0],
+          valor: i === n - 1 ? (valorParcela + resto).toFixed(2) : valorParcela.toFixed(2),
+          numero_documento: this.form.numero_documento
+        });
+      }
+    },
+
+    async salvar() {
+      if (!this.form.pessoa_id && !modoEdicao) {
+        this.showToast('Selecione o {% if tipo == "P" %}fornecedor{% else %}cliente{% endif %}.', 'erro'); return;
+      }
+      if (!this.form.valor_total || parseFloat(this.form.valor_total) <= 0) {
+        this.showToast('Informe o valor do título.', 'erro'); return;
+      }
+      if (!this.form.data_vencimento) {
+        this.showToast('Informe a data de vencimento.', 'erro'); return;
+      }
+
+      this.loading = true;
+      const payload = { ...this.form };
+
+      if (!modoEdicao && this.parcelas.length > 0) {
+        payload.parcelas = this.parcelas;
+      }
+
+      const url = modoEdicao
+        ? '/cadastros/financeiro/titulos/{{ titulo.pk_chave|default:"" }}/editar/'
+        : (tipo === 'P' ? '/cadastros/financeiro/contas-pagar/novo/' : '/cadastros/financeiro/contas-receber/novo/');
+
+      try {
+        const r = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+          body: JSON.stringify(payload)
+        });
+        const d = await r.json();
+        if (d.sucesso) {
+          this.showToast(d.mensagem, 'sucesso');
+          setTimeout(() => { window.location.href = d.redirect_url; }, 1200);
+        } else {
+          this.showToast(d.erro || 'Erro ao salvar.', 'erro');
+        }
+      } catch(e) {
+        this.showToast('Erro de conexão.', 'erro');
+      } finally {
+        this.loading = false;
+      }
+    }
+  }
+}
+
+function autocompletePessoa() {
+  return {
+    pessoaNome: '',
+    pessoaSelecionada: '',
+    results: [],
+    async buscar() {
+      if (this.pessoaNome.length < 2) { this.results = []; return; }
+      const r = await fetch(`/cadastros/api/pessoas/?q=${encodeURIComponent(this.pessoaNome)}`);
+      const d = await r.json();
+      this.results = d.results || [];
+    },
+    selecionar(p) {
+      this.pessoaNome = p.nome;
+      this.pessoaSelecionada = p.nome + (p.cpf_cnpj ? ' — ' + p.cpf_cnpj : '');
+      this.$root.__x.$data.form.pessoa_id = p.chave || p.id;
+      this.results = [];
+    }
+  }
+}
+</script>
+{% endblock %}
