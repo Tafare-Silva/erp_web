@@ -53,11 +53,22 @@ fi
 
 psql_su() { ( cd /tmp && sudo -u postgres psql "$@" ); }
 
-# --------------------------------------------------------------------------
-# 1. Banco de dados
-# --------------------------------------------------------------------------
-DB_PASS="$(openssl rand -hex 16)"
+ENV_FILE="${CLIENT_ROOT}/.env"
 
+# --------------------------------------------------------------------------
+# 1. Diretórios + senha (reaproveita a do .env em reexecuções)
+# --------------------------------------------------------------------------
+echo ">> Criando diretórios em ${CLIENT_ROOT}..."
+mkdir -p "${CLIENT_ROOT}/staticfiles" "${CLIENT_ROOT}/media"
+
+if [ -f "$ENV_FILE" ]; then
+  DB_PASS="$(grep -E '^DB_PASSWORD=' "$ENV_FILE" | cut -d= -f2- | head -n1 || true)"
+fi
+DB_PASS="${DB_PASS:-$(openssl rand -hex 16)}"
+
+# --------------------------------------------------------------------------
+# 2. Banco de dados
+# --------------------------------------------------------------------------
 echo ">> Criando role/database ${DB_NAME}..."
 if ! psql_su -tAc "SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'" | grep -q 1; then
   psql_su -c "CREATE ROLE ${DB_USER} LOGIN PASSWORD '${DB_PASS}';"
@@ -70,18 +81,10 @@ if ! psql_su -tAc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" | grep 
 fi
 
 # --------------------------------------------------------------------------
-# 2. Diretórios do cliente
-# --------------------------------------------------------------------------
-echo ">> Criando diretórios em ${CLIENT_ROOT}..."
-mkdir -p "${CLIENT_ROOT}/staticfiles" "${CLIENT_ROOT}/media"
-
-# --------------------------------------------------------------------------
 # 3. Arquivo .env (não sobrescreve se já existir)
 # --------------------------------------------------------------------------
-ENV_FILE="${CLIENT_ROOT}/.env"
 if [ -f "$ENV_FILE" ]; then
   echo ">> .env já existe, mantendo o atual."
-  DB_PASS="$(grep -E '^DB_PASSWORD=' "$ENV_FILE" | cut -d= -f2- || true)"
 else
   echo ">> Gerando ${ENV_FILE}..."
   SECRET_KEY="$(openssl rand -hex 50)"
@@ -137,8 +140,10 @@ systemctl enable --now "${SLUG}.service"
 # 6. Nginx
 # --------------------------------------------------------------------------
 echo ">> Criando site Nginx para ${DOMAIN}..."
-sed -e "s/__SLUG__/${SLUG}/g" -e "s/__DOMAIN__/${DOMAIN}/g" \
-  "${TEMPLATE_DIR}/nginx/cliente.conf.template" > "$NGINX_SITE"
+if [ ! -f "$NGINX_SITE" ]; then
+  sed -e "s/__SLUG__/${SLUG}/g" -e "s/__DOMAIN__/${DOMAIN}/g" \
+    "${TEMPLATE_DIR}/nginx/cliente.conf.template" > "$NGINX_SITE"
+fi
 nginx -t
 systemctl reload nginx
 
