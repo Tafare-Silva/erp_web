@@ -48,7 +48,7 @@
   <!-- Cabeçalho empresa -->
   <div class="header">
     {% if empresa %}
-      <h1>{{ empresa.nome_fantasia|default:empresa.razao_social }}</h1>
+      <h1>{% firstof empresa.nome_fantasia empresa.razao_social %}</h1>
       {% if empresa.cnpj %}<p>CNPJ: {{ empresa.cnpj }}</p>{% endif %}
       {% if empresa.endereco %}<p>{{ empresa.endereco }}{% if empresa.cidade %} — {{ empresa.cidade }}{% endif %}</p>{% endif %}
       {% if empresa.telefone %}<p>Tel: {{ empresa.telefone }}</p>{% endif %}

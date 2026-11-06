@@ -36,7 +36,7 @@
     <div class="cupom">
 
         <div class="header">
-            <div class="nome-empresa">{{ empresa.nome_fantasia|default:emit.nome|default:"SUA EMPRESA" }}</div>
+            <div class="nome-empresa">{% firstof empresa.nome_fantasia emit.nome "SUA EMPRESA" %}</div>
             {% if emit %}
             <div class="info">CNPJ: {{ emit.cpf_cnpj|default:"00.000.000/0000-00" }}</div>
             {% endif %}

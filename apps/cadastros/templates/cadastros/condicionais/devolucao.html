@@ -42,7 +42,7 @@
                     <h1 class="text-white font-bold text-lg">Devolução</h1>
                     <p class="text-blue-100 text-xs">
                         {% if is_multipla %}
-                            Condicionais: #{{ condicional_id }} — {{ cliente_nomes|default:condicional.pessoa.nome }}
+                            Condicionais: #{{ condicional_id }} — {% firstof cliente_nomes condicional.pessoa.nome %}
                         {% else %}
                             Condicional #{{ condicional.pk_chave }} — {{ condicional.pessoa.nome }}
                         {% endif %}

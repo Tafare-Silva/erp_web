@@ -330,7 +330,7 @@
                    class="flex items-center gap-2 px-3 py-2 rounded-lg text-sidebar-muted hover:bg-sidebar-hover hover:text-white transition-smooth">
                     <i class="fas fa-building text-xs flex-shrink-0"></i>
                     <div class="min-w-0">
-                        <p class="text-[11px] font-medium truncate">{{ empresa.nome_fantasia|default:empresa.pessoa.nome|default:"Configurar Empresa" }}</p>
+                        <p class="text-[11px] font-medium truncate">{% firstof empresa.nome_fantasia empresa.pessoa.nome "Configurar Empresa" %}</p>
                         <p class="text-[10px] text-sidebar-muted/70 truncate">{% if empresa %}{{ empresa.pessoa.cpf_cnpj }}{% else %}Definir dados{% endif %}</p>
                     </div>
                 </a>

@@ -11,7 +11,7 @@
         <div>
             <h1 class="text-2xl font-extrabold text-slate-900">Olá, {{ user.get_username|default:"Admin" }}</h1>
             <p class="text-sm text-slate-500 mt-0.5">
-                {{ empresa.nome_fantasia|default:empresa.pessoa.nome|default:"Sua Empresa" }} · {{ hoje|date:"d/m/Y" }}
+                {% firstof empresa.nome_fantasia empresa.pessoa.nome "Sua Empresa" %} · {{ hoje|date:"d/m/Y" }}
             </p>
         </div>
         <div class="flex items-center gap-2">
