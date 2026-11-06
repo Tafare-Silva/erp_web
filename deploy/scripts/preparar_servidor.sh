@@ -40,6 +40,7 @@ dpkg -s python3-venv >/dev/null 2>&1 || apt-get install -y python3-venv
 
 # 3. Código compartilhado
 mkdir -p /var/www/erp
+chown -R ubuntu:www-data /var/www/erp
 if [ ! -d "$APP_DIR/.git" ]; then
   echo ">> Clonando repositório em ${APP_DIR}..."
   sudo -u ubuntu git clone -b "$BRANCH" "$REPO_URL" "$APP_DIR"
