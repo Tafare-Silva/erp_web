@@ -4,9 +4,6 @@ Uso: python manage.py importar_tabelas_fiscais
 """
 from django.core.management.base import BaseCommand
 from apps.cadastros.models import NCM, CFOP, CST
-import pandas as pd
-import requests
-from io import BytesIO
 
 
 class Command(BaseCommand):
@@ -37,6 +34,10 @@ class Command(BaseCommand):
 
     def importar_ncm(self):
         """Importa tabela NCM da Receita Federal."""
+        import pandas as pd
+        import requests
+        from io import BytesIO
+
         self.stdout.write('📦 Importando NCM...')
         
         # URL oficial do governo (pode precisar atualizar)
@@ -81,6 +82,10 @@ class Command(BaseCommand):
 
     def importar_cfop(self):
         """Importa tabela CFOP oficial."""
+        import pandas as pd
+        import requests
+        from io import BytesIO
+
         self.stdout.write('📋 Importando CFOP...')
         
         # URL oficial do Siscomex

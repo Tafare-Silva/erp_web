@@ -880,10 +880,6 @@ class EmpresaForm(forms.ModelForm):
             ('RO', 'RO - Rondônia'), ('RR', 'RR - Roraima'), ('SC', 'SC - Santa Catarina'),
             ('SP', 'SP - São Paulo'), ('SE', 'SE - Sergipe'), ('TO', 'TO - Tocantins'),
         ]
-        if not self.instance.pk:
-            self.fields['centro_custo_venda'].initial = 1
-            self.fields['centro_custo_compra'].initial = 1
-            self.fields['plano_contas_receita_compra'].initial = 1
 
 
 class TituloFinanceiroForm(forms.ModelForm):

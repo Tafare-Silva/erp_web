@@ -31,6 +31,7 @@ for marker in "$CLIENTS_DIR"/*/.erp_managed; do
     cd '${APP_DIR}'
     '${VENV_DIR}/bin/python' manage.py migrate --noinput
     '${VENV_DIR}/bin/python' manage.py collectstatic --noinput
+    '${VENV_DIR}/bin/python' manage.py seed_tabelas_fiscais || true
   "
   systemctl restart "${slug}.service" || echo "AVISO: falha ao reiniciar ${slug}.service"
 done

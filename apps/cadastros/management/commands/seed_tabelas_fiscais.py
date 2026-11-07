@@ -1,14 +1,27 @@
-"""Importa tabelas fiscais completas: NCM (capítulos), CFOP, Estados e Cidades."""
+"""Importa/seeds as tabelas fiscais de referência.
+
+Fontes:
+- Estados: IBGE
+- Cidades: IBGE (municipios_ibge.json)
+- NCM: tabelasfiscais.com.br (dados públicos da Receita Federal/Siscomex)
+- CFOP: tabelasfiscais.com.br (CONFAZ)
+- CST: tabelas oficiais de ICMS, PIS, COFINS e IPI
+
+Os arquivos ficam em apps/cadastros/management/data/ e podem ser atualizados
+substituindo-os. O comando é idempotente.
+"""
+import csv
 import json
 import os
 
 from django.core.management.base import BaseCommand
-from django.conf import settings
-from apps.cadastros.models import NCM, CFOP, Cidade, Estado
+from apps.cadastros.models import NCM, CFOP, CST, Cidade, Estado
 
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
 MUNICIPIOS_FILE = os.path.join(DATA_DIR, 'municipios_ibge.json')
+NCM_FILE = os.path.join(DATA_DIR, 'ncm.csv')
+CFOP_FILE = os.path.join(DATA_DIR, 'cfop.csv')
 
 
 ESTADOS = [
@@ -192,68 +205,171 @@ CFOPS = [
 ]
 
 
+CSTS = [
+    # ICMS - CST
+    ('00', 'ICMS', 'Tributada integralmente'),
+    ('10', 'ICMS', 'Tributada e com cobrança do ICMS por substituição tributária'),
+    ('20', 'ICMS', 'Com redução de base de cálculo'),
+    ('30', 'ICMS', 'Isenta ou não tributada e com cobrança do ICMS por substituição tributária'),
+    ('40', 'ICMS', 'Isenta'),
+    ('41', 'ICMS', 'Não tributada'),
+    ('50', 'ICMS', 'Suspensão'),
+    ('51', 'ICMS', 'Diferimento'),
+    ('60', 'ICMS', 'ICMS cobrado anteriormente por substituição tributária'),
+    ('70', 'ICMS', 'Com redução de base de cálculo e cobrança do ICMS por substituição tributária'),
+    ('90', 'ICMS', 'Outras'),
+    # ICMS - CSOSN (Simples Nacional)
+    ('101', 'ICMS', 'CSOSN 101 - Tributada pelo Simples Nacional com permissão de crédito'),
+    ('102', 'ICMS', 'CSOSN 102 - Tributada pelo Simples Nacional sem permissão de crédito'),
+    ('103', 'ICMS', 'CSOSN 103 - Isenção do ICMS no Simples Nacional para faixa de receita bruta'),
+    ('201', 'ICMS', 'CSOSN 201 - Tributada pelo Simples Nacional com permissão de crédito e com cobrança do ICMS por ST'),
+    ('202', 'ICMS', 'CSOSN 202 - Tributada pelo Simples Nacional sem permissão de crédito e com cobrança do ICMS por ST'),
+    ('203', 'ICMS', 'CSOSN 203 - Isenção do ICMS no Simples Nacional para faixa de receita bruta e com cobrança do ICMS por ST'),
+    ('300', 'ICMS', 'CSOSN 300 - Imune'),
+    ('400', 'ICMS', 'CSOSN 400 - Não tributada pelo Simples Nacional'),
+    ('500', 'ICMS', 'CSOSN 500 - ICMS cobrado anteriormente por substituição tributária ou por antecipação'),
+    ('900', 'ICMS', 'CSOSN 900 - Outros'),
+    # PIS / COFINS (saída)
+    ('01', 'PIS', 'Operação tributável com alíquota básica'),
+    ('02', 'PIS', 'Operação tributável com alíquota diferenciada'),
+    ('03', 'PIS', 'Operação tributável com alíquota por unidade de medida de produto'),
+    ('04', 'PIS', 'Operação tributável monofásica - revenda a alíquota zero'),
+    ('05', 'PIS', 'Operação tributável por substituição tributária'),
+    ('06', 'PIS', 'Operação tributável a alíquota zero'),
+    ('07', 'PIS', 'Operação isenta da contribuição'),
+    ('08', 'PIS', 'Operação sem incidência da contribuição'),
+    ('09', 'PIS', 'Operação com suspensão da contribuição'),
+    ('49', 'PIS', 'Outras operações de saída'),
+    ('99', 'PIS', 'Outras operações'),
+    ('01', 'COFINS', 'Operação tributável com alíquota básica'),
+    ('02', 'COFINS', 'Operação tributável com alíquota diferenciada'),
+    ('03', 'COFINS', 'Operação tributável com alíquota por unidade de medida de produto'),
+    ('04', 'COFINS', 'Operação tributável monofásica - revenda a alíquota zero'),
+    ('05', 'COFINS', 'Operação tributável por substituição tributária'),
+    ('06', 'COFINS', 'Operação tributável a alíquota zero'),
+    ('07', 'COFINS', 'Operação isenta da contribuição'),
+    ('08', 'COFINS', 'Operação sem incidência da contribuição'),
+    ('09', 'COFINS', 'Operação com suspensão da contribuição'),
+    ('49', 'COFINS', 'Outras operações de saída'),
+    ('99', 'COFINS', 'Outras operações'),
+    # IPI
+    ('00', 'IPI', 'Entrada com recuperação de crédito'),
+    ('01', 'IPI', 'Entrada tributada com alíquota zero'),
+    ('02', 'IPI', 'Entrada isenta'),
+    ('03', 'IPI', 'Entrada não tributada'),
+    ('04', 'IPI', 'Entrada imune'),
+    ('05', 'IPI', 'Entrada com suspensão'),
+    ('49', 'IPI', 'Outras entradas'),
+    ('50', 'IPI', 'Saída tributada'),
+    ('51', 'IPI', 'Saída tributada com alíquota zero'),
+    ('52', 'IPI', 'Saída isenta'),
+    ('53', 'IPI', 'Saída não tributada'),
+    ('54', 'IPI', 'Saída imune'),
+    ('55', 'IPI', 'Saída com suspensão'),
+    ('99', 'IPI', 'Outras saídas'),
+]
+
+
 class Command(BaseCommand):
     help = 'Importa tabelas fiscais (NCM capítulos, CFOPs e Cidades)'
 
     def add_arguments(self, parser):
-        parser.add_argument(
-            '--skip-cidades',
-            action='store_true',
-            help='Pula a importação de cidades (mais rápido)',
-        )
+        parser.add_argument('--skip-cidades', action='store_true', help='Pula a importação de cidades')
+        parser.add_argument('--skip-ncm', action='store_true', help='Pula a importação de NCM')
+        parser.add_argument('--skip-cfop', action='store_true', help='Pula a importação de CFOP')
+        parser.add_argument('--skip-cst', action='store_true', help='Pula a importação de CST (PIS/COFINS/IPI/ICMS)')
 
     def handle(self, *args, **options):
         self._seed_estados()
-        self._seed_ncm()
-        self._seed_cfop()
+        if not options['skip_cst']:
+            self._seed_cst()
+        if not options['skip_cfop']:
+            self._seed_cfop()
+        if not options['skip_ncm']:
+            self._seed_ncm()
         if not options['skip_cidades']:
             self._seed_cidades()
-        self.stdout.write(self.style.SUCCESS('Tabelas fiscais importadas com sucesso!'))
-
-    def _seed_ncm(self):
-        for ncm, nome, desc in NCMS:
-            NCM.objects.get_or_create(
-                ncm=ncm,
-                defaults={'nome': nome, 'descricao': desc}
-            )
-        self.stdout.write(f'  OK {len(NCMS)} NCMs (capítulos) criados')
+        self.stdout.write(self.style.SUCCESS('Tabelas fiscais importadas/atualizadas com sucesso!'))
 
     def _seed_estados(self):
         for uf, nome, codigo_ibge in ESTADOS:
-            Estado.objects.get_or_create(
+            Estado.objects.update_or_create(
                 uf=uf,
                 defaults={'nome': nome, 'codigo_ibge': codigo_ibge}
             )
-        self.stdout.write(f'  OK {len(ESTADOS)} estados criados')
+        self.stdout.write(f'  OK estados: {Estado.objects.count()} na base')
 
-    def _seed_cidades(self):
-        try:
-            if not os.path.exists(MUNICIPIOS_FILE):
-                self.stdout.write(self.style.WARNING(
-                    f'Arquivo {MUNICIPIOS_FILE} não encontrado. Pulando cidades.'
-                ))
-                return
-            with open(MUNICIPIOS_FILE, 'r', encoding='utf-8') as f:
-                municipios = json.load(f)
-            criadas = 0
-            for mun in municipios:
-                estado = Estado.objects.filter(uf=mun['uf']).first()
-                if not estado:
-                    continue
-                _, created = Cidade.objects.get_or_create(
-                    codigo_ibge=mun['codigo_ibge'],
-                    defaults={'nome': mun['nome'], 'estado': estado}
-                )
-                if created:
-                    criadas += 1
-            self.stdout.write(f'  OK {criadas}/{len(municipios)} cidades criadas')
-        except Exception as e:
-            self.stdout.write(self.style.ERROR(f'  Erro ao importar cidades: {e}'))
+    def _seed_cst(self):
+        for cst, tipo, descricao in CSTS:
+            CST.objects.update_or_create(
+                cst=cst, tipo_imposto=tipo,
+                defaults={'descricao': descricao}
+            )
+        self.stdout.write(f'  OK CSTs: {CST.objects.count()} na base')
 
     def _seed_cfop(self):
+        if os.path.exists(CFOP_FILE):
+            criados = 0
+            with open(CFOP_FILE, 'r', encoding='utf-8-sig', newline='') as f:
+                for row in csv.DictReader(f, delimiter=';'):
+                    codigo = (row.get('cfop') or '').replace('.', '').strip()
+                    if not (codigo.isdigit() and len(codigo) == 4):
+                        continue
+                    descricao = (row.get('descricao') or '').strip() or codigo
+                    _, created = CFOP.objects.update_or_create(
+                        cfop=codigo,
+                        defaults={
+                            'nome': descricao[:255],
+                            'descricao': descricao,
+                            'aplicacao': (row.get('ambito') or '').strip() or None,
+                        }
+                    )
+                    criados += int(created)
+            self.stdout.write(f'  OK CFOPs: {CFOP.objects.count()} na base ({criados} novos)')
+            return
         for cfop, nome, desc in CFOPS:
-            CFOP.objects.get_or_create(
-                cfop=cfop,
-                defaults={'nome': nome, 'descricao': desc}
-            )
-        self.stdout.write(f'  OK {len(CFOPS)} CFOPs criados')
+            CFOP.objects.update_or_create(cfop=cfop, defaults={'nome': nome, 'descricao': desc})
+        self.stdout.write(f'  OK CFOPs: {CFOP.objects.count()} na base (fallback sem CSV)')
+
+    def _seed_ncm(self):
+        if os.path.exists(NCM_FILE):
+            vistos = set()
+            objs = []
+            with open(NCM_FILE, 'r', encoding='utf-8-sig', newline='') as f:
+                for row in csv.DictReader(f, delimiter=';'):
+                    if str(row.get('vigente', '1')).strip() == '0':
+                        continue
+                    codigo = (row.get('codigo') or '').replace('.', '').strip()
+                    if not (codigo.isdigit() and len(codigo) == 8) or codigo in vistos:
+                        continue
+                    vistos.add(codigo)
+                    descricao = (row.get('descricao') or '').strip() or codigo
+                    objs.append(NCM(ncm=codigo, nome=descricao[:255], descricao=descricao))
+            NCM.objects.bulk_create(objs, ignore_conflicts=True, batch_size=1000)
+            self.stdout.write(f'  OK NCMs: {NCM.objects.count()} na base ({len(objs)} lidos)')
+            return
+        for ncm, nome, desc in NCMS:
+            NCM.objects.update_or_create(ncm=ncm, defaults={'nome': nome, 'descricao': desc})
+        self.stdout.write(f'  OK NCMs: {NCM.objects.count()} na base (fallback sem CSV)')
+
+    def _seed_cidades(self):
+        if not os.path.exists(MUNICIPIOS_FILE):
+            self.stdout.write(self.style.WARNING(
+                f'Arquivo {MUNICIPIOS_FILE} não encontrado. Pulando cidades.'
+            ))
+            return
+        with open(MUNICIPIOS_FILE, 'r', encoding='utf-8') as f:
+            municipios = json.load(f)
+        estados = {e.uf: e for e in Estado.objects.all()}
+        existentes = set(Cidade.objects.values_list('codigo_ibge', flat=True))
+        objs = []
+        for mun in municipios:
+            codigo = int(mun['codigo_ibge'])
+            if codigo in existentes:
+                continue
+            estado = estados.get(mun.get('uf'))
+            if not estado:
+                continue
+            objs.append(Cidade(codigo_ibge=codigo, nome=mun['nome'], estado=estado))
+        Cidade.objects.bulk_create(objs, ignore_conflicts=True, batch_size=1000)
+        self.stdout.write(f'  OK cidades: {Cidade.objects.count()} na base ({len(objs)} novas)')

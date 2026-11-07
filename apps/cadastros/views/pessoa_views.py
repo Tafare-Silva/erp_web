@@ -213,14 +213,43 @@ class PessoaDetailView(DetailView):
 
 from django.views.decorators.http import require_GET
 
+def _normalizar_texto(texto):
+    import unicodedata
+    return ''.join(
+        c for c in unicodedata.normalize('NFKD', texto or '')
+        if not unicodedata.combining(c)
+    ).lower()
+
+
 @require_GET
 def api_buscar_cidades(request):
     q = request.GET.get('q', '').strip()
     if len(q) < 2:
         return JsonResponse({'results': []})
-    cidades = Cidade.objects.filter(
-        Q(nome__icontains=q) | Q(estado__uf__icontains=q)
-    ).select_related('estado')[:20]
+    cidades = list(
+        Cidade.objects.filter(
+            Q(nome__icontains=q) | Q(estado__uf__icontains=q)
+        ).select_related('estado')[:20]
+    )
+    if not cidades:
+        # Busca sem acentos (ex.: "Sao Paulo" encontra "São Paulo"), priorizando
+        # correspondências exatas e prefixos.
+        qn = _normalizar_texto(q)
+        candidatos = []
+        for cidade in Cidade.objects.select_related('estado').all():
+            nome_n = _normalizar_texto(cidade.nome)
+            uf = cidade.estado.uf.lower()
+            if qn == nome_n:
+                score = 0
+            elif nome_n.startswith(qn) or qn == uf:
+                score = 1
+            elif qn in nome_n:
+                score = 2
+            else:
+                continue
+            candidatos.append((score, len(cidade.nome), cidade.nome, cidade))
+        candidatos.sort(key=lambda item: (item[0], item[1], item[2]))
+        cidades = [item[3] for item in candidatos[:20]]
     results = [{
         'id': c.codigo_ibge,
         'text': f'{c.nome}/{c.estado.uf}',

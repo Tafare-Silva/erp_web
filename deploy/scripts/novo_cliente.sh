@@ -137,11 +137,8 @@ sudo -u ubuntu bash -c "
   cd '${APP_DIR}'
   '${VENV_DIR}/bin/python' manage.py migrate --noinput
   '${VENV_DIR}/bin/python' manage.py collectstatic --noinput
-  # NCMs básicos (idempotente). Se houver data/ncm.csv, importa a tabela completa.
-  '${VENV_DIR}/bin/python' manage.py importar_ncm_basico || true
-  if [ -f '${APP_DIR}/data/ncm.csv' ]; then
-    '${VENV_DIR}/bin/python' manage.py importar_ncms --arquivo '${APP_DIR}/data/ncm.csv' || true
-  fi
+  # Tabelas fiscais e de localidades (estados, cidades/IBGE, NCM, CFOP, CST)
+  '${VENV_DIR}/bin/python' manage.py seed_tabelas_fiscais || true
 "
 
 # --------------------------------------------------------------------------

@@ -55,7 +55,7 @@ O script executa, em ordem:
 1. cria role e banco no PostgreSQL (`<slug>_user` / `<slug>_db`);
 2. cria `/var/www/clientes/<slug>/` com `staticfiles/` e `media/`;
 3. gera o `.env` (não sobrescreve se já existir);
-4. roda `migrate`, `collectstatic` e importa os NCMs básicos (e a tabela completa se `data/ncm.csv` existir);
+4. roda `migrate`, `collectstatic` e `seed_tabelas_fiscais` (estados, cidades/IBGE, NCM, CFOP e CST);
 5. instala e sobe o serviço systemd (`gunicorn`, 2 workers, socket Unix);
 6. cria o site Nginx (HTTP) e recarrega o Nginx;
 7. emite o certificado SSL via Certbot (`--redirect`);
@@ -87,20 +87,29 @@ Variáveis: `BRAND_NAME`, `BRAND_SHORT_NAME`, `BRAND_TAGLINE`, `BRAND_LOGO_URL`
 (URL absoluta ou caminho em `/static/`; vazio usa o ícone padrão).
 Em cliente já existente, basta editar o `.env` e reiniciar o serviço.
 
-## Tabela completa de NCM
+## Tabelas fiscais e localidades
 
-O sistema já permite pesquisar/criar NCM na tela de produto. Para carregar a tabela oficial
-completa (~10 mil itens), coloque o arquivo em `data/ncm.csv` (ou `.xlsx`) no servidor e rode:
+O comando `seed_tabelas_fiscais` popula, de forma idempotente:
+
+- **Estados** (27) e **cidades** com código IBGE (5.571, base oficial do IBGE);
+- **NCM** (~10.515 códigos de 8 dígitos) — `apps/cadastros/management/data/ncm.csv`;
+- **CFOP** (619 códigos vigentes) — `apps/cadastros/management/data/cfop.csv`;
+- **CST** de ICMS/CSOSN, PIS, COFINS e IPI.
+
+Ele roda automaticamente no `novo_cliente.sh` e no `atualizar_todos.sh`. Para rodar manualmente:
 
 ```bash
 cd /var/www/erp/app
 sudo -u ubuntu bash -c 'set -a; source /var/www/clientes/<slug>/.env; set +a; \
-  /var/www/erp/venv/bin/python manage.py importar_ncms --arquivo data/ncm.csv'
+  /var/www/erp/venv/bin/python manage.py seed_tabelas_fiscais'
 ```
 
-O importador aceita CSV (`;` ou `,`) e XLSX, de arquivo local (`--arquivo`) ou URL (`--url`),
-com cabeçalho flexível (colunas de código e descrição). Se o arquivo estiver em `data/ncm.csv`,
-o `novo_cliente.sh` já o importa automaticamente no provisionamento.
+Opções: `--skip-cidades`, `--skip-ncm`, `--skip-cfop`, `--skip-cst`.
+Para atualizar as bases, substitua os arquivos em `apps/cadastros/management/data/`
+(fontes públicas: IBGE e tabelasfiscais.com.br/Receita Federal/CONFAZ) e rode de novo.
+
+> Para uma NCM específica fora da base, a tela de produto permite criar na hora (botão “+”).
+> O comando `importar_ncms --arquivo <csv/xlsx>` continua disponível para cargas personalizadas.
 
 ## Atualizar todos os clientes
 
