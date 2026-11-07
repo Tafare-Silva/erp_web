@@ -88,6 +88,15 @@
                     <span x-show="sidebarOpen" x-transition.opacity class="ml-3 text-sm font-medium whitespace-nowrap">Dashboard</span>
                 </a>
 
+                <!-- Relatórios -->
+                <a href="{% url 'relatorios:index' %}"
+                   class="flex items-center px-3 py-2 rounded-lg transition-smooth
+                          {% if '/relatorios/' in request.path %}bg-brand-700 text-white shadow-md{% else %}text-slate-300 hover:bg-sidebar-hover hover:text-white{% endif %}"
+                   :title="!sidebarOpen ? 'Relatórios' : ''">
+                    <i class="fas fa-chart-line w-5 text-center text-sm flex-shrink-0"></i>
+                    <span x-show="sidebarOpen" x-transition.opacity class="ml-3 text-sm font-medium whitespace-nowrap">Relatórios</span>
+                </a>
+
                 <!-- Cadastros -->
                 <div x-data="{ open: {% if '/cadastros/produtos/' in request.path or '/cadastros/pessoas/' in request.path or '/cadastros/marcas/' in request.path or '/cadastros/unidades/' in request.path or '/cadastros/divisoes/' in request.path or '/cadastros/bancos/' in request.path or '/cadastros/agencias/' in request.path or '/cadastros/contas/' in request.path or '/cadastros/centros-custos/' in request.path or '/cadastros/plano-contas/' in request.path or '/cadastros/tipos-pagamento/' in request.path %}true{% else %}false{% endif %} }">
                     <button @click="sidebarOpen ? open = !open : null"

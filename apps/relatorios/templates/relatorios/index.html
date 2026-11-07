@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+
+{% block title %}Relatórios · {{ brand_name }}{% endblock %}
+{% block page_title %}Relatórios{% endblock %}
+
+{% block content %}
+<div class="space-y-6" x-data="{ busca: '' }">
+
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">Central de Relatórios</h1>
+            <p class="text-sm text-slate-500 mt-1">
+                {{ total_reports }} relatórios prontos para consulta, impressão e exportação em CSV, Excel e PDF.
+            </p>
+        </div>
+        <div class="relative w-full lg:w-80">
+            <i class="fas fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+            <input type="search" x-model="busca" placeholder="Buscar relatório..."
+                   class="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-9 pr-3 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
+        </div>
+    </div>
+
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="flex items-start gap-3">
+            <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
+                <i class="fas fa-circle-info"></i>
+            </div>
+            <div class="text-sm text-slate-600">
+                Escolha um tópico, ajuste os filtros e clique em <strong>Gerar</strong>. Use
+                <strong>Sintético</strong> para um resumo executivo e <strong>Analítico</strong> para conferência item a item.
+                Todas as exportações ficam registradas na auditoria do sistema.
+            </div>
+        </div>
+    </div>
+
+    {% for group in groups %}
+    <section class="space-y-3" data-group="{{ group.title }}">
+        <div class="flex items-center gap-3">
+            <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-700 text-white">
+                <i class="fas {{ group.icon }} text-sm"></i>
+            </div>
+            <div>
+                <h2 class="text-lg font-semibold text-slate-800">{{ group.title }}</h2>
+                <p class="text-xs text-slate-500">{{ group.description }}</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {% for report in group.reports %}
+            <a href="{% url 'relatorios:report' report.slug %}"
+               data-busca="{{ report.title|lower }} {{ report.description|lower }}"
+               x-show="busca === '' || $el.dataset.busca.includes(busca.toLowerCase())"
+               class="group relative flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md">
+                <div class="flex items-start gap-3">
+                    <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition group-hover:bg-brand-50 group-hover:text-brand-700">
+                        <i class="fas {{ report.icon }}"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h3 class="text-sm font-semibold text-slate-800 group-hover:text-brand-700">{{ report.title }}</h3>
+                        <p class="mt-1 text-xs leading-relaxed text-slate-500">{{ report.description }}</p>
+                    </div>
+                </div>
+                <div class="mt-3 flex items-center justify-between border-t border-slate-100 pt-2">
+                    <span class="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                        {% if report.supports_analitico %}Sintético e analítico{% else %}Consulta e exportação{% endif %}
+                    </span>
+                    <i class="fas fa-arrow-right text-xs text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-brand-600"></i>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endfor %}
+
+    {% if recentes %}
+    <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div class="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
+            <i class="fas fa-clock-rotate-left text-slate-400"></i>
+            <h2 class="text-sm font-semibold text-slate-700">Minhas últimas exportações</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+                    <tr>
+                        <th class="px-4 py-2 font-medium">Relatório</th>
+                        <th class="px-4 py-2 font-medium">Formato</th>
+                        <th class="px-4 py-2 font-medium">Modelo</th>
+                        <th class="px-4 py-2 font-medium">Linhas</th>
+                        <th class="px-4 py-2 font-medium">Quando</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for item in recentes %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-4 py-2 text-slate-700">{{ item.titulo }}</td>
+                        <td class="px-4 py-2 uppercase text-slate-500">{{ item.formato }}</td>
+                        <td class="px-4 py-2 text-slate-500">{{ item.modelo|capfirst }}</td>
+                        <td class="px-4 py-2 text-slate-500">{{ item.total_linhas }}</td>
+                        <td class="px-4 py-2 text-slate-500">{{ item.criado_em|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

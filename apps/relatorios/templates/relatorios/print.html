@@ -1,0 +1,156 @@
+{% load relatorios_tags %}<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ report.title }} · {{ brand_name }}</title>
+    <style>
+        :root { --brand: {{ brand_color|default:'#0F1E36' }}; }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 24px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            color: #1e293b;
+            background: #f1f5f9;
+            font-size: 11px;
+        }
+        .toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            color: #334155;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .btn-primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+        .page {
+            background: #fff;
+            padding: 22px 24px;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, .12);
+            max-width: 1500px;
+            margin: 0 auto;
+        }
+        .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; border-bottom: 3px solid var(--brand); padding-bottom: 12px; }
+        .brand { display: flex; align-items: center; gap: 10px; }
+        .brand img { max-height: 42px; max-width: 160px; object-fit: contain; }
+        .brand-name { font-size: 16px; font-weight: 800; color: var(--brand); letter-spacing: -.02em; }
+        .brand-tag { font-size: 10px; color: #64748b; }
+        .doc-title { text-align: right; }
+        .doc-title h1 { margin: 0; font-size: 17px; color: var(--brand); }
+        .doc-title .mode { display: inline-block; margin-top: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #475569; border: 1px solid #cbd5e1; border-radius: 999px; padding: 2px 8px; }
+        .meta { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 10px 0 0; font-size: 10px; color: #475569; }
+        .meta b { color: #1e293b; }
+        .subtitle { margin-top: 6px; font-size: 11px; color: #475569; }
+        .notes { margin-top: 8px; padding: 7px 10px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; color: #92400e; font-size: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+        th, td { border: 1px solid #e2e8f0; padding: 4px 6px; vertical-align: top; }
+        th { background: var(--brand); color: #fff; font-size: 9px; text-transform: uppercase; letter-spacing: .03em; }
+        th.left { text-align: left; }
+        th.right { text-align: right; }
+        tbody tr:nth-child(even) td { background: #f8fafc; }
+        td.left { text-align: left; }
+        td.right { text-align: right; white-space: nowrap; }
+        tfoot td { background: #e2e8f0 !important; font-weight: 700; }
+        .empty { text-align: center; color: #94a3b8; padding: 30px; }
+        .foot { margin-top: 14px; display: flex; justify-content: space-between; font-size: 9px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+        @media print {
+            @page { size: A4 landscape; margin: 8mm; }
+            body { background: #fff; padding: 0; font-size: 9px; }
+            .toolbar { display: none !important; }
+            .page { box-shadow: none; border-radius: 0; padding: 0; max-width: none; }
+            thead { display: table-header-group; }
+            tr { break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <a href="{% url 'relatorios:report' report.slug %}?{{ mode_query }}{% if mode_query %}&{% endif %}modelo={{ mode }}" class="btn">Voltar</a>
+        <button type="button" class="btn btn-primary" onclick="window.print()">Imprimir / Salvar PDF</button>
+    </div>
+
+    <div class="page">
+        <div class="head">
+            <div class="brand">
+                {% if brand_logo_url %}<img src="{{ brand_logo_url }}" alt="{{ brand_name }}">{% endif %}
+                <div>
+                    <div class="brand-name">{{ brand_name }}</div>
+                    <div class="brand-tag">{{ brand_tagline }}</div>
+                </div>
+            </div>
+            <div class="doc-title">
+                <h1>{{ report.title }}</h1>
+                <div class="mode">{{ mode_label }}</div>
+            </div>
+        </div>
+
+        {% if result.subtitle %}<div class="subtitle">{{ result.subtitle }}</div>{% endif %}
+        <div class="meta">
+            {% for item in filters_summary %}<span><b>{{ item.label }}:</b> {{ item.value }}</span>{% endfor %}
+            <span><b>Gerado em:</b> {{ generated_at|date:"d/m/Y H:i" }}</span>
+        </div>
+
+        {% if result.notes %}
+        <div class="notes">
+            {% for note in result.notes %}<div>{{ note }}</div>{% endfor %}
+        </div>
+        {% endif %}
+
+        {% if result.columns %}
+        <table>
+            <thead>
+                <tr>
+                    {% for col in result.columns %}
+                    <th class="{{ col.align_class }}">{{ col.label }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows_display %}
+                <tr>
+                    {% for col in result.columns %}
+                    <td class="{{ col.align_class }}">{{ row|get_item:col.key|formato:col.kind }}</td>
+                    {% endfor %}
+                </tr>
+                {% empty %}
+                <tr><td colspan="{{ result.columns|length }}" class="empty">Nenhum registro encontrado com os filtros informados.</td></tr>
+                {% endfor %}
+            </tbody>
+            {% if result.totals %}
+            <tfoot>
+                <tr>
+                    {% for col in result.columns %}
+                    <td class="{{ col.align_class }}">{% if forloop.first %}TOTAIS{% else %}{{ totals_display|get_item:col.key }}{% endif %}</td>
+                    {% endfor %}
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+        {% else %}
+        <div class="empty" style="padding:30px;text-align:center;color:#94a3b8;">Selecione os filtros e gere o relatório.</div>
+        {% endif %}
+
+        <div class="foot">
+            <span>{{ brand_name }} · {{ report.title }}</span>
+            <span>{{ total_rows }} registro{{ total_rows|pluralize }}</span>
+        </div>
+    </div>
+</body>
+</html>
