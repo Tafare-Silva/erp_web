@@ -34,19 +34,19 @@ class Empresa(models.Model):
     centro_custo_venda = models.ForeignKey(
         CentroCusto, on_delete=models.PROTECT,
         related_name='empresas_cc_venda',
-        default=1, # No SQL era 127, mas depende do que existe no DB
+        null=True, blank=True,
         verbose_name='Centro de Custo Venda'
     )
     centro_custo_compra = models.ForeignKey(
         CentroCusto, on_delete=models.PROTECT,
         related_name='empresas_cc_compra',
-        default=1,
+        null=True, blank=True,
         verbose_name='Centro de Custo Compra'
     )
     plano_contas_receita_compra = models.ForeignKey(
         PlanoContas, on_delete=models.PROTECT,
         related_name='empresas_receita_compra',
-        default=1,
+        null=True, blank=True,
         verbose_name='Plano de Contas (Receita Compra)'
     )
     

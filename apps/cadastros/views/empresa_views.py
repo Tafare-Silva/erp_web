@@ -15,10 +15,15 @@ def empresa_config(request):
     empresa = Empresa.objects.first()
     if not empresa:
         from apps.cadastros.models import Pessoa
-        pessoa = Pessoa.objects.first()
+        # Prefere uma pessoa ainda não vinculada a outra configuração de empresa.
+        pessoa = Pessoa.objects.filter(empresa_config__isnull=True).first() or Pessoa.objects.first()
         if not pessoa:
-            messages.error(request, 'Nenhuma pessoa cadastrada. Crie uma pessoa primeiro.')
-            return redirect('cadastros:pessoa_list')
+            messages.info(
+                request,
+                'Cadastre primeiro a pessoa da empresa (razão social/CNPJ); '
+                'depois volte em Configurar Empresa.'
+            )
+            return redirect('cadastros:pessoa_create')
         empresa = Empresa.objects.create(pessoa=pessoa)
 
     if request.method == 'POST':
