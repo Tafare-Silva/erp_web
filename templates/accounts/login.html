@@ -9,6 +9,11 @@
 <body class="bg-gradient-to-r from-blue-500 to-blue-700">
     <div class="flex items-center justify-center min-h-screen">
         <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
+            {% if brand_logo_url %}
+            <div class="flex justify-center mb-4">
+                <img src="{{ brand_logo_url }}" alt="{{ brand_name }}" class="h-16 max-w-[220px] object-contain">
+            </div>
+            {% endif %}
             <h1 class="text-3xl font-bold text-center text-gray-800 mb-1">{{ brand_name }}</h1>
             <p class="text-center text-sm text-gray-500 mb-8">{{ brand_tagline }}</p>
             

@@ -85,7 +85,30 @@ BRAND_NAME='Dator Sistemas' BRAND_SHORT_NAME='Dator' \
 
 Variáveis: `BRAND_NAME`, `BRAND_SHORT_NAME`, `BRAND_TAGLINE`, `BRAND_LOGO_URL`
 (URL absoluta ou caminho em `/static/`; vazio usa o ícone padrão).
-Em cliente já existente, basta editar o `.env` e reiniciar o serviço.
+
+Para trocar a marca de um cliente **já existente** (ex.: Pérola Negra → Dator):
+
+1. Edite `/var/www/clientes/<slug>/.env`:
+   ```ini
+   BRAND_NAME=Dator Sistemas
+   BRAND_SHORT_NAME=Dator
+   BRAND_TAGLINE=Gestão Inteligente
+   BRAND_LOGO_URL=/media/branding/logo-dator.png
+   ```
+2. Copie a logo para a pasta de mídia do cliente:
+   ```bash
+   sudo mkdir -p /var/www/clientes/<slug>/media/branding
+   sudo cp logo-dator.png /var/www/clientes/<slug>/media/branding/
+   sudo chown -R ubuntu:www-data /var/www/clientes/<slug>/media
+   ```
+   (a imagem é servida pelo Nginx em `/media/...`; use PNG/SVG com fundo transparente)
+3. Reinicie o serviço para recarregar o `.env`:
+   ```bash
+   sudo systemctl restart <slug>.service
+   ```
+4. Recarregue a página (Ctrl+F5).
+
+A logo aparece na sidebar e na tela de login; o nome também vai para o título da aba.
 
 ## Tabelas fiscais e localidades
 
