@@ -12,7 +12,11 @@ from .views import (
 )
 from .views.pessoa_views import api_cidade_por_ibge, api_buscar_cidades, api_consultar_cnpj
 from .views.empresa_views import empresa_config
-from .views.produto import ProdutoListView, ProdutoCreateView, ProdutoUpdateView, ProdutoDeleteView, ProdutoDetailView, ajustar_estoque_produto, pagina_ajuste_estoque
+from .views.produto import (
+    ProdutoListView, ProdutoCreateView, ProdutoUpdateView, ProdutoDeleteView,
+    ProdutoDetailView, ajustar_estoque_produto, pagina_ajuste_estoque,
+    api_buscar_ncm, api_cadastro_rapido,
+)
 from .views.entrada_views import (
     entrada_nf, 
     buscar_produto_entrada,
@@ -99,6 +103,8 @@ urlpatterns = [
     path('produtos/<int:pk>/excluir/', ProdutoDeleteView.as_view(), name='produto_delete'),
     path('produtos/<int:pk>/ajustar-estoque/', ajustar_estoque_produto, name='produto_ajustar_estoque'),
     path('estoque/ajustar/', pagina_ajuste_estoque, name='pagina_ajuste_estoque'),
+    path('api/ncm/buscar/', api_buscar_ncm, name='api_buscar_ncm'),
+    path('api/cadastro-rapido/', api_cadastro_rapido, name='api_cadastro_rapido'),
 
     # Códigos de Barras
     path('produtos/<int:produto_id>/codigos-barras/', codigo_barras_views.codigo_barras_list, name='codigo_barras_list'),

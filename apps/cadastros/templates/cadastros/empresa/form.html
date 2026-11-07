@@ -260,6 +260,12 @@
                     <label for="{{ form.consumidor_final.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Consumidor Final</label>
                     {{ form.consumidor_final }}
                 </div>
+                <div class="flex items-center lg:col-span-2">
+                    {{ form.bloquear_crediario_consumidor }}
+                    <label for="{{ form.bloquear_crediario_consumidor.id_for_label }}" class="ml-2 text-sm text-gray-700">
+                        Bloquear crediário/a prazo para venda sem cliente identificado (consumidor)
+                    </label>
+                </div>
 
                 <!-- ==================== ESTOQUE ==================== -->
                 <div class="lg:col-span-2 mt-4">
@@ -277,11 +283,14 @@
                     {{ form.local_padrao }}
                 </div>
 
-                <!-- ==================== IMPORT XML ==================== -->
+                <!-- ==================== PADRÕES DE PRODUTO / IMPORT XML ==================== -->
                 <div class="lg:col-span-2 mt-4">
                     <h4 class="text-base font-semibold text-blue-800 border-b border-blue-200 pb-2 mb-4">
-                        <i class="fas fa-file-import mr-2"></i>Importação XML
+                        <i class="fas fa-file-import mr-2"></i>Padrões de Produtos / Importação XML
                     </h4>
+                    <p class="text-xs text-gray-500 -mt-2 mb-4">
+                        Estes valores são pré-preenchidos ao cadastrar um novo produto e também usados na importação de XML.
+                    </p>
                 </div>
 
                 <div>
@@ -299,6 +308,10 @@
                 <div>
                     <label for="{{ form.local_padrao_xml.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Local Padrão (XML)</label>
                     {{ form.local_padrao_xml }}
+                </div>
+                <div>
+                    <label for="{{ form.divisao_impostos_saida_padrao.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Regra de Impostos Padrão</label>
+                    {{ form.divisao_impostos_saida_padrao }}
                 </div>
 
             </div>

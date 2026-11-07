@@ -423,7 +423,7 @@ class PessoaForm(forms.ModelForm):
         widgets = {
             'tipo_pessoa': forms.Select(attrs={'style': _S_SEL}),
             'nome': forms.TextInput(attrs={'style': _S, 'placeholder': 'Nome completo ou Razão Social'}),
-            'cpf_cnpj': forms.TextInput(attrs={'style': _S_MONO, 'placeholder': '000.000.000-00 ou 00.000.000/0000-00'}),
+            'cpf_cnpj': forms.TextInput(attrs={'style': _S_MONO, 'placeholder': 'Opcional - 000.000.000-00 ou 00.000.000/0000-00'}),
             'rg_ie': forms.TextInput(attrs={'style': _S_MONO, 'placeholder': 'RG ou Inscrição Estadual'}),
             'isento_ie': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
             'indicador_ie': forms.Select(attrs={'style': _S_SEL}),
@@ -451,6 +451,10 @@ class PessoaForm(forms.ModelForm):
             'somar_oda_bc_icms_st': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
             'nao_destacar_impostos_nfse': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
         }
+
+    def clean_cpf_cnpj(self):
+        cpf_cnpj = (self.cleaned_data.get('cpf_cnpj') or '').strip()
+        return cpf_cnpj or None
 
 
 from apps.cadastros.models import FuncionarioDetalhes, Empresa
@@ -485,6 +489,20 @@ from apps.cadastros.models import Produto, CodigoBarras, ConversaoUnidade, Produ
 
 
 class ProdutoForm(forms.ModelForm):
+    estoque_inicial = forms.DecimalField(
+        required=False,
+        max_digits=15,
+        decimal_places=4,
+        min_value=0,
+        initial=0,
+        label='Estoque inicial',
+        widget=forms.NumberInput(attrs={
+            'style': _S_NUM,
+            'step': '0.0001',
+            'min': '0',
+            'placeholder': '0,0000',
+        }),
+    )
     codigos_barras = forms.CharField(
         widget=forms.Textarea(attrs={
             'style': _S_TA,
@@ -498,7 +516,7 @@ class ProdutoForm(forms.ModelForm):
         model = Produto
         fields = [
             'nome', 'descricao_reduzida', 'codigo', 'referencia',
-            'marca', 'divisao', 'grupo', 'fabricante', 'unidade_venda', 'tipo_produto',
+            'marca', 'divisao', 'fabricante', 'unidade_venda', 'tipo_produto',
             'tipo_regulatorio', 'referencia_fabrica', 'inativo',
             'preco_venda', 'custo_referencia', 'pode_alterar_preco_venda',
             'fornecedor_principal',
@@ -529,7 +547,6 @@ class ProdutoForm(forms.ModelForm):
             'referencia': forms.TextInput(attrs={'style': _S, 'placeholder': 'Referência do catálogo'}),
             'marca': forms.Select(attrs={'style': _S_SEL}),
             'divisao': forms.Select(attrs={'style': _S_SEL}),
-            'grupo': forms.TextInput(attrs={'style': _S, 'placeholder': 'Grupo'}),
             'fabricante': forms.TextInput(attrs={'style': _S, 'placeholder': 'Fabricante'}),
             'unidade_venda': forms.Select(attrs={'style': _S_SEL}),
             'tipo_produto': forms.Select(attrs={'style': _S_SEL}),
@@ -553,7 +570,7 @@ class ProdutoForm(forms.ModelForm):
             'descricao': forms.Textarea(attrs={'style': _S_TA, 'rows': 3, 'placeholder': 'Descrição interna / técnica do produto...'}),
             'descricao_comercial': forms.Textarea(attrs={'style': _S_TA, 'rows': 3, 'placeholder': 'Descrição comercial para orçamentos, vendas e catálogo...'}),
             # Fiscal
-            'ncm': forms.TextInput(attrs={'style': _S_MONO, 'maxlength': '8', 'placeholder': 'Só números (8 dígitos)'}),
+            'ncm': forms.TextInput(attrs={'style': _S_MONO, 'maxlength': '8', 'placeholder': 'Só números (8 dígitos)', 'autocomplete': 'off'}),
             'cest': forms.TextInput(attrs={'style': _S_MONO, 'maxlength': '7', 'placeholder': 'Só números (7 dígitos)'}),
             'cest_isento': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
             'origem': forms.Select(attrs={'style': _S_SEL}),
@@ -612,6 +629,25 @@ class ProdutoForm(forms.ModelForm):
         if self.instance.pk:
             codigos = CodigoBarras.objects.filter(produto=self.instance).values_list('codigo_barras', flat=True)
             self.initial['codigos_barras'] = '\n'.join(codigos)
+        elif not self.is_bound:
+            try:
+                empresa = Empresa.objects.first()
+            except Exception:
+                empresa = None
+            if empresa:
+                if empresa.marca_padrao_xml_id:
+                    self.fields['marca'].initial = empresa.marca_padrao_xml_id
+                if empresa.divisao_padrao_xml_id:
+                    self.fields['divisao'].initial = empresa.divisao_padrao_xml_id
+                if empresa.unidade_venda_padrao_xml_id:
+                    self.fields['unidade_venda'].initial = empresa.unidade_venda_padrao_xml_id
+                if empresa.ncm_padrao_id:
+                    self.fields['ncm'].initial = empresa.ncm_padrao_id
+                if empresa.divisao_impostos_saida_padrao_id:
+                    self.fields['divisao_impostos_saida'].initial = empresa.divisao_impostos_saida_padrao_id
+                local_padrao = empresa.local_padrao or empresa.local_padrao_xml
+                if local_padrao:
+                    self.fields['local_padrao'].initial = local_padrao.pk
 
     def clean_ncm(self):
         ncm = self.cleaned_data.get('ncm')
@@ -777,11 +813,13 @@ class EmpresaForm(forms.ModelForm):
             'resp_tec_csrt', 'resp_tec_csrt_id',
             # PDV
             'cliente_padrao', 'vendedor_padrao', 'consumidor_final',
+            'bloquear_crediario_consumidor',
             # Estoque
             'configuracao_estoque_negativo', 'local_padrao',
-            # XML Import
+            # Padrões de produto / XML Import
             'marca_padrao_xml', 'divisao_padrao_xml',
             'unidade_venda_padrao_xml', 'local_padrao_xml',
+            'divisao_impostos_saida_padrao',
         ]
         widgets = {
             'nome_fantasia': forms.TextInput(attrs={'style': _S, 'placeholder': 'Nome Fantasia da Empresa'}),
@@ -823,6 +861,8 @@ class EmpresaForm(forms.ModelForm):
             'divisao_padrao_xml': forms.Select(attrs={'style': _S_SEL}),
             'unidade_venda_padrao_xml': forms.Select(attrs={'style': _S_SEL}),
             'local_padrao_xml': forms.Select(attrs={'style': _S_SEL}),
+            'divisao_impostos_saida_padrao': forms.Select(attrs={'style': _S_SEL}),
+            'bloquear_crediario_consumidor': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
         }
 
     def __init__(self, *args, **kwargs):

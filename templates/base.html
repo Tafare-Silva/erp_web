@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}ERP Blanjos{% endblock %}</title>
+    <title>{% block title %}{{ brand_name }}{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -62,12 +62,16 @@
             <!-- Logo -->
             <div class="h-14 flex items-center border-b border-sidebar-border px-4 flex-shrink-0">
                 <a href="{% url 'core:home' %}" class="flex items-center gap-3 min-w-0">
-                    <div class="w-9 h-9 rounded-lg bg-brand-700 flex items-center justify-center flex-shrink-0 shadow-lg shadow-brand-900/40">
+                    <div class="w-9 h-9 rounded-lg bg-brand-700 flex items-center justify-center flex-shrink-0 shadow-lg shadow-brand-900/40 overflow-hidden">
+                        {% if brand_logo_url %}
+                        <img src="{{ brand_logo_url }}" alt="{{ brand_name }}" class="w-full h-full object-contain">
+                        {% else %}
                         <i class="fas fa-boxes text-white text-base"></i>
+                        {% endif %}
                     </div>
                     <div x-show="sidebarOpen" x-transition.opacity class="min-w-0">
-                        <p class="text-sm font-extrabold tracking-wide whitespace-nowrap leading-tight">ERP Blanjos</p>
-                        <p class="text-[10px] text-sidebar-muted whitespace-nowrap leading-tight">Gestão Inteligente</p>
+                        <p class="text-sm font-extrabold tracking-wide whitespace-nowrap leading-tight">{{ brand_name }}</p>
+                        <p class="text-[10px] text-sidebar-muted whitespace-nowrap leading-tight">{{ brand_tagline }}</p>
                     </div>
                 </a>
             </div>

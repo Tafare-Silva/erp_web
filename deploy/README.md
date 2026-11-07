@@ -55,7 +55,7 @@ O script executa, em ordem:
 1. cria role e banco no PostgreSQL (`<slug>_user` / `<slug>_db`);
 2. cria `/var/www/clientes/<slug>/` com `staticfiles/` e `media/`;
 3. gera o `.env` (não sobrescreve se já existir);
-4. roda `migrate` e `collectstatic` como usuário `ubuntu`;
+4. roda `migrate`, `collectstatic` e importa os NCMs básicos (e a tabela completa se `data/ncm.csv` existir);
 5. instala e sobe o serviço systemd (`gunicorn`, 2 workers, socket Unix);
 6. cria o site Nginx (HTTP) e recarrega o Nginx;
 7. emite o certificado SSL via Certbot (`--redirect`);
@@ -72,6 +72,35 @@ sudo -E ./deploy/scripts/novo_cliente.sh cliente1
 
 > Antes de rodar, crie o registro **DNS A** `<slug>.blanjos.com.br` apontando para o IP do droplet.
 > Sem DNS propagado o Certbot falha (o restante do provisionamento continua; rode o Certbot depois).
+
+## Branding por cliente
+
+A marca exibida (login, título e sidebar) vem do `.env` do cliente. Padrão **Blanjos Sistemas**;
+para usar **Dator Sistemas**, sobrescreva ao provisionar:
+
+```bash
+BRAND_NAME='Dator Sistemas' BRAND_SHORT_NAME='Dator' \
+  sudo -E ./deploy/scripts/novo_cliente.sh cliente1
+```
+
+Variáveis: `BRAND_NAME`, `BRAND_SHORT_NAME`, `BRAND_TAGLINE`, `BRAND_LOGO_URL`
+(URL absoluta ou caminho em `/static/`; vazio usa o ícone padrão).
+Em cliente já existente, basta editar o `.env` e reiniciar o serviço.
+
+## Tabela completa de NCM
+
+O sistema já permite pesquisar/criar NCM na tela de produto. Para carregar a tabela oficial
+completa (~10 mil itens), coloque o arquivo em `data/ncm.csv` (ou `.xlsx`) no servidor e rode:
+
+```bash
+cd /var/www/erp/app
+sudo -u ubuntu bash -c 'set -a; source /var/www/clientes/<slug>/.env; set +a; \
+  /var/www/erp/venv/bin/python manage.py importar_ncms --arquivo data/ncm.csv'
+```
+
+O importador aceita CSV (`;` ou `,`) e XLSX, de arquivo local (`--arquivo`) ou URL (`--url`),
+com cabeçalho flexível (colunas de código e descrição). Se o arquivo estiver em `data/ncm.csv`,
+o `novo_cliente.sh` já o importa automaticamente no provisionamento.
 
 ## Atualizar todos os clientes
 

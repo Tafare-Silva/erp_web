@@ -46,7 +46,7 @@
         <div class="flex-1 flex flex-col gap-3 min-w-0">
 
             <!-- Tipo Operação + Cliente + Vendedor -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-3">
+            <div class="relative z-30 bg-white rounded-xl shadow-sm border border-gray-100 p-3">
                 <div class="flex items-center gap-4">
                     <div class="flex bg-gray-100 rounded-lg p-0.5">
                         <button @click="tipoOperacao = 'VENDA'" :class="tipoOperacao === 'VENDA' ? 'bg-white shadow-sm text-blue-700' : 'text-gray-500 hover:text-gray-700'"
@@ -83,7 +83,7 @@
                                 <i class="fas fa-chevron-down text-xs"></i>
                             </button>
                             <div x-show="open" @click.away="open = false"
-                                 class="absolute right-0 mt-1 bg-white border rounded-lg shadow-lg z-20 w-56 max-h-48 overflow-y-auto">
+                                 class="absolute right-0 mt-1 bg-white border rounded-lg shadow-xl z-50 w-64 max-h-60 overflow-y-auto">
                                 <template x-for="v in vendedores" :key="v.chave">
                                     <button @click="vendedorId = v.chave; open = false"
                                             class="w-full text-left px-3 py-2 text-sm hover:bg-blue-50"
@@ -569,30 +569,54 @@
 
     <!-- MODAL CADASTRO CLIENTE -->
     <div x-show="modalCadastroCliente" x-transition class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-2xl shadow-2xl w-[500px]">
+        <div class="bg-white rounded-2xl shadow-2xl w-[620px] max-h-[90vh] overflow-y-auto">
             <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-t-2xl">
-                <h3 class="font-bold"><i class="fas fa-user-plus mr-2"></i>Cadastro Rápido</h3>
+                <h3 class="font-bold"><i class="fas fa-user-plus mr-2"></i>Cadastro Rápido de Cliente</h3>
                 <button @click="modalCadastroCliente = false" class="text-white/80 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-5 space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
-                    <input type="text" x-model="novoCliente.nome" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nome / Razão Social *</label>
+                        <input type="text" x-model="novoCliente.nome" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                        <select x-model="novoCliente.tipo_pessoa" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+                            <option value="F">Pessoa Física</option>
+                            <option value="J">Pessoa Jurídica</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">CPF/CNPJ</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">CPF/CNPJ (opcional)</label>
                         <input type="text" x-model="novoCliente.cpf_cnpj" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
                     </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nome Fantasia / Apelido</label>
+                        <input type="text" x-model="novoCliente.nome_fantasia" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-3">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
                         <input type="text" x-model="novoCliente.telefone" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
                     </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Celular / WhatsApp</label>
+                        <input type="text" x-model="novoCliente.celular" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+                        <input type="email" x-model="novoCliente.email" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+                    </div>
                 </div>
+                <p class="text-xs text-gray-400">O CPF/CNPJ pode ficar em branco. Se já existir, o cadastro existente será reaproveitado.</p>
                 <div class="flex gap-3 pt-2">
                     <button @click="modalCadastroCliente = false" class="flex-1 py-2.5 border-2 border-gray-200 rounded-xl hover:bg-gray-50 font-medium text-gray-600 transition">Cancelar</button>
                     <button @click="salvarNovoCliente" class="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl hover:from-blue-700 hover:to-blue-600 font-bold shadow-md transition">
-                        <i class="fas fa-check mr-2"></i>Salvar
+                        <i class="fas fa-check mr-2"></i>Salvar e usar
                     </button>
                 </div>
             </div>
@@ -828,7 +852,7 @@ function pdvApp() {
         modalSelecaoProduto: false,
         produtosEncontrados: [],
         modalCadastroCliente: false,
-        novoCliente: { nome: '', cpf_cnpj: '', telefone: '' },
+        novoCliente: { nome: '', tipo_pessoa: 'F', cpf_cnpj: '', nome_fantasia: '', telefone: '', celular: '', email: '' },
         modalImportarCondicional: false,
         buscaCondicional: '',
         condicionaisEncontrados: [],
@@ -1270,7 +1294,7 @@ function pdvApp() {
                 if (data.sucesso) {
                     this.selecionarCliente(data.cliente);
                     this.modalCadastroCliente = false;
-                    this.novoCliente = { nome: '', cpf_cnpj: '', telefone: '' };
+                    this.novoCliente = { nome: '', tipo_pessoa: 'F', cpf_cnpj: '', nome_fantasia: '', telefone: '', celular: '', email: '' };
                     this.mostrarAlerta('Cliente cadastrado com sucesso!', 'sucesso');
                 } else {
                     this.mostrarAlerta(data.erro || 'Erro ao cadastrar', 'erro');

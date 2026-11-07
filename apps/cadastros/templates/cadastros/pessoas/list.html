@@ -17,6 +17,8 @@
                         <option value="">Todos os Tipos</option>
                         <option value="cliente" {% if tipo_filtro == 'cliente' %}selected{% endif %}>Clientes</option>
                         <option value="fornecedor" {% if tipo_filtro == 'fornecedor' %}selected{% endif %}>Fornecedores</option>
+                        <option value="vendedor" {% if tipo_filtro == 'vendedor' %}selected{% endif %}>Vendedores</option>
+                        <option value="funcionario" {% if tipo_filtro == 'funcionario' %}selected{% endif %}>Funcionários</option>
                     </select>
                 </form>
                 <a href="{% url 'cadastros:pessoa_create' %}" 
@@ -97,6 +99,9 @@
                             {% endif %}
                             {% if pessoa.funcionario %}
                             <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Funcionário</span>
+                            {% endif %}
+                            {% if pessoa.vendedor %}
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Vendedor</span>
                             {% endif %}
                             {% if pessoa.transportador %}
                             <span class="px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">Transportador</span>

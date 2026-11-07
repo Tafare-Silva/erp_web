@@ -203,11 +203,12 @@
                 <div class="col-span-12 sm:col-span-6 md:col-span-4">
                     <div class="flex items-center justify-between mb-1.5">
                         <label class="text-xs font-semibold text-slate-700">
-                            <span class="text-red-500 font-bold">*</span> <span x-text="tipoPessoa === 'J' ? 'CNPJ' : 'CPF'"></span>
+                            <span x-text="tipoPessoa === 'J' ? 'CNPJ' : 'CPF'"></span>
+                            <span class="text-slate-400 font-normal">(opcional)</span>
                         </label>
                         <span x-show="cpfCnpjRaw.replace(/\D/g,'').length >= (tipoPessoa === 'J' ? 14 : 11)"
-                              x-text="documentoValido ? '✓ Documento Válido' : '✕ Documento Inválido'"
-                              :class="documentoValido ? 'text-emerald-600' : 'text-red-600'"
+                              x-text="documentoValido ? '✓ Documento válido' : '⚠ Não validado'"
+                              :class="documentoValido ? 'text-emerald-600' : 'text-amber-600'"
                               class="text-[11px] font-bold"></span>
                     </div>
                     <div class="relative">
@@ -216,6 +217,7 @@
                                :placeholder="tipoPessoa === 'J' ? '00.000.000/0000-00' : '000.000.000-00'"
                                @input="mascaraCPFCNPJ" x-model="cpfCnpjRaw">
                     </div>
+                    <p class="text-[11px] text-slate-400 mt-1">Pode ficar em branco ou conter um documento ainda não validado.</p>
                 </div>
 
                 <!-- Botão de Consulta Automática de CNPJ -->

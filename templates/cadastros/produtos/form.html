@@ -299,22 +299,30 @@
                 </div>
             </div>
 
-            <!-- Linha 2: Tipo de Produto, Grupo, Categoria, Marca, Fabricante -->
+            <!-- Linha 2: Tipo de Produto, Categoria, Divisão, Marca, Fabricante -->
             <div class="grid grid-cols-12 gap-5">
                 <div class="col-span-12 sm:col-span-6 md:col-span-3">
                     <label class="block text-xs font-semibold text-slate-700 mb-1.5"><span class="text-red-500 font-bold">*</span> Tipo de Produto</label>
                     {{ form.tipo_produto }}
                 </div>
                 <div class="col-span-6 sm:col-span-3 md:col-span-2">
-                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Grupo</label>
-                    {{ form.grupo }}
-                </div>
-                <div class="col-span-6 sm:col-span-3 md:col-span-2">
                     <label class="block text-xs font-semibold text-slate-700 mb-1.5">Categoria</label>
                     {{ form.categoria }}
                 </div>
                 <div class="col-span-6 sm:col-span-6 md:col-span-3">
-                    <label class="block text-xs font-semibold text-slate-700 mb-1.5"><span class="text-red-500 font-bold">*</span> Marca</label>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="text-xs font-semibold text-slate-700"><span class="text-red-500 font-bold">*</span> Divisão</label>
+                        <button type="button" onclick="abrirCadastroRapido('divisao','id_divisao')" title="Cadastrar nova divisão"
+                                class="w-5 h-5 inline-flex items-center justify-center rounded-md bg-slate-100 text-slate-600 hover:bg-brand-600 hover:text-white text-xs font-bold transition-smooth">+</button>
+                    </div>
+                    {{ form.divisao }}
+                </div>
+                <div class="col-span-6 sm:col-span-6 md:col-span-2">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="text-xs font-semibold text-slate-700"><span class="text-red-500 font-bold">*</span> Marca</label>
+                        <button type="button" onclick="abrirCadastroRapido('marca','id_marca')" title="Cadastrar nova marca"
+                                class="w-5 h-5 inline-flex items-center justify-center rounded-md bg-slate-100 text-slate-600 hover:bg-brand-600 hover:text-white text-xs font-bold transition-smooth">+</button>
+                    </div>
                     {{ form.marca }}
                 </div>
                 <div class="col-span-6 sm:col-span-6 md:col-span-2">
@@ -326,15 +334,27 @@
             <!-- Linha 3: Unidade Padrão, NCM, CEST, Origem Mercadoria, Perfil Fiscal -->
             <div class="grid grid-cols-12 gap-5 items-end">
                 <div class="col-span-12 sm:col-span-4 md:col-span-2">
-                    <label class="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
-                        <span class="text-red-500 font-bold">*</span> Unidade Padrão <i class="fas fa-question-circle text-slate-400 text-[11px]" title="Unidade em que o estoque é controlado"></i>
-                    </label>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                            <span class="text-red-500 font-bold">*</span> Unidade <i class="fas fa-question-circle text-slate-400 text-[11px]" title="Unidade em que o estoque é controlado"></i>
+                        </label>
+                        <button type="button" onclick="abrirCadastroRapido('unidade','id_unidade_venda')" title="Cadastrar nova unidade"
+                                class="w-5 h-5 inline-flex items-center justify-center rounded-md bg-slate-100 text-slate-600 hover:bg-brand-600 hover:text-white text-xs font-bold transition-smooth">+</button>
+                    </div>
                     {{ form.unidade_venda }}
                 </div>
 
                 <div class="col-span-6 sm:col-span-4 md:col-span-2">
-                    <label class="block text-xs font-semibold text-slate-700 mb-1.5"><span class="text-red-500 font-bold">*</span> NCM</label>
-                    {{ form.ncm }}
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="text-xs font-semibold text-slate-700"><span class="text-red-500 font-bold">*</span> NCM</label>
+                        <button type="button" onclick="abrirCadastroRapido('ncm','id_ncm')" title="Cadastrar novo NCM"
+                                class="w-5 h-5 inline-flex items-center justify-center rounded-md bg-slate-100 text-slate-600 hover:bg-brand-600 hover:text-white text-xs font-bold transition-smooth">+</button>
+                    </div>
+                    <div class="relative">
+                        {{ form.ncm }}
+                        <div id="ncm-sugestoes" class="hidden absolute z-40 mt-1 w-[22rem] max-w-[80vw] bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto"></div>
+                    </div>
+                    <p id="ncm-descricao" class="text-[11px] text-slate-500 mt-1 leading-snug"></p>
                 </div>
 
                 <div class="col-span-6 sm:col-span-4 md:col-span-3">
@@ -358,7 +378,11 @@
                 </div>
 
                 <div class="col-span-12 sm:col-span-6 md:col-span-3">
-                    <label class="block text-xs font-semibold text-slate-700 mb-1.5"><span class="text-red-500 font-bold">*</span> Perfil Fiscal (Regra de Impostos)</label>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="text-xs font-semibold text-slate-700"><span class="text-red-500 font-bold">*</span> Perfil Fiscal (Regra de Impostos)</label>
+                        <button type="button" onclick="abrirCadastroRapido('divisao_impostos','id_divisao_impostos_saida')" title="Cadastrar nova regra de impostos"
+                                class="w-5 h-5 inline-flex items-center justify-center rounded-md bg-slate-100 text-slate-600 hover:bg-brand-600 hover:text-white text-xs font-bold transition-smooth">+</button>
+                    </div>
                     {{ form.divisao_impostos_saida }}
                 </div>
             </div>
@@ -471,7 +495,7 @@
                 </div>
             </div>
 
-            <!-- Divisão / Grupo e Códigos de Barras Primários -->
+            <!-- Divisão e Códigos de Barras Primários -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5 pt-3 border-t border-slate-100">
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 mb-1.5"><span class="text-red-500 font-bold">*</span> Divisão / Estrutura Mercadológica</label>
@@ -564,6 +588,26 @@
         <!-- ABA 3: ESTOQUE (ESTILO MANTO SISTEMAS) -->
         <!-- ===================================================================== -->
         <div x-show="aba==='estoque'" x-transition class="space-y-6">
+            {% if not object.pk %}
+            <div class="border border-emerald-200 bg-emerald-50/60 rounded-xl p-5">
+                <div class="flex items-start gap-3">
+                    <div class="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-boxes-stacked text-sm"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-sm font-bold text-emerald-900">Estoque inicial</h3>
+                        <p class="text-xs text-emerald-700/90 mt-1 mb-3">
+                            Informe a quantidade física que já existe hoje. O saldo será lançado no local de estoque padrão do produto/empresa.
+                        </p>
+                        <div class="max-w-xs">{{ form.estoque_inicial }}</div>
+                        {% if form.estoque_inicial.errors %}
+                        <p class="text-xs text-red-600 mt-1">{{ form.estoque_inicial.errors|join:", " }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Seção 1: Parâmetros de estoque -->
             <div class="border border-slate-200 rounded-xl p-5 bg-white">
                 <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-4 pb-2 border-b border-slate-100">
@@ -1187,6 +1231,55 @@
 </div>
 {% endif %}
 
+<!-- ========================================================================= -->
+<!-- MODAL: CADASTRO RÁPIDO (MARCA / DIVISÃO / UNIDADE / NCM / REGRA FISCAL) -->
+<!-- ========================================================================= -->
+<div id="modal-cadastro-rapido" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs items-center justify-center z-[60] p-4" style="display:none;">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+        <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h3 id="cr-titulo" class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                <i class="fas fa-plus-circle text-brand-600"></i> Cadastro rápido
+            </h3>
+            <button type="button" onclick="fecharCadastroRapido()" class="text-slate-400 hover:text-slate-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="form-cadastro-rapido" onsubmit="salvarCadastroRapido(event)" class="p-6 space-y-4">
+            {% csrf_token %}
+            <input type="hidden" name="tipo" id="cr-tipo">
+            <div id="cr-campo-nome">
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Nome</label>
+                <input type="text" name="nome" id="cr-nome" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none" placeholder="Digite o nome">
+            </div>
+            <div id="cr-campo-codigo">
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Código</label>
+                <input type="text" name="codigo" id="cr-codigo" maxlength="20" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono outline-none" placeholder="Ex: 1.1">
+            </div>
+            <div id="cr-campo-simbolo">
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Símbolo</label>
+                <input type="text" name="simbolo" id="cr-simbolo" maxlength="3" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono uppercase outline-none" placeholder="UN, KG, CX">
+            </div>
+            <div id="cr-campo-ncm">
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Código NCM (8 dígitos)</label>
+                <input type="text" name="ncm" id="cr-ncm" maxlength="8" inputmode="numeric" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono outline-none" placeholder="00000000">
+            </div>
+            <div id="cr-campo-descricao">
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Descrição</label>
+                <textarea name="descricao" id="cr-descricao" rows="3" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none" placeholder="Descrição"></textarea>
+            </div>
+            <p id="cr-erro" class="text-xs text-red-600"></p>
+            <div class="flex gap-2 pt-2">
+                <button type="button" onclick="fecharCadastroRapido()" class="flex-1 px-4 py-2 text-xs font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200">
+                    Cancelar
+                </button>
+                <button type="submit" id="cr-salvar" class="flex-1 px-4 py-2 text-xs font-bold bg-[#0f2b48] text-white rounded-lg hover:bg-[#153a61] disabled:opacity-50">
+                    Salvar e usar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 </div>
 {% endblock %}
 
@@ -1460,5 +1553,159 @@ function produtoApp() {
         }
     }
 }
+</script>
+<script>
+let crTargetId = null;
+
+function abrirCadastroRapido(tipo, targetId) {
+    crTargetId = targetId;
+    const modal = document.getElementById('modal-cadastro-rapido');
+    const form = document.getElementById('form-cadastro-rapido');
+    form.reset();
+    document.getElementById('cr-erro').textContent = '';
+    document.getElementById('cr-tipo').value = tipo;
+
+    const titulos = {
+        marca: 'Nova marca',
+        divisao: 'Nova divisão',
+        unidade: 'Nova unidade de medida',
+        ncm: 'Novo NCM',
+        divisao_impostos: 'Nova regra de impostos'
+    };
+    document.getElementById('cr-titulo').innerHTML =
+        '<i class="fas fa-plus-circle text-brand-600"></i> ' + (titulos[tipo] || 'Cadastro rápido');
+
+    const mostrar = (id, ativo) => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = ativo ? '' : 'none';
+    };
+    mostrar('cr-campo-nome', ['marca', 'divisao', 'unidade', 'divisao_impostos'].includes(tipo));
+    mostrar('cr-campo-codigo', ['divisao', 'divisao_impostos'].includes(tipo));
+    mostrar('cr-campo-simbolo', tipo === 'unidade');
+    mostrar('cr-campo-ncm', tipo === 'ncm');
+    mostrar('cr-campo-descricao', ['ncm', 'divisao_impostos'].includes(tipo));
+
+    const nomeLabel = document.querySelector('#cr-campo-nome label');
+    if (nomeLabel) nomeLabel.textContent = tipo === 'divisao_impostos' ? 'Nome / apelido' : 'Nome';
+
+    const descLabel = document.querySelector('#cr-campo-descricao label');
+    if (descLabel) descLabel.textContent = tipo === 'ncm' ? 'Descrição do NCM' : 'Descrição';
+
+    modal.style.display = 'flex';
+    setTimeout(() => {
+        const first = form.querySelector('div:not([style*="display: none"]) input, div:not([style*="display: none"]) textarea');
+        first?.focus();
+    }, 50);
+}
+
+function fecharCadastroRapido() {
+    document.getElementById('modal-cadastro-rapido').style.display = 'none';
+    crTargetId = null;
+}
+
+async function salvarCadastroRapido(ev) {
+    ev.preventDefault();
+    const form = ev.target;
+    const botao = document.getElementById('cr-salvar');
+    const erro = document.getElementById('cr-erro');
+    erro.textContent = '';
+    botao.disabled = true;
+    botao.textContent = 'Salvando...';
+    try {
+        const resp = await fetch('{% url "cadastros:api_cadastro_rapido" %}', {
+            method: 'POST',
+            body: new FormData(form),
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+        });
+        const data = await resp.json();
+        if (!data.ok) {
+            erro.textContent = data.erro || 'Não foi possível salvar.';
+            return;
+        }
+        const alvo = document.getElementById(crTargetId);
+        if (alvo) {
+            if (alvo.tagName === 'SELECT') {
+                const opt = document.createElement('option');
+                opt.value = data.value;
+                opt.textContent = data.label;
+                alvo.appendChild(opt);
+                alvo.value = data.value;
+                alvo.dispatchEvent(new Event('change', { bubbles: true }));
+            } else {
+                alvo.value = data.value;
+                alvo.dispatchEvent(new Event('input', { bubbles: true }));
+                alvo.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+        fecharCadastroRapido();
+    } catch (e) {
+        erro.textContent = 'Erro de comunicação. Tente novamente.';
+    } finally {
+        botao.disabled = false;
+        botao.textContent = 'Salvar e usar';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const ncmEl = document.getElementById('id_ncm');
+    const dropdown = document.getElementById('ncm-sugestoes');
+    const descEl = document.getElementById('ncm-descricao');
+    if (!ncmEl || !dropdown) return;
+    let timer = null;
+
+    function esconder() {
+        dropdown.classList.add('hidden');
+        dropdown.innerHTML = '';
+    }
+
+    ncmEl.addEventListener('input', function () {
+        descEl.textContent = '';
+        clearTimeout(timer);
+        const q = ncmEl.value.trim();
+        if (q.length < 2) { esconder(); return; }
+        timer = setTimeout(async function () {
+            try {
+                const resp = await fetch('{% url "cadastros:api_buscar_ncm" %}?q=' + encodeURIComponent(q));
+                const data = await resp.json();
+                dropdown.innerHTML = '';
+                if (!data.resultados || !data.resultados.length) {
+                    const vazio = document.createElement('div');
+                    vazio.className = 'px-3 py-2 text-xs text-slate-400';
+                    vazio.textContent = 'Nenhum NCM encontrado. Use o + para cadastrar.';
+                    dropdown.appendChild(vazio);
+                } else {
+                    data.resultados.forEach(function (item) {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'block w-full text-left px-3 py-2 hover:bg-slate-50 border-b border-slate-100 last:border-0';
+                        const cod = document.createElement('span');
+                        cod.className = 'font-mono font-bold text-slate-800 text-xs';
+                        cod.textContent = item.ncm;
+                        const desc = document.createElement('span');
+                        desc.className = 'text-slate-500 text-xs ml-2';
+                        desc.textContent = item.descricao;
+                        btn.appendChild(cod);
+                        btn.appendChild(desc);
+                        btn.addEventListener('click', function () {
+                            ncmEl.value = item.ncm;
+                            descEl.textContent = item.descricao;
+                            esconder();
+                            ncmEl.dispatchEvent(new Event('input', { bubbles: true }));
+                            ncmEl.dispatchEvent(new Event('change', { bubbles: true }));
+                        });
+                        dropdown.appendChild(btn);
+                    });
+                }
+                dropdown.classList.remove('hidden');
+            } catch (e) {
+                esconder();
+            }
+        }, 250);
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!dropdown.contains(e.target) && e.target !== ncmEl) esconder();
+    });
+});
 </script>
 {% endblock %}

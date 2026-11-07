@@ -5,9 +5,12 @@ from django.shortcuts import get_object_or_404
 from django.db.models.functions import Coalesce
 from django.http import JsonResponse, HttpResponseRedirect
 from django.db import transaction
-from decimal import Decimal
-from apps.cadastros.models import Produto, Marca, Divisao
+from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import login_required
+from decimal import Decimal, InvalidOperation
+from apps.cadastros.models import Produto, Marca, Divisao, Empresa, Unidade, NCM
 from apps.cadastros.models.produto import LocalEstoque, SaldoEstoque
+from apps.cadastros.models.reservados import DivisaoImpostosSaida, CST, CFOP
 from apps.cadastros.forms import ProdutoForm, ConversaoUnidadeFormSet, ProdutoVariacaoFormSet, ProdutoCanalFormSet
 
 class ProdutoListView(ListView):
@@ -80,12 +83,115 @@ class ProdutoCreateView(CreateView):
                 formset_variacoes.save()
                 formset_canais.instance = self.object
                 formset_canais.save()
+                estoque_inicial = form.cleaned_data.get('estoque_inicial') or Decimal('0')
+                if estoque_inicial > 0:
+                    local = self.object.local_padrao
+                    if not local:
+                        empresa = Empresa.objects.first()
+                        if empresa:
+                            local = empresa.local_padrao or empresa.local_padrao_xml
+                    if not local:
+                        local = LocalEstoque.objects.first()
+                    if local:
+                        SaldoEstoque.objects.update_or_create(
+                            produto=self.object,
+                            local=local,
+                            defaults={'quantidade': estoque_inicial},
+                        )
             messages.success(self.request, f'Produto "{form.instance.nome}" criado com sucesso!')
             return HttpResponseRedirect(self.get_success_url())
         return self.form_invalid(form)
 
     def get_success_url(self):
         return f'/cadastros/produtos/?q={self.object.pk_chave}'
+
+
+@login_required
+def api_buscar_ncm(request):
+    q = (request.GET.get('q') or '').strip()
+    qs = NCM.objects.all()
+    if q:
+        qs = qs.filter(Q(ncm__icontains=q) | Q(descricao__icontains=q) | Q(nome__icontains=q))
+    resultados = [
+        {'ncm': n.ncm, 'descricao': n.descricao, 'nome': n.nome or ''}
+        for n in qs.order_by('ncm')[:25]
+    ]
+    return JsonResponse({'resultados': resultados})
+
+
+@login_required
+@require_POST
+def api_cadastro_rapido(request):
+    tipo = (request.POST.get('tipo') or '').strip()
+    nome = (request.POST.get('nome') or '').strip()
+    try:
+        if tipo == 'marca':
+            if not nome:
+                return JsonResponse({'ok': False, 'erro': 'Informe o nome da marca.'}, status=400)
+            obj, _ = Marca.objects.get_or_create(nome=nome)
+            return JsonResponse({'ok': True, 'value': obj.pk, 'label': obj.nome})
+
+        if tipo == 'divisao':
+            if not nome:
+                return JsonResponse({'ok': False, 'erro': 'Informe o nome da divisão.'}, status=400)
+            codigo = (request.POST.get('codigo') or '').strip() or nome[:20]
+            obj, _ = Divisao.objects.get_or_create(nome=nome, defaults={'codigo': codigo})
+            return JsonResponse({'ok': True, 'value': obj.pk, 'label': obj.nome})
+
+        if tipo == 'unidade':
+            if not nome:
+                return JsonResponse({'ok': False, 'erro': 'Informe o nome da unidade.'}, status=400)
+            simbolo = (request.POST.get('simbolo') or '').strip().upper()[:3]
+            if not simbolo:
+                return JsonResponse({'ok': False, 'erro': 'Informe o símbolo (ex: UN, KG).'}, status=400)
+            obj, _ = Unidade.objects.get_or_create(nome=nome, defaults={'simbolo': simbolo})
+            return JsonResponse({'ok': True, 'value': obj.pk, 'label': str(obj)})
+
+        if tipo == 'ncm':
+            codigo = ''.join(filter(str.isdigit, request.POST.get('ncm') or ''))
+            descricao = (request.POST.get('descricao') or '').strip()
+            if len(codigo) != 8:
+                return JsonResponse({'ok': False, 'erro': 'O NCM deve ter 8 dígitos.'}, status=400)
+            if not descricao:
+                return JsonResponse({'ok': False, 'erro': 'Informe a descrição do NCM.'}, status=400)
+            obj, _ = NCM.objects.update_or_create(
+                ncm=codigo,
+                defaults={'descricao': descricao, 'nome': descricao[:100]},
+            )
+            return JsonResponse({'ok': True, 'value': obj.pk, 'label': f'{obj.ncm} - {obj.descricao[:60]}'})
+
+        if tipo == 'divisao_impostos':
+            codigo = (request.POST.get('codigo') or '').strip()[:5]
+            descricao = (request.POST.get('descricao') or '').strip() or nome
+            if not codigo or not descricao:
+                return JsonResponse({'ok': False, 'erro': 'Informe o código e a descrição da regra.'}, status=400)
+            cst_icms = CST.objects.filter(tipo_imposto='ICMS').first()
+            cst_pis = CST.objects.filter(tipo_imposto='PIS').first()
+            cst_cofins = CST.objects.filter(tipo_imposto='COFINS').first()
+            cfop_estadual = CFOP.objects.filter(cfop__startswith='5').first() or CFOP.objects.first()
+            cfop_interestadual = CFOP.objects.filter(cfop__startswith='6').first() or CFOP.objects.first()
+            if not all([cst_icms, cst_pis, cst_cofins, cfop_estadual, cfop_interestadual]):
+                return JsonResponse({
+                    'ok': False,
+                    'erro': 'Cadastre CST/CFOP antes, ou crie a regra pela tela completa de Divisão de Impostos.'
+                }, status=400)
+            obj, _ = DivisaoImpostosSaida.objects.get_or_create(
+                divisao=codigo,
+                defaults={
+                    'nome': nome or descricao,
+                    'descricao': descricao,
+                    'cst_icms': cst_icms,
+                    'cst_pis': cst_pis,
+                    'cst_cofins': cst_cofins,
+                    'cfop_dentro_estado': cfop_estadual,
+                    'cfop_fora_estado': cfop_interestadual,
+                },
+            )
+            return JsonResponse({'ok': True, 'value': obj.pk, 'label': str(obj)})
+
+        return JsonResponse({'ok': False, 'erro': 'Tipo de cadastro inválido.'}, status=400)
+    except (ValueError, InvalidOperation, TypeError) as exc:
+        return JsonResponse({'ok': False, 'erro': str(exc)}, status=400)
 
 class ProdutoUpdateView(UpdateView):
     model = Produto

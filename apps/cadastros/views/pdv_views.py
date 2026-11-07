@@ -282,6 +282,22 @@ def pdv_finalizar(request):
                     'erro': f'Pagamentos insuficientes: total pago R$ {total_pago:.2f} é menor que o total da venda R$ {total_venda:.2f}.'
                 }, status=400)
 
+            # Regra da empresa: não permitir crediário/a prazo para consumidor sem cliente identificado
+            cliente_informado = bool(cliente_id)
+            cpf_consumidor_raw = (dados.get('cpf_consumidor') or '').strip()
+            tem_cpf_consumidor = bool(cpf_consumidor_raw and cpf_consumidor_raw.upper() != 'ISENTO')
+            tem_pagamento_prazo = any(
+                p['tipo'].situacoes_permitidas == 'AP' or 'CREDI' in (p['tipo'].tipo_pagamento or '').upper()
+                for p in pags
+            )
+            if tem_pagamento_prazo and not cliente_informado and not tem_cpf_consumidor:
+                from apps.cadastros.models import Empresa
+                empresa = Empresa.objects.first()
+                if empresa and empresa.bloquear_crediario_consumidor:
+                    return JsonResponse({
+                        'erro': 'Esta empresa não permite crediário/a prazo para consumidor sem cliente identificado. Selecione um cliente.'
+                    }, status=400)
+
             troco = _centavos(total_pago - total_venda)
             if troco > 0:
                 total_dinheiro = sum((p['liquido'] for p in pags if p['dinheiro']), Decimal('0'))
@@ -570,26 +586,52 @@ def api_criar_cliente_rapido(request):
     nome = dados.get('nome', '').strip()
     if not nome:
         return JsonResponse({'erro': 'Nome obrigatório'}, status=400)
-    
-    from apps.cadastros.models import Pessoa, Cliente
-    
-    # Criar pessoa
-    cpf_cnpj = dados.get('cpf_cnpj', '').strip()
+
+    from apps.cadastros.models import Pessoa
+
+    cpf_cnpj = (dados.get('cpf_cnpj') or '').strip()
+    telefone = (dados.get('telefone') or '').strip()
+    celular = (dados.get('celular') or '').strip()
+    email = (dados.get('email') or '').strip()
+    nome_fantasia = (dados.get('nome_fantasia') or '').strip()
+    tipo_pessoa = dados.get('tipo_pessoa') or ('J' if len(''.join(filter(str.isdigit, cpf_cnpj))) == 14 else 'F')
+
+    if cpf_cnpj:
+        existente = Pessoa.objects.filter(cpf_cnpj=cpf_cnpj).first()
+        if existente:
+            if not existente.cliente:
+                existente.cliente = True
+                existente.save(update_fields=['cliente'])
+            return JsonResponse({
+                'sucesso': True,
+                'cliente': {
+                    'chave': existente.chave,
+                    'nome': existente.nome,
+                    'cpf_cnpj': existente.cpf_cnpj or '',
+                    'telefone': existente.celular_principal or existente.telefone_fixo or '',
+                    'cidade': '',
+                },
+                'reutilizado': True,
+            })
+
     pessoa = Pessoa.objects.create(
         nome=nome,
-        cpf_cnpj=cpf_cnpj or None
+        cpf_cnpj=cpf_cnpj or None,
+        telefone_fixo=telefone or None,
+        celular_principal=celular or None,
+        email=email or None,
+        nome_fantasia=nome_fantasia or None,
+        tipo_pessoa=tipo_pessoa,
+        cliente=True,
     )
-    
-    # Marcar como cliente
-    Cliente.objects.create(pessoa=pessoa)
-    
+
     return JsonResponse({
         'sucesso': True,
         'cliente': {
             'chave': pessoa.chave,
             'nome': pessoa.nome,
-            'cpf_cnpj': cpf_cnpj,
-            'telefone': '',
+            'cpf_cnpj': pessoa.cpf_cnpj or '',
+            'telefone': telefone or celular or '',
             'cidade': ''
         }
     })

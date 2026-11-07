@@ -67,9 +67,6 @@
     
     <!-- Dados da NF -->
     <div class="bg-white rounded-lg shadow p-4">
-        <h3 class="text-sm font-bold mb-3 pb-2 border-b">
-            <i class="fas fa-file-invoice mr-2 text-blue-600"></i>Dados da Nota Fiscal
-        </h3>
         <!-- Botão Upload XML -->
             <div class="mb-3 flex justify-between items-center">
                 <h3 class="text-sm font-bold pb-2 border-b flex-1">
@@ -299,6 +296,72 @@
                     <i class="fas fa-broom mr-2"></i>Limpar
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- Formas de Pagamento / Duplicatas (Contas a Pagar) -->
+    <div class="bg-white rounded-lg shadow p-4">
+        <div class="flex justify-between items-center mb-3 pb-2 border-b">
+            <h3 class="text-sm font-bold">
+                <i class="fas fa-money-check-dollar mr-2 text-blue-600"></i>Formas de Pagamento / Duplicatas
+            </h3>
+            <div class="flex gap-2">
+                <button @click="pagamentoAVista" class="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xs">
+                    <i class="fas fa-bolt mr-1"></i>À vista (total da NF)
+                </button>
+                <button @click="adicionarPagamento" class="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs">
+                    <i class="fas fa-plus mr-1"></i>Adicionar
+                </button>
+            </div>
+        </div>
+        <template x-if="pagamentos.length === 0">
+            <p class="text-sm text-gray-400 text-center py-4">
+                Nenhuma duplicata informada. Importe o XML ou use "Adicionar" / "À vista".
+            </p>
+        </template>
+        <div x-show="pagamentos.length > 0" class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="text-xs text-gray-500 uppercase">
+                    <tr>
+                        <th class="text-left py-2 px-2">Nº / Documento</th>
+                        <th class="text-left py-2 px-2">Vencimento</th>
+                        <th class="text-left py-2 px-2">Forma de Pagamento</th>
+                        <th class="text-right py-2 px-2">Valor</th>
+                        <th class="text-center py-2 px-2">Já pago?</th>
+                        <th class="py-2"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="(p, idx) in pagamentos" :key="idx">
+                        <tr class="border-b">
+                            <td class="py-2 px-2"><input type="text" x-model="p.numero" class="w-32 px-2 py-1 border rounded text-xs"></td>
+                            <td class="py-2 px-2"><input type="date" x-model="p.vencimento" class="px-2 py-1 border rounded text-xs"></td>
+                            <td class="py-2 px-2">
+                                <select x-model="p.tipo_id" class="px-2 py-1 border rounded text-xs">
+                                    <option value="">Selecione...</option>
+                                    {% for tp in tipos_pagamento %}
+                                    <option value="{{ tp.pk_tipo_pagamento }}">{{ tp.tipo_pagamento }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td class="py-2 px-2 text-right">
+                                <input type="number" step="0.01" x-model.number="p.valor" class="w-28 px-2 py-1 border rounded text-xs text-right">
+                            </td>
+                            <td class="py-2 px-2 text-center"><input type="checkbox" x-model="p.pago" class="rounded"></td>
+                            <td class="py-2 px-2 text-center">
+                                <button @click="removerPagamento(idx)" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+        <div x-show="pagamentos.length > 0" class="mt-3 pt-2 border-t flex flex-wrap justify-end gap-x-6 gap-y-1 text-sm">
+            <span>Total da NF: <strong x-text="formatMoney(totalNF)"></strong></span>
+            <span>Total informado: <strong x-text="formatMoney(totalPago)"></strong></span>
+            <span :class="Math.abs(diferencaPagamentos) < 0.01 ? 'text-green-600' : 'text-orange-600'">
+                Diferença: <strong x-text="formatMoney(diferencaPagamentos)"></strong>
+            </span>
         </div>
     </div>
 
@@ -601,7 +664,18 @@ function entradaNFApp() {
         totalFrete: 0,
         totalNF: 0,
         
+        // Pagamentos / Duplicatas da nota (contas a pagar)
+        pagamentos: [],
+        
         alerta: { show: false, mensagem: '', tipo: '' },
+
+        get totalPago() {
+            return this.pagamentos.reduce((s, p) => s + (parseFloat(p.valor) || 0), 0);
+        },
+
+        get diferencaPagamentos() {
+            return Math.round(((parseFloat(this.totalNF) || 0) - this.totalPago) * 100) / 100;
+        },
         
         init() {
             // ===== ADICIONAR ESTE BLOCO =====
@@ -699,6 +773,15 @@ function entradaNFApp() {
                             'sucesso'
                         );
                     }
+
+                    // Duplicatas / faturas do XML (contas a pagar)
+                    this.pagamentos = (data.pagamentos || []).map((p, idx) => ({
+                        numero: p.numero || ('Parcela ' + (idx + 1)),
+                        vencimento: (p.vencimento || '').substring(0, 10),
+                        valor: parseFloat(p.valor || 0),
+                        tipo_id: '',
+                        pago: false
+                    }));
                     
                     // CORRIGIDO: Verificar produtos_nao_encontrados ao invés de itens
                     if (data.produtos_nao_encontrados && data.produtos_nao_encontrados.length > 0) {
@@ -1064,6 +1147,31 @@ function entradaNFApp() {
             this.totalNF = this.totalProdutos + this.totalICMSST + this.totalIPI + this.totalFrete;
         },
         
+        adicionarPagamento() {
+            const restante = Math.abs(this.diferencaPagamentos) < 0.01 ? 0 : Math.max(0, this.diferencaPagamentos);
+            this.pagamentos.push({
+                numero: 'Parcela ' + (this.pagamentos.length + 1),
+                vencimento: this.dataEmissao || new Date().toISOString().split('T')[0],
+                valor: restante,
+                tipo_id: '',
+                pago: false
+            });
+        },
+
+        removerPagamento(idx) {
+            this.pagamentos.splice(idx, 1);
+        },
+
+        pagamentoAVista() {
+            this.pagamentos = [{
+                numero: 'À VISTA',
+                vencimento: new Date().toISOString().split('T')[0],
+                valor: parseFloat(this.totalNF) || 0,
+                tipo_id: '',
+                pago: true
+            }];
+        },
+
         finalizarEntrada() {
             if (!this.fornecedorSelecionado) {
                 this.mostrarAlerta('Selecione o fornecedor', 'erro');
@@ -1093,15 +1201,16 @@ function entradaNFApp() {
                 serie_nf: this.serieNF,
                 data_emissao: this.dataEmissao,
                 chave_nfe: this.chaveNFe,
-                valor_total_nf: this.totalGeral,
-                itens: this.itens
+                valor_total_nf: this.totalNF,
+                itens: this.itens,
+                pagamentos: this.pagamentos
             };
             const modoEdicao = {{ modo_edicao|default:'false'|lower }};
             const url = modoEdicao 
                 ? '/cadastros/entradas/{{ entrada.pk }}/atualizar/'
                 : '/cadastros/entradas/finalizar/';
 
-            fetch('/cadastros/entradas/finalizar/', {
+            fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1137,6 +1246,7 @@ function entradaNFApp() {
         
         limparTudo() {
             this.itens = [];
+            this.pagamentos = [];
             this.numeroNF = '';
             this.serieNF = '1';
             this.chaveNFe = '';

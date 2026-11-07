@@ -1,7 +1,7 @@
 from django.db import models
 from .pessoa import Pessoa
 from .financeiro import PlanoContas, CentroCusto
-from .reservados import NCM, Cidade
+from .reservados import NCM, Cidade, DivisaoImpostosSaida
 from .auxiliares import Marca, Divisao, Unidade
 from .produto import LocalEstoque
 
@@ -141,6 +141,11 @@ class Empresa(models.Model):
         null=True, blank=True,
         verbose_name='Pessoa Consumidor Final'
     )
+    bloquear_crediario_consumidor = models.BooleanField(
+        default=False,
+        verbose_name='Bloquear crediário para consumidor',
+        help_text='Impede venda a prazo/crediário quando nenhum cliente identificado for informado.'
+    )
 
     # Responsável Técnico (NF-e)
     resp_tec_cnpj = models.CharField(
@@ -184,10 +189,15 @@ class Empresa(models.Model):
     )
     
     # XML Importação Padrões
-    marca_padrao_xml = models.ForeignKey(Marca, on_delete=models.PROTECT, null=True, blank=True)
-    divisao_padrao_xml = models.ForeignKey(Divisao, on_delete=models.PROTECT, null=True, blank=True)
-    unidade_venda_padrao_xml = models.ForeignKey(Unidade, on_delete=models.PROTECT, null=True, blank=True)
-    local_padrao_xml = models.ForeignKey(LocalEstoque, on_delete=models.PROTECT, null=True, blank=True, related_name='empresas_local_xml')
+    marca_padrao_xml = models.ForeignKey(Marca, on_delete=models.PROTECT, null=True, blank=True, verbose_name='Marca padrão')
+    divisao_padrao_xml = models.ForeignKey(Divisao, on_delete=models.PROTECT, null=True, blank=True, verbose_name='Divisão padrão')
+    unidade_venda_padrao_xml = models.ForeignKey(Unidade, on_delete=models.PROTECT, null=True, blank=True, verbose_name='Unidade padrão')
+    local_padrao_xml = models.ForeignKey(LocalEstoque, on_delete=models.PROTECT, null=True, blank=True, related_name='empresas_local_xml', verbose_name='Local de estoque padrão')
+    divisao_impostos_saida_padrao = models.ForeignKey(
+        DivisaoImpostosSaida, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='empresas_padrao',
+        verbose_name='Regra de impostos padrão'
+    )
 
     class Meta:
         db_table = 'empresas'

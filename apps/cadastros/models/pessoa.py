@@ -13,6 +13,8 @@ class Pessoa(models.Model):
     cpf_cnpj = models.CharField(
         max_length=18,
         unique=True,
+        null=True,
+        blank=True,
         verbose_name='CPF/CNPJ'
     )
     rg_ie = models.CharField(

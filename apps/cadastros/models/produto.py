@@ -95,10 +95,6 @@ class Produto(models.Model):
         related_name='produtos',
         verbose_name='Divisão'
     )
-    grupo = models.CharField(
-        max_length=100, blank=True, null=True,
-        verbose_name='Grupo'
-    )
     fabricante = models.CharField(
         max_length=100, blank=True, null=True,
         verbose_name='Fabricante'

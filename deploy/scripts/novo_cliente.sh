@@ -88,6 +88,12 @@ if [ -f "$ENV_FILE" ]; then
 else
   echo ">> Gerando ${ENV_FILE}..."
   SECRET_KEY="$(openssl rand -hex 50)"
+  # Branding do cliente (Blanjos Sistemas por padrão; use Dator Sistemas se preferir).
+  # Pode ser sobrescrito por variáveis de ambiente ao rodar o script.
+  BRAND_NAME="${BRAND_NAME:-Blanjos Sistemas}"
+  BRAND_SHORT_NAME="${BRAND_SHORT_NAME:-Blanjos}"
+  BRAND_TAGLINE="${BRAND_TAGLINE:-Gestão Inteligente}"
+  BRAND_LOGO_URL="${BRAND_LOGO_URL:-}"
   cat > "$ENV_FILE" <<EOF
 SECRET_KEY=${SECRET_KEY}
 DEBUG=False
@@ -106,6 +112,11 @@ MEDIA_ROOT=${CLIENT_ROOT}/media
 
 SESSION_COOKIE_SECURE=True
 CSRF_COOKIE_SECURE=True
+
+BRAND_NAME=${BRAND_NAME}
+BRAND_SHORT_NAME=${BRAND_SHORT_NAME}
+BRAND_TAGLINE=${BRAND_TAGLINE}
+BRAND_LOGO_URL=${BRAND_LOGO_URL}
 EOF
 fi
 
@@ -126,6 +137,11 @@ sudo -u ubuntu bash -c "
   cd '${APP_DIR}'
   '${VENV_DIR}/bin/python' manage.py migrate --noinput
   '${VENV_DIR}/bin/python' manage.py collectstatic --noinput
+  # NCMs básicos (idempotente). Se houver data/ncm.csv, importa a tabela completa.
+  '${VENV_DIR}/bin/python' manage.py importar_ncm_basico || true
+  if [ -f '${APP_DIR}/data/ncm.csv' ]; then
+    '${VENV_DIR}/bin/python' manage.py importar_ncms --arquivo '${APP_DIR}/data/ncm.csv' || true
+  fi
 "
 
 # --------------------------------------------------------------------------
@@ -182,6 +198,7 @@ echo ""
 echo "=========================================================="
 echo " Cliente ${SLUG} provisionado!"
 echo " URL: https://${DOMAIN}"
+echo " Marca: ${BRAND_NAME:-Blanjos Sistemas}"
 echo " Banco: ${DB_NAME} (role ${DB_USER})"
 echo " Serviço: systemctl status ${SLUG}.service"
 echo "=========================================================="

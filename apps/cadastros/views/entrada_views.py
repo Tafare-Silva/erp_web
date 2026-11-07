@@ -35,6 +35,8 @@ def entrada_nf(request):
     # Se você tiver um Model TipoDocumento, use TipoDocumento.objects.values_list(...)
     tipos_doc = ['NFE', 'NFCE', 'RECIBO'] 
 
+    tipos_pagamento = TipoPagamento.objects.filter(ativo=True).order_by('tipo_pagamento')
+
     return render(request, 'cadastros/entradas/entrada_nf.html', {
         'fornecedores': fornecedores,
         'locais': locais,
@@ -42,7 +44,8 @@ def entrada_nf(request):
         'cfops': cfops,
         'marcas': marcas,
         'divisoes': divisoes,
-        'unidades': unidades
+        'unidades': unidades,
+        'tipos_pagamento': tipos_pagamento,
     })
 
 
@@ -386,6 +389,11 @@ def finalizar_entrada_nf(request):
         serie_doc = raiz.get('serie_nf') or dados.get('serie_nf') or ''
         chave = raiz.get('chave_nfe') or raiz.get('chave_nf') or dados.get('chave_nfe') or ''
         data_doc = raiz.get('data_emissao') or dados.get('data_emissao') or datetime.now().date()
+        if isinstance(data_doc, str) and data_doc:
+            try:
+                data_doc = datetime.strptime(data_doc[:10], '%Y-%m-%d').date()
+            except Exception:
+                data_doc = datetime.now().date()
         
         # O CFOP geralmente vem nos itens, então pegamos do primeiro item se o cabeçalho não tiver
         cfop_doc = raiz.get('cfop') or dados.get('cfop') or (itens[0].get('cfop') if itens else '')
@@ -394,7 +402,7 @@ def finalizar_entrada_nf(request):
         # 2. GRAVANDO O CABEÇALHO DA MOVIMENTAÇÃO
         # =============================================================
         movimentacao = MovimentacaoEstoque.objects.create(
-            tipo_movimento='E',
+            tipo_movimento='CO',
             data=data_doc,
             nro_documento=nro_doc,
             serie=serie_doc,
@@ -452,35 +460,51 @@ def finalizar_entrada_nf(request):
         # =============================================================
         # 4. GERANDO O FINANCEIRO (CONTAS A PAGAR)
         # =============================================================
-        pagamentos = dados.get('pagamentos', [])
+        pagamentos = [p for p in dados.get('pagamentos', []) if Decimal(str(p.get('valor', 0) or 0)) > 0]
         empresa = Empresa.objects.first()
         
         if pagamentos:
-            tipo_boleto = TipoPagamento.objects.filter(tipo_pagamento__icontains='BOLETO').first() or \
-                          TipoPagamento.objects.filter(tipo_pagamento__icontains='DUPLICATA').first()
+            tipo_fallback = TipoPagamento.objects.filter(tipo_pagamento__icontains='BOLETO').first() or \
+                            TipoPagamento.objects.filter(tipo_pagamento__icontains='DUPLICATA').first()
+            total_parcelas = len(pagamentos)
             
             for i, pag in enumerate(pagamentos, 1):
                 venc = pag.get('vencimento')
                 if isinstance(venc, str) and venc:
                     try:
-                        venc = datetime.strptime(venc, '%Y-%m-%d').date()
-                    except:
+                        venc = datetime.strptime(venc[:10], '%Y-%m-%d').date()
+                    except Exception:
                         venc = datetime.now().date()
+                if not venc:
+                    venc = datetime.now().date()
+                
+                tipo_pgto = None
+                if pag.get('tipo_id'):
+                    tipo_pgto = TipoPagamento.objects.filter(pk_tipo_pagamento=pag.get('tipo_id')).first()
+                if not tipo_pgto:
+                    tipo_pgto = tipo_fallback
+                
+                valor = Decimal(str(pag.get('valor', 0) or 0))
+                pago = bool(pag.get('pago'))
                 
                 TituloFinanceiro.objects.create(
                     tipo='P', # A Pagar
                     pessoa=pessoa,
+                    data_emissao=data_doc,
                     data_vencimento=venc,
+                    data_pagamento=venc if pago else None,
                     numero_documento=pag.get('numero') or f"{nro_doc}/{i}",
                     parcela=i,
-                    total_parcelas=len(pagamentos),
-                    valor_documento=Decimal(str(pag.get('valor', 0))),
-                    valor_saldo=Decimal(str(pag.get('valor', 0))),
-                    situacao='ABERTO',
-                    tipo_pagamento=tipo_boleto,
+                    total_parcelas=total_parcelas,
+                    valor_documento=valor,
+                    valor_pago=valor if pago else Decimal('0'),
+                    valor_saldo=Decimal('0') if pago else valor,
+                    situacao='PAGO' if pago else 'ABERTO',
+                    tipo_pagamento=tipo_pgto,
                     plano_contas=empresa.plano_contas_receita_compra if empresa else None,
                     centro_custo=empresa.centro_custo_compra if empresa else None,
                     movimentacao_estoque=movimentacao,
+                    historico=f"Entrada NF {nro_doc} - chave {chave}" if chave else f"Entrada NF {nro_doc}",
                     usuario_criacao=request.user if request.user.is_authenticated else None
                 )
                 
@@ -500,7 +524,7 @@ def listar_entradas(request):
     from django.core.paginator import Paginator
     
     entradas_qs = MovimentacaoEstoque.objects.filter(
-        tipo_movimento='E'
+        tipo_movimento__in=['CO', 'E']
     ).select_related('pessoa').order_by('-data', '-pk_chave')
     
     paginator = Paginator(entradas_qs, 20)
@@ -515,7 +539,7 @@ def listar_entradas(request):
 
 def detalhe_entrada(request, pk):
     """Exibe detalhes de uma entrada."""
-    movimentacao = get_object_or_404(MovimentacaoEstoque, pk=pk, tipo_movimento='E')
+    movimentacao = get_object_or_404(MovimentacaoEstoque, pk=pk, tipo_movimento__in=['CO', 'E'])
     # O related_name no ForeignKey do ItemMovimentacaoEstoque precisa ser 'itens' (ou ajuste abaixo)
     itens = movimentacao.itens.all().select_related('produto')
     
@@ -538,7 +562,7 @@ def buscar_produto_entrada(request):
 def editar_entrada(request, pk):
     """Tela de edição de uma entrada existente."""
     # 1. Busca a Movimentação (Cabeçalho)
-    movimentacao = get_object_or_404(MovimentacaoEstoque, pk=pk, tipo_movimento='E')
+    movimentacao = get_object_or_404(MovimentacaoEstoque, pk=pk, tipo_movimento__in=['CO', 'E'])
     
     # 2. Busca os itens relacionados a esta entrada
     # Nota: Assumo que o ForeignKey no ItemMovimentacaoEstoque usa related_name='itens'
@@ -580,6 +604,8 @@ def editar_entrada(request, pk):
     
     tipos_doc = ['NFE', 'NFCE', 'RECIBO']
 
+    tipos_pagamento = TipoPagamento.objects.filter(ativo=True).order_by('tipo_pagamento')
+
     return render(request, 'cadastros/entradas/entrada_nf.html', {
         'entrada': movimentacao, # Passa os dados do cabeçalho
         'itens_json': json.dumps(itens_json), # Passa os itens para o JavaScript
@@ -590,6 +616,7 @@ def editar_entrada(request, pk):
         'marcas': marcas,
         'divisoes': divisoes,
         'unidades': unidades,
+        'tipos_pagamento': tipos_pagamento,
         'modo_edicao': True # Flag para o template saber que é edição e mudar o botão/URL de salvar
     })
 
@@ -611,7 +638,7 @@ def atualizar_entrada(request, pk):
             return JsonResponse({'erro': 'Uma entrada precisa ter pelo menos 1 item'}, status=400)
             
         # 1. Recupera a movimentação existente
-        movimentacao = get_object_or_404(MovimentacaoEstoque, pk=pk, tipo_movimento='E')
+        movimentacao = get_object_or_404(MovimentacaoEstoque, pk=pk, tipo_movimento__in=['CO', 'E'])
         
         # Trata o Fornecedor
         fornecedor_id = cabecalho.get('fornecedor_id') or dados.get('fornecedor_id')
@@ -712,7 +739,7 @@ def excluir_entrada(request, pk):
     """Exclui a nota fiscal de entrada e estorna o saldo do estoque."""
     if request.method == 'POST':
         try:
-            movimentacao = get_object_or_404(MovimentacaoEstoque, pk=pk, tipo_movimento='E')
+            movimentacao = get_object_or_404(MovimentacaoEstoque, pk=pk, tipo_movimento__in=['CO', 'E'])
             numero_doc = movimentacao.nro_documento
             
             # 1. Estornar (subtrair) o saldo do estoque para cada item
