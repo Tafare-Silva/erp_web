@@ -412,10 +412,13 @@
                                 <i class="fas fa-shield-halved text-purple-600 w-4"></i> Admin
                             </a>
                             <div class="border-t border-slate-100 my-1"></div>
-                            <a href="{% url 'logout' %}"
-                               class="flex items-center gap-2.5 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-smooth">
-                                <i class="fas fa-right-from-bracket w-4"></i> Sair
-                            </a>
+                            <form method="post" action="{% url 'logout' %}">
+                                {% csrf_token %}
+                                <button type="submit"
+                                        class="flex items-center gap-2.5 w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-smooth">
+                                    <i class="fas fa-right-from-bracket w-4"></i> Sair
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </div>
